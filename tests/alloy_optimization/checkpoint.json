@@ -1,0 +1,42 @@
+{
+    "Solution": {
+        "Component": [
+            "Y",
+            "R"
+        ],
+        "Concentration": 0.054686327277564256
+    },
+    "Values": [
+        -25.992237762335282,
+        89.54100066495585
+    ],
+    "Population": {
+        "Component": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "E",
+            "F",
+            "G",
+            "H",
+            "I",
+            "J",
+            "K",
+            "L",
+            "M",
+            "N",
+            "O",
+            "P",
+            "Q",
+            "S",
+            "T",
+            "U",
+            "V",
+            "W",
+            "X",
+            "Z"
+        ],
+        "Concentration": null
+    }
+}
