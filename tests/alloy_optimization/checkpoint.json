@@ -1,0 +1,49 @@
+{
+    "Solution": {
+        "Component": [
+            "X",
+            "V"
+        ],
+        "Concentration": 0.0006294412982398613
+    },
+    "Values": [
+        -27.34173474497436,
+        77.02039784483075
+    ],
+    "Population": {
+        "Component": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "E",
+            "F",
+            "G",
+            "H",
+            "I",
+            "J",
+            "K",
+            "L",
+            "M",
+            "N",
+            "O",
+            "P",
+            "Q",
+            "R",
+            "S",
+            "T",
+            "U",
+            "W",
+            "Y",
+            "Z"
+        ],
+        "Concentration": [
+            0.0,
+            0.1
+        ]
+    },
+    "SamplingSpace": {
+        "Component": 0,
+        "Concentration": 1
+    }
+}

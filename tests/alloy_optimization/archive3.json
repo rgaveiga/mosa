@@ -1,0 +1,3163 @@
+{
+    "Solution": [
+        {
+            "Component": [
+                "Z",
+                "R"
+            ],
+            "Concentration": 0.06834998587833073
+        },
+        {
+            "Component": [
+                "Z",
+                "R"
+            ],
+            "Concentration": 0.07899115931189793
+        },
+        {
+            "Component": [
+                "I",
+                "M"
+            ],
+            "Concentration": 0.0004616867585934478
+        },
+        {
+            "Component": [
+                "I",
+                "M"
+            ],
+            "Concentration": 0.07167295647606856
+        },
+        {
+            "Component": [
+                "I",
+                "O"
+            ],
+            "Concentration": 0.0011988401980937008
+        },
+        {
+            "Component": [
+                "I",
+                "T"
+            ],
+            "Concentration": 0.035854062618080974
+        },
+        {
+            "Component": [
+                "I",
+                "R"
+            ],
+            "Concentration": 0.09070280301606387
+        },
+        {
+            "Component": [
+                "I",
+                "U"
+            ],
+            "Concentration": 0.08572478729164934
+        },
+        {
+            "Component": [
+                "I",
+                "U"
+            ],
+            "Concentration": 0.09448547072868452
+        },
+        {
+            "Component": [
+                "I",
+                "U"
+            ],
+            "Concentration": 0.0009987332881160327
+        },
+        {
+            "Component": [
+                "I",
+                "N"
+            ],
+            "Concentration": 0.004461265760352839
+        },
+        {
+            "Component": [
+                "Z",
+                "D"
+            ],
+            "Concentration": 0.01882873272386197
+        },
+        {
+            "Component": [
+                "Z",
+                "D"
+            ],
+            "Concentration": 0.08795298271145811
+        },
+        {
+            "Component": [
+                "Z",
+                "D"
+            ],
+            "Concentration": 0.00521377849393484
+        },
+        {
+            "Component": [
+                "Z",
+                "D"
+            ],
+            "Concentration": 0.026053496754581768
+        },
+        {
+            "Component": [
+                "Z",
+                "D"
+            ],
+            "Concentration": 0.037528929092283995
+        },
+        {
+            "Component": [
+                "Z",
+                "D"
+            ],
+            "Concentration": 0.04664356802706218
+        },
+        {
+            "Component": [
+                "Z",
+                "D"
+            ],
+            "Concentration": 0.08279022016785975
+        },
+        {
+            "Component": [
+                "I",
+                "N"
+            ],
+            "Concentration": 0.06254111798093644
+        },
+        {
+            "Component": [
+                "I",
+                "W"
+            ],
+            "Concentration": 0.006445539352772547
+        },
+        {
+            "Component": [
+                "I",
+                "W"
+            ],
+            "Concentration": 0.0422089006943035
+        },
+        {
+            "Component": [
+                "I",
+                "W"
+            ],
+            "Concentration": 0.02180612986692071
+        },
+        {
+            "Component": [
+                "I",
+                "W"
+            ],
+            "Concentration": 0.03885809598967572
+        },
+        {
+            "Component": [
+                "I",
+                "U"
+            ],
+            "Concentration": 0.09326571999223636
+        },
+        {
+            "Component": [
+                "I",
+                "M"
+            ],
+            "Concentration": 0.07046337117644057
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.07292404207186973
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.09616031990294167
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.08126100098636882
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.06211562074659693
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.019695717540348018
+        },
+        {
+            "Component": [
+                "Z",
+                "D"
+            ],
+            "Concentration": 0.08522046339214567
+        },
+        {
+            "Component": [
+                "Z",
+                "D"
+            ],
+            "Concentration": 0.03368072204794817
+        },
+        {
+            "Component": [
+                "Z",
+                "D"
+            ],
+            "Concentration": 0.012044669457411943
+        },
+        {
+            "Component": [
+                "Z",
+                "D"
+            ],
+            "Concentration": 0.06191438599886837
+        },
+        {
+            "Component": [
+                "Z",
+                "D"
+            ],
+            "Concentration": 0.06278138478778111
+        },
+        {
+            "Component": [
+                "Z",
+                "S"
+            ],
+            "Concentration": 0.06278138478778111
+        },
+        {
+            "Component": [
+                "Z",
+                "S"
+            ],
+            "Concentration": 0.07530425279272299
+        },
+        {
+            "Component": [
+                "Z",
+                "S"
+            ],
+            "Concentration": 0.06382041743331242
+        },
+        {
+            "Component": [
+                "Z",
+                "S"
+            ],
+            "Concentration": 0.01827070707633429
+        },
+        {
+            "Component": [
+                "Z",
+                "S"
+            ],
+            "Concentration": 0.03537068938740131
+        },
+        {
+            "Component": [
+                "Z",
+                "S"
+            ],
+            "Concentration": 0.03376350625412968
+        },
+        {
+            "Component": [
+                "Z",
+                "S"
+            ],
+            "Concentration": 0.08382689555370379
+        },
+        {
+            "Component": [
+                "Z",
+                "S"
+            ],
+            "Concentration": 0.029828306679395095
+        },
+        {
+            "Component": [
+                "Z",
+                "S"
+            ],
+            "Concentration": 0.09405386253209891
+        },
+        {
+            "Component": [
+                "Z",
+                "S"
+            ],
+            "Concentration": 0.06409357880139366
+        },
+        {
+            "Component": [
+                "Z",
+                "S"
+            ],
+            "Concentration": 0.08730228414697
+        },
+        {
+            "Component": [
+                "Z",
+                "O"
+            ],
+            "Concentration": 0.003274327051497772
+        },
+        {
+            "Component": [
+                "Z",
+                "P"
+            ],
+            "Concentration": 0.0033174778908989858
+        },
+        {
+            "Component": [
+                "Z",
+                "U"
+            ],
+            "Concentration": 0.00025470128899762745
+        },
+        {
+            "Component": [
+                "I",
+                "S"
+            ],
+            "Concentration": 0.001648094122841337
+        },
+        {
+            "Component": [
+                "I",
+                "K"
+            ],
+            "Concentration": 0.0021023182579320426
+        },
+        {
+            "Component": [
+                "I",
+                "A"
+            ],
+            "Concentration": 0.0013661663887607825
+        },
+        {
+            "Component": [
+                "I",
+                "T"
+            ],
+            "Concentration": 0.0013661663887607825
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.002570081516706041
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.07799944412739111
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.015319693440012508
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.017646939386674887
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.005068673413151668
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.07396976526454631
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.011335780777520774
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.03624083567375409
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.07841565219328368
+        },
+        {
+            "Component": [
+                "Z",
+                "W"
+            ],
+            "Concentration": 0.09975158075746024
+        },
+        {
+            "Component": [
+                "Z",
+                "N"
+            ],
+            "Concentration": 0.0014283495347763714
+        },
+        {
+            "Component": [
+                "Z",
+                "N"
+            ],
+            "Concentration": 0.018030804728688024
+        },
+        {
+            "Component": [
+                "Z",
+                "N"
+            ],
+            "Concentration": 0.028806062102017332
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.009041670103542884
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.0702263537438223
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.009246230073519782
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.04890560513985133
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.05249530523343461
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.0356571852322168
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.08927605542012032
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.016130692258641208
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.09613972627889711
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.07614941400171618
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.059669816908227175
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.030537428418727378
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.09141742662029169
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.06348503735756894
+        },
+        {
+            "Component": [
+                "I",
+                "X"
+            ],
+            "Concentration": 0.05339197014146435
+        },
+        {
+            "Component": [
+                "I",
+                "X"
+            ],
+            "Concentration": 0.08024257294333043
+        },
+        {
+            "Component": [
+                "I",
+                "X"
+            ],
+            "Concentration": 0.03193011011808406
+        },
+        {
+            "Component": [
+                "I",
+                "X"
+            ],
+            "Concentration": 0.08270068241865661
+        },
+        {
+            "Component": [
+                "I",
+                "X"
+            ],
+            "Concentration": 0.017559734948483424
+        },
+        {
+            "Component": [
+                "I",
+                "X"
+            ],
+            "Concentration": 0.009150683807092858
+        },
+        {
+            "Component": [
+                "I",
+                "X"
+            ],
+            "Concentration": 0.08793360300558908
+        },
+        {
+            "Component": [
+                "I",
+                "X"
+            ],
+            "Concentration": 0.011685870374321866
+        },
+        {
+            "Component": [
+                "I",
+                "X"
+            ],
+            "Concentration": 0.05444292284064954
+        },
+        {
+            "Component": [
+                "I",
+                "X"
+            ],
+            "Concentration": 0.054574886315439025
+        },
+        {
+            "Component": [
+                "I",
+                "X"
+            ],
+            "Concentration": 0.08127585242360101
+        },
+        {
+            "Component": [
+                "I",
+                "X"
+            ],
+            "Concentration": 0.09081483067180439
+        },
+        {
+            "Component": [
+                "I",
+                "X"
+            ],
+            "Concentration": 0.02239158648042859
+        },
+        {
+            "Component": [
+                "I",
+                "U"
+            ],
+            "Concentration": 0.0424691501319614
+        },
+        {
+            "Component": [
+                "I",
+                "W"
+            ],
+            "Concentration": 0.08393271752472137
+        },
+        {
+            "Component": [
+                "E",
+                "Y"
+            ],
+            "Concentration": 0.05501575318930954
+        },
+        {
+            "Component": [
+                "E",
+                "Y"
+            ],
+            "Concentration": 0.08574441386343766
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.05371824217898193
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.04137934099901682
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.07555767676062494
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.045598317971476884
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.02268973897383742
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.06525972572621758
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.03927095307137962
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.04064789787546612
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.07619122891925659
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.01284333368038143
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.07308750034675573
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.030530550929437808
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.08276568378359439
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.019771234165321547
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.05859054067399416
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.07278885684247219
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0785118673862048
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.040563998200882134
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.04608970043662712
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.07149295186481483
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.05661207318689674
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0074148696329476085
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.05197506843466212
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.07357153453420043
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.03731065035954195
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0029007390964075896
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.07325654787035406
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.005450255597593254
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.09311387719437339
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.01893491727959156
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.037662839371920186
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.0919532138623061
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.04079531882129414
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.041762580339166404
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.037757574887762095
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.021052723384621955
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.04904243090806584
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.06907559738618575
+        },
+        {
+            "Component": [
+                "X",
+                "W"
+            ],
+            "Concentration": 3.1779264593884138e-06
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.0557956419454973
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.08321961818713067
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.012675538018806817
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.014978398404571963
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.00850964245638243
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.037786373582518296
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.037786373582518296
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.06120402048413369
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.03924608927888343
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.012462218916465376
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.053624777162812734
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.06201715834396491
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.016069062629720778
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.08151165423200554
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0032276387154155234
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0029681174661419576
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0889020110011908
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.04615592916961308
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0014682668977481703
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.017235755762355524
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.013018627562673558
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.010865133135067873
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.02730672028346673
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.014534240215407356
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.02821297704277175
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.018752766931376296
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.03282834880517631
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.03848505356571832
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0321070063461071
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.054142356838538026
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.046522526429760055
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.08279672895489251
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.021170644802315633
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.013170669624192666
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.03392087720014285
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.02014778280197426
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0570020105594651
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.05402970726335454
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.035542873258676284
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.03378692602136493
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.061547250107072085
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.04356610292340223
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.06223344482639103
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.06758648263692724
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.013920506676717029
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.03544152620032302
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0077442745315857014
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.03400872103381346
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.009952190222169439
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.007292025298445304
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.02185627899134282
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.0432151823071404
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.0040716757120194055
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.023772533422918664
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.0008597884369210135
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.036799964671823726
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.041678145892320925
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.045840568304278746
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.03054468698830714
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.05923621640423566
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0070688705023175535
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.030479515080971548
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.010902147204755724
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0034899819828535343
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.011263212000298672
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.03013634128965484
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.013353022010780848
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.012404079093656699
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.04291112399407349
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.039395565571428745
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.0003684556545777984
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0003684556545777984
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.003445661753732454
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.006653252980939564
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.003354323390749786
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.007327474849407503
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.007761236138728679
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0009779584951807307
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.01526322903120246
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.01564967121901173
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.03123269631391211
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.025511110300752843
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.03797626058715693
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.007428672331255184
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0010101134514385914
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0020817714739670666
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.00034913446758316063
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.006513498875178762
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.003076650115595471
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.012548382686339857
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.06568620492484571
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.04005264806466197
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.05456702203985391
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.033830874882664536
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.05733922591478148
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.03651053047422991
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.01343843936144629
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.010551233201241784
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.02015121403738698
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.033032350014756795
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.015204652573284738
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.01801070683379704
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.006502178530956228
+        },
+        {
+            "Component": [
+                "X",
+                "A"
+            ],
+            "Concentration": 0.0001952057470464008
+        },
+        {
+            "Component": [
+                "X",
+                "V"
+            ],
+            "Concentration": 0.0001952057470464008
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.008970701757956785
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.00518337987470114
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.012114410790138055
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.013599581049785783
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0007976149819276836
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0029060564080394986
+        },
+        {
+            "Component": [
+                "X",
+                "Y"
+            ],
+            "Concentration": 4.645527784662845e-05
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0026117517852732447
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.028534680995919687
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0013938410723825893
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.006079624297238146
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.008711086140846511
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.01886966669757093
+        },
+        {
+            "Component": [
+                "X",
+                "Y"
+            ],
+            "Concentration": 0.00011307288996712656
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.0008159229767504377
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.00793961777514426
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0017281149773934294
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0007174685585100773
+        },
+        {
+            "Component": [
+                "X",
+                "Y"
+            ],
+            "Concentration": 0.0003557824168143389
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0005199299215902717
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.007355439335942765
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.0022746954165869387
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.0030115760189046645
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.00388598531607897
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.0022830456416782427
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.0047664849801416845
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.00039189092470294506
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.0006461557838333409
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.0008517773386144262
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.0028601660915154176
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0028601660915154176
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0052117236190288435
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0007281150846987772
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.0007281150846987772
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.0035682858933401528
+        },
+        {
+            "Component": [
+                "X",
+                "I"
+            ],
+            "Concentration": 0.0028087731595790623
+        },
+        {
+            "Component": [
+                "X",
+                "G"
+            ],
+            "Concentration": 4.314499476642045e-05
+        },
+        {
+            "Component": [
+                "X",
+                "P"
+            ],
+            "Concentration": 4.314499476642045e-05
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 4.314499476642045e-05
+        },
+        {
+            "Component": [
+                "X",
+                "A"
+            ],
+            "Concentration": 4.314499476642045e-05
+        },
+        {
+            "Component": [
+                "X",
+                "A"
+            ],
+            "Concentration": 0.000337548800175249
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.000518737153810702
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0010098064209350006
+        },
+        {
+            "Component": [
+                "X",
+                "A"
+            ],
+            "Concentration": 0.00016630543540034973
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.001404950796189148
+        },
+        {
+            "Component": [
+                "X",
+                "Z"
+            ],
+            "Concentration": 0.0012111685286535674
+        }
+    ],
+    "Values": [
+        [
+            -27.925511646046694,
+            388.51048499240085
+        ],
+        [
+            -27.854907896603088,
+            386.6739686260067
+        ],
+        [
+            -17.708986929218963,
+            24.01483953307349
+        ],
+        [
+            -17.902240642668406,
+            30.897487083664153
+        ],
+        [
+            -17.71027587449753,
+            24.237774633747794
+        ],
+        [
+            -17.976138695943018,
+            38.34485148437642
+        ],
+        [
+            -18.07383935646419,
+            42.45096962236929
+        ],
+        [
+            -18.439019670690676,
+            57.507119298629995
+        ],
+        [
+            -18.513753740793,
+            60.93443820812462
+        ],
+        [
+            -17.716253815161,
+            24.360937371133538
+        ],
+        [
+            -17.72634098031429,
+            24.930583463932564
+        ],
+        [
+            -28.186161546137317,
+            394.92469481394096
+        ],
+        [
+            -27.47817051698636,
+            375.1661155802357
+        ],
+        [
+            -28.325609937386687,
+            398.81641373983973
+        ],
+        [
+            -28.11216337440453,
+            392.85955743347876
+        ],
+        [
+            -27.994628599673813,
+            389.5794026523969
+        ],
+        [
+            -27.901273769770693,
+            386.9740605964361
+        ],
+        [
+            -27.531049059135608,
+            376.641847364679
+        ],
+        [
+            -17.96857955675812,
+            37.43330024859601
+        ],
+        [
+            -17.759001639536848,
+            25.263671806749414
+        ],
+        [
+            -18.043462414273268,
+            32.440463243577945
+        ],
+        [
+            -17.88117934638985,
+            28.346149245427693
+        ],
+        [
+            -18.016810207475192,
+            31.768042486451545
+        ],
+        [
+            -18.50334850954589,
+            60.45725229061662
+        ],
+        [
+            -17.898958060405594,
+            30.780579333911277
+        ],
+        [
+            -27.417521982513577,
+            100.34919734992896
+        ],
+        [
+            -27.441620790977737,
+            107.86734778852296
+        ],
+        [
+            -27.426168409342985,
+            103.04663933161187
+        ],
+        [
+            -27.40631235258871,
+            96.85210809502053
+        ],
+        [
+            -27.36231782257545,
+            83.12705211945841
+        ],
+        [
+            -27.50615778868048,
+            375.9471829985145
+        ],
+        [
+            -28.034043075291187,
+            390.6793799224122
+        ],
+        [
+            -28.255645930195026,
+            396.8638616273339
+        ],
+        [
+            -27.744865531941336,
+            382.6090270964189
+        ],
+        [
+            -27.735985473713644,
+            382.36120286296483
+        ],
+        [
+            -28.024410438069346,
+            390.58809831519835
+        ],
+        [
+            -27.953679025461195,
+            388.6495441220553
+        ],
+        [
+            -28.018541794661513,
+            390.427254881329
+        ],
+        [
+            -28.27581475770559,
+            397.47840178906023
+        ],
+        [
+            -28.179230979615866,
+            394.8313051017272
+        ],
+        [
+            -28.188308639245548,
+            395.08009887651764
+        ],
+        [
+            -27.90554160507148,
+            387.33022934093333
+        ],
+        [
+            -28.210535354779573,
+            395.68927224107324
+        ],
+        [
+            -27.847777854723446,
+            385.7470832348433
+        ],
+        [
+            -28.016998930085542,
+            390.3849691912388
+        ],
+        [
+            -27.885911984726764,
+            386.79223523865426
+        ],
+        [
+            -28.35101223265697,
+            399.80524479937617
+        ],
+        [
+            -28.35415392772323,
+            399.9597968112738
+        ],
+        [
+            -28.378465772157497,
+            400.3105178069441
+        ],
+        [
+            -17.71601253664416,
+            24.335328149538952
+        ],
+        [
+            -17.716349842619113,
+            24.394518500840448
+        ],
+        [
+            -17.706544416081652,
+            24.009677564461093
+        ],
+        [
+            -17.717961166669753,
+            24.51794133161796
+        ],
+        [
+            -27.317130431165257,
+            76.61879819783255
+        ],
+        [
+            -26.590432109363984,
+            72.63731654331376
+        ],
+        [
+            -27.19429866820705,
+            75.94581960941626
+        ],
+        [
+            -27.17187761537929,
+            75.82297769850135
+        ],
+        [
+            -27.293058604555974,
+            76.4869119210099
+        ],
+        [
+            -26.629254668188214,
+            72.85002008356275
+        ],
+        [
+            -27.232680308271785,
+            76.15610741551619
+        ],
+        [
+            -26.992741099307853,
+            74.84151299575517
+        ],
+        [
+            -26.58642229551251,
+            72.61534731645753
+        ],
+        [
+            -28.107955530849846,
+            382.78415574607334
+        ],
+        [
+            -28.369726025275984,
+            400.0766654530247
+        ],
+        [
+            -28.261801898107603,
+            397.4025279012851
+        ],
+        [
+            -28.191757423754336,
+            395.6669701156966
+        ],
+        [
+            -27.254782130680262,
+            76.2772003062121
+        ],
+        [
+            -26.66531928249448,
+            73.04761321943482
+        ],
+        [
+            -27.252811367813592,
+            76.26640276345788
+        ],
+        [
+            -26.870726721902663,
+            74.17301275204726
+        ],
+        [
+            -26.83614298761817,
+            73.98353315718984
+        ],
+        [
+            -26.998364079294742,
+            74.87232054132103
+        ],
+        [
+            -26.48179146574186,
+            72.04208917517502
+        ],
+        [
+            -27.18648537826157,
+            75.90301165232306
+        ],
+        [
+            -26.41566578309208,
+            71.67979551842066
+        ],
+        [
+            -26.60825559004947,
+            72.73496897932463
+        ],
+        [
+            -26.767022615744885,
+            73.60483200389025
+        ],
+        [
+            -27.047688620237718,
+            75.14256301882564
+        ],
+        [
+            -26.46116115940413,
+            71.9290585216747
+        ],
+        [
+            -26.730266182946316,
+            73.40344848822407
+        ],
+        [
+            -18.22212062288218,
+            26.788471619411858
+        ],
+        [
+            -18.480803545819995,
+            28.20576030870083
+        ],
+        [
+            -18.015353693904906,
+            25.65562362762949
+        ],
+        [
+            -18.504485358428475,
+            28.335509751650832
+        ],
+        [
+            -17.876907243372077,
+            24.897094281416873
+        ],
+        [
+            -17.79589312445489,
+            24.45322889938839
+        ],
+        [
+            -18.55490013693152,
+            28.61172549304534
+        ],
+        [
+            -17.820317509867863,
+            24.587046798132967
+        ],
+        [
+            -18.2322456661857,
+            26.843945359965254
+        ],
+        [
+            -18.23351702302009,
+            26.85091095182174
+        ],
+        [
+            -18.490758322557802,
+            28.26030118180779
+        ],
+        [
+            -18.58265833662058,
+            28.763808908554715
+        ],
+        [
+            -17.923458059631525,
+            25.152139897155287
+        ],
+        [
+            -18.07002222396786,
+            40.58482502271575
+        ],
+        [
+            -18.375332485075543,
+            40.81336556897013
+        ],
+        [
+            -18.709650424909317,
+            68.06224288532717
+        ],
+        [
+            -18.954454448538947,
+            68.5007453902601
+        ],
+        [
+            -27.397603263328666,
+            94.13511719741935
+        ],
+        [
+            -27.384806342136898,
+            90.14283771133597
+        ],
+        [
+            -27.42025337772198,
+            101.20131583182645
+        ],
+        [
+            -27.38918192753458,
+            91.50789728785314
+        ],
+        [
+            -27.365422982084546,
+            84.09577455069257
+        ],
+        [
+            -27.409573166745176,
+            97.8693903982951
+        ],
+        [
+            -27.38261969084939,
+            89.46066401130835
+        ],
+        [
+            -27.384047747844605,
+            89.90617762833524
+        ],
+        [
+            -27.420910447336738,
+            101.40630307091511
+        ],
+        [
+            -27.355211078226596,
+            80.90994776665485
+        ],
+        [
+            -27.417691508359628,
+            100.4020846458186
+        ],
+        [
+            -27.37355484497994,
+            86.63268705757022
+        ],
+        [
+            -27.42772894596564,
+            103.53348286628416
+        ],
+        [
+            -27.362396142377538,
+            83.15148569489133
+        ],
+        [
+            -27.40265642154381,
+            95.71156043559813
+        ],
+        [
+            -27.417381779208466,
+            100.30545786208691
+        ],
+        [
+            -27.42331722790358,
+            102.15715091474553
+        ],
+        [
+            -27.3839607338141,
+            89.87903169817133
+        ],
+        [
+            -27.389691550116837,
+            91.6668851998907
+        ],
+        [
+            -27.416037770238034,
+            99.88616486486157
+        ],
+        [
+            -27.400604513343595,
+            95.07142278902657
+        ],
+        [
+            -27.349581109593725,
+            79.15355590149427
+        ],
+        [
+            -27.395795382974956,
+            93.57110937544027
+        ],
+        [
+            -27.41819350989611,
+            100.55869500592394
+        ],
+        [
+            -27.38058662170089,
+            88.82640361900611
+        ],
+        [
+            -27.344899414531668,
+            77.69299871932043
+        ],
+        [
+            -27.417866830927302,
+            100.45678035581672
+        ],
+        [
+            -27.347543569085378,
+            78.5179005706815
+        ],
+        [
+            -27.43846126431583,
+            106.88166433474075
+        ],
+        [
+            -27.159469034146404,
+            75.75499276299898
+        ],
+        [
+            -26.97904129242514,
+            74.76645360984827
+        ],
+        [
+            -26.455999300995966,
+            71.90077739876749
+        ],
+        [
+            -26.948862493610594,
+            74.60110805966498
+        ],
+        [
+            -26.93954374428736,
+            74.55005189459558
+        ],
+        [
+            -26.97812859559204,
+            74.76145306754883
+        ],
+        [
+            -27.13906575763498,
+            75.64320597515977
+        ],
+        [
+            -26.86940852097004,
+            74.1657905077228
+        ],
+        [
+            -26.676405849912697,
+            73.1083550203486
+        ],
+        [
+            -27.34188566049563,
+            76.75492798408115
+        ],
+        [
+            -26.804347025581293,
+            73.80932738879916
+        ],
+        [
+            -26.54014013290513,
+            72.3617736176825
+        ],
+        [
+            -27.219772876667346,
+            76.08538934641065
+        ],
+        [
+            -27.19758675816181,
+            75.96383460881906
+        ],
+        [
+            -27.259907768561348,
+            76.30528298175848
+        ],
+        [
+            -26.977851144445367,
+            74.75993295030432
+        ],
+        [
+            -27.381080003769902,
+            88.98032494769183
+        ],
+        [
+            -27.405366913724507,
+            96.55715776076795
+        ],
+        [
+            -27.382593904112916,
+            89.45261927480539
+        ],
+        [
+            -27.354815816482645,
+            80.78663721965931
+        ],
+        [
+            -27.397506328891097,
+            94.10487637927221
+        ],
+        [
+            -27.406210235261693,
+            96.82025036113929
+        ],
+        [
+            -27.35855654623454,
+            81.95363969061833
+        ],
+        [
+            -27.426428366837097,
+            103.12773875822049
+        ],
+        [
+            -27.34523844866453,
+            77.79876783311258
+        ],
+        [
+            -27.344969293986484,
+            77.71479914379688
+        ],
+        [
+            -27.434093053649555,
+            105.51890546700025
+        ],
+        [
+            -27.389760237260386,
+            91.68831365678753
+        ],
+        [
+            -27.343413768964993,
+            77.22951908773227
+        ],
+        [
+            -27.359766547016257,
+            82.33112590207573
+        ],
+        [
+            -27.3553928790178,
+            80.96666450018759
+        ],
+        [
+            -27.353159446877044,
+            80.26989648970343
+        ],
+        [
+            -27.37021134574039,
+            85.58960933397071
+        ],
+        [
+            -27.201865847889053,
+            75.98727916171804
+        ],
+        [
+            -27.3711512427506,
+            85.88283076564669
+        ],
+        [
+            -27.36133986963987,
+            82.82195830942773
+        ],
+        [
+            -27.375937937112823,
+            87.37614477626659
+        ],
+        [
+            -27.381804618754078,
+            89.20638444225976
+        ],
+        [
+            -27.375189818421674,
+            87.14275278618737
+        ],
+        [
+            -27.39804312112438,
+            94.272340458259
+        ],
+        [
+            -27.390140442610832,
+            91.80692703248386
+        ],
+        [
+            -27.427761143533697,
+            103.5435276019302
+        ],
+        [
+            -27.36384749913738,
+            83.60426818315293
+        ],
+        [
+            -27.355550564880645,
+            81.0158580543276
+        ],
+        [
+            -27.377071020161814,
+            87.72963481849746
+        ],
+        [
+            -27.362786668499584,
+            83.27331886104574
+        ],
+        [
+            -27.401008925191434,
+            95.1975879110789
+        ],
+        [
+            -27.39792628999697,
+            94.23589243249384
+        ],
+        [
+            -27.37875322471404,
+            88.25443532516701
+        ],
+        [
+            -27.37693209671528,
+            87.6862946105347
+        ],
+        [
+            -27.40572288403105,
+            96.66821048440092
+        ],
+        [
+            -27.38707427666392,
+            90.85036949592042
+        ],
+        [
+            -27.40643455029835,
+            96.89023034349859
+        ],
+        [
+            -27.41198629287241,
+            98.62221787849339
+        ],
+        [
+            -27.356328235884558,
+            81.25846953480195
+        ],
+        [
+            -27.37864811565288,
+            88.22164425437899
+        ],
+        [
+            -27.3499227420022,
+            79.26013560419776
+        ],
+        [
+            -27.377162124758588,
+            87.7580568902871
+        ],
+        [
+            -27.352212615523218,
+            79.97451173785473
+        ],
+        [
+            -27.27163848342681,
+            76.36955397926876
+        ],
+        [
+            -27.131324176761602,
+            75.60079090235773
+        ],
+        [
+            -26.925549148869386,
+            74.47337740224096
+        ],
+        [
+            -27.30266383693732,
+            76.53953768794293
+        ],
+        [
+            -27.112862680715857,
+            75.4996428666241
+        ],
+        [
+            -27.333607663211918,
+            76.70907471993654
+        ],
+        [
+            -26.987354362757195,
+            74.81199979597096
+        ],
+        [
+            -26.940357199004477,
+            74.55450870278658
+        ],
+        [
+            -26.900255767987353,
+            74.33479839504999
+        ],
+        [
+            -27.373569505769314,
+            86.63726081150624
+        ],
+        [
+            -27.40332606475716,
+            95.92047028380168
+        ],
+        [
+            -27.349222266975364,
+            79.0416070973609
+        ],
+        [
+            -27.373501914680777,
+            86.61617429294758
+        ],
+        [
+            -27.353197834908997,
+            80.28187247597286
+        ],
+        [
+            -27.34551053011406,
+            77.88364959281135
+        ],
+        [
+            -27.35357230242975,
+            80.39869581018789
+        ],
+        [
+            -27.373146002278325,
+            86.50513963376255
+        ],
+        [
+            -27.355739686187825,
+            81.07485858294811
+        ],
+        [
+            -27.222388154571295,
+            76.09971809973737
+        ],
+        [
+            -26.928478494394632,
+            74.48942688951594
+        ],
+        [
+            -26.96234793618106,
+            74.67499297254639
+        ],
+        [
+            -27.33834124037626,
+            76.73500934793095
+        ],
+        [
+            -27.342273132728476,
+            76.87367266343298
+        ],
+        [
+            -27.30869495369565,
+            76.57258135958651
+        ],
+        [
+            -27.34879122173159,
+            78.90713310486726
+        ],
+        [
+            -27.345369835875015,
+            77.8397569473912
+        ],
+        [
+            -27.349490470715818,
+            79.1252791208937
+        ],
+        [
+            -27.349940333224197,
+            79.2656235706917
+        ],
+        [
+            -27.34290526031452,
+            77.0708786910815
+        ],
+        [
+            -27.357720800092842,
+            81.69291040057546
+        ],
+        [
+            -27.35812158701466,
+            81.81794464766492
+        ],
+        [
+            -27.374283054001083,
+            86.85986779058689
+        ],
+        [
+            -27.36834908271512,
+            85.00863564802897
+        ],
+        [
+            -27.38127693938015,
+            89.04176331908616
+        ],
+        [
+            -27.349595424648193,
+            79.1580217958638
+        ],
+        [
+            -27.342938608862756,
+            77.08128250017049
+        ],
+        [
+            -27.344050046831082,
+            77.42801988602329
+        ],
+        [
+            -27.34225309433902,
+            76.86742124952178
+        ],
+        [
+            -27.348646279953428,
+            78.86191534670654
+        ],
+        [
+            -27.34508185536789,
+            77.74991512889669
+        ],
+        [
+            -27.220997911103723,
+            76.09210114412402
+        ],
+        [
+            -26.709059789019864,
+            73.28726152887155
+        ],
+        [
+            -26.956017500279298,
+            74.64030937186669
+        ],
+        [
+            -26.81618374264559,
+            73.87417915799604
+        ],
+        [
+            -27.01595903993305,
+            74.96872094695259
+        ],
+        [
+            -26.789475895278525,
+            73.72785048056073
+        ],
+        [
+            -26.990142817257986,
+            74.8272773604104
+        ],
+        [
+            -27.212422965356847,
+            76.04512017808153
+        ],
+        [
+            -27.240238762795627,
+            76.19751916385846
+        ],
+        [
+            -27.147751040223213,
+            75.69079146180798
+        ],
+        [
+            -27.02365215387888,
+            75.01087047602473
+        ],
+        [
+            -27.195406989978522,
+            75.95189195425047
+        ],
+        [
+            -27.168373022682225,
+            75.80377650990451
+        ],
+        [
+            -27.279247991190736,
+            76.41124544139697
+        ],
+        [
+            -27.339840382562233,
+            76.7497925662483
+        ],
+        [
+            -27.34184254134453,
+            76.83693270610007
+        ],
+        [
+            -27.351194694207216,
+            79.65694891727992
+        ],
+        [
+            -27.34726678693565,
+            78.43155232473187
+        ],
+        [
+            -27.354455097718667,
+            80.67410311086167
+        ],
+        [
+            -27.355995397498354,
+            81.15463331970717
+        ],
+        [
+            -27.342718222450056,
+            77.01252813798872
+        ],
+        [
+            -27.344904929221904,
+            77.69471914756923
+        ],
+        [
+            -27.341839718204607,
+            76.75468065313197
+        ],
+        [
+            -27.344599700011543,
+            77.5994962188017
+        ],
+        [
+            -27.371484888354487,
+            85.98691880995567
+        ],
+        [
+            -27.34333658045299,
+            77.20543844298861
+        ],
+        [
+            -27.34819629995115,
+            78.72153424211855
+        ],
+        [
+            -27.350925441658394,
+            79.57294969503643
+        ],
+        [
+            -27.361461108725386,
+            82.85978149414248
+        ],
+        [
+            -27.341766179289056,
+            76.75499994128761
+        ],
+        [
+            -27.334030269942076,
+            76.71139012495777
+        ],
+        [
+            -27.35012533638696,
+            79.32333935408028
+        ],
+        [
+            -27.343683262605353,
+            77.31359352375664
+        ],
+        [
+            -27.3426351009914,
+            76.98659658075957
+        ],
+        [
+            -27.341498253213206,
+            76.75616321140065
+        ],
+        [
+            -27.34243022972028,
+            76.92268250637146
+        ],
+        [
+            -27.271027542633554,
+            76.36620671743073
+        ],
+        [
+            -27.319976227229418,
+            76.63438992892928
+        ],
+        [
+            -27.312877003816435,
+            76.5954942456283
+        ],
+        [
+            -27.3044528073652,
+            76.54933921455363
+        ],
+        [
+            -27.319895779849908,
+            76.63394916863565
+        ],
+        [
+            -27.295969935363175,
+            76.50286270808533
+        ],
+        [
+            -27.33811546130454,
+            76.73377233498478
+        ],
+        [
+            -27.335665833732094,
+            76.7203511573826
+        ],
+        [
+            -27.33368484339075,
+            76.70949757968025
+        ],
+        [
+            -27.314335710828264,
+            76.60348630372543
+        ],
+        [
+            -27.344857335456833,
+            77.67987123148684
+        ],
+        [
+            -27.347296182799766,
+            78.4407230075494
+        ],
+        [
+            -27.342646142716646,
+            76.99004128847554
+        ],
+        [
+            -27.334876224959945,
+            76.71602499789353
+        ],
+        [
+            -27.307513573482677,
+            76.56610873744904
+        ],
+        [
+            -27.31483083840323,
+            76.60619904063044
+        ],
+        [
+            -27.341595970772172,
+            76.76049751640137
+        ],
+        [
+            -27.341612471359696,
+            76.76390569593858
+        ],
+        [
+            -27.341935746536972,
+            76.76841766099581
+        ],
+        [
+            -27.34143776601504,
+            76.75342683100091
+        ],
+        [
+            -27.338345082596394,
+            76.74639055532171
+        ],
+        [
+            -27.34242899267696,
+            76.92229658364879
+        ],
+        [
+            -27.34293829043528,
+            77.0811831597541
+        ],
+        [
+            -27.340143977532747,
+            76.75048328612426
+        ],
+        [
+            -27.343348102569745,
+            77.2090330193453
+        ],
+        [
+            -27.343147127104437,
+            77.14633432679842
+        ]
+    ]
+}
