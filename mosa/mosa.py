@@ -24,7 +24,9 @@ class Anneal:
         self.__decrease=0.9
         self.__ntemp=10                
         self.__population={"X":(-1.0,1.0)}
-        self.__exchangeprob={}
+        self.__changemove={}
+        self.__switchposmove={}
+        self.__insordelmove={}
         self.__xnel={}
         self.__maxnel={}
         self.__xdistinct={}
@@ -69,7 +71,9 @@ class Anneal:
         xstep={}
         xsampling={}
         xbounds={}
-        exchangeprob={}
+        changemove={}
+        switchposmove={}
+        insordelmove={}
         xdistinct={}
         xnel={}
         maxnel={}
@@ -136,7 +140,7 @@ class Anneal:
                   % xnel[key])
             
             if isinstance(population[key],tuple):
-                print("        Continuous sampling space")
+                print("        Continuous sample space")
                 
                 if len(population[key])<=1:
                     raise MOSAError("Two numbers are expected in key %s!" 
@@ -155,7 +159,7 @@ class Anneal:
                 print("        Boundaries: ("+str(xbounds[key][0])+","+ 
                       str(xbounds[key][1])+")")
             elif isinstance(population[key],list):
-                print("        Discrete sampling space")              
+                print("        Discrete sample space")              
                 print("        Number of elements in the population: %d" 
                       % (len(population[key])))
                 
@@ -188,19 +192,32 @@ class Anneal:
             
             sellength[key]=totlength
                 
-            if key in self.__exchangeprob.keys() and \
-                self.__exchangeprob[key]>=0.0 \
-                and self.__exchangeprob[key]<=1.0:
-                exchangeprob[key]=float(self.__exchangeprob[key])
+            if key in self.__changemove.keys() and \
+                self.__changemove[key]>=0.0:
+                changemove[key]=float(self.__changemove[key])
             else:
-                exchangeprob[key]=1.0
+                changemove[key]=1.0
                 
-            print("        Probability of element exchange between population and solution: %f" 
-                  % (exchangeprob[key]*100.0))
-            print("        Probability of element insertion to/deletion from solution: %f" 
-                  % ((1.0-exchangeprob[key])*100.0))
-            
-            if exchangeprob[key]<1.0: 
+            if changemove[key]>0.0:
+                print("        Weight of 'change value' trial move: %f"
+                      % changemove[key])
+                            
+            if key in self.__switchposmove.keys() and \
+                self.__switchposmove[key]>0.0:
+                switchposmove[key]=float(self.__switchposmove[key])
+                
+                print("        Weight of 'switch positions' trial move: %f" 
+                      % switchposmove[key])
+            else:
+                switchposmove[key]=0.0
+                
+            if key in self.__insordelmove.keys() and \
+                self.__insordelmove[key]>0.0:
+                insordelmove[key]=float(self.__insordelmove[key])
+                
+                print("        Weight of 'insert or delete' trial move: %f" 
+                      % insordelmove[key])
+                
                 if key in self.__maxnel.keys() and \
                     self.__maxnel[key]>=xnel[key]:
                     maxnel[key]=int(self.__maxnel[key])
@@ -212,13 +229,15 @@ class Anneal:
                     
                 print("        Maximum number of solution elements: %d" 
                       % maxnel[key])
+            else:
+                insordelmove[key]=0.0
                             
-            if key in self.__xsort.keys():
+            if switchposmove[key]==0.0 and key in self.__xsort.keys():
                 xsort[key]=bool(self.__xsort[key])
             else:
                 xsort[key]=False
                 
-            print("        Solution sorted after change: %s" 
+            print("        Solution sorted after trial move: %s" 
                   % xsort[key])
                 
             if key in self.__xstep.keys():
@@ -302,64 +321,67 @@ class Anneal:
             naccept=0
             
             for j in range(self.__niter):
+                selstep=chosen=old=new=None
+                xtmp=deepcopy(xcurr)
+                poptmp=deepcopy(population)
+                
                 r=uniform(0.0,totlength)
                 
                 for key in keys:
                     if r<sellength[key]:
                         break
-                
-                xtmp=deepcopy(xcurr)
-                poptmp=deepcopy(population)
-                
-                if xnel[key]>1:
-                    old=choice(len(xtmp[key]))
-                
-                if xsampling[key]==0:
-                    r=uniform(0.0,1.0)
                     
-                    while True:
-                        selstep=int(round(triangular(-xstep[key],0,
-                                                     xstep[key]),0))
+                r=uniform(0.0,(changemove[key]+switchposmove[key]+
+                               insordelmove[key]))
+                
+                if r<=changemove[key] or r>(changemove[key]+switchposmove[key]):
+                    if xnel[key]>1:
+                        old=choice(len(xtmp[key]))
                         
-                        if selstep==0:
-                            continue
-                        
-                        new=lstep[key]+selstep
-                        
-                        if new>=len(poptmp[key]):
-                            new-=len(poptmp[key])
-                        elif new<0:
-                            new+=len(poptmp[key])
-                        
-                        if r>exchangeprob[key] or xdistinct[key]:
-                            break
-                        else:
-                            if xnel[key]==1:
-                                if not xtmp[key]==poptmp[key][new]:
-                                    break                            
-                            else:
-                                if not xtmp[key][old]==poptmp[key][new]:
-                                    break
-
-                r=uniform(0.0,1.0)
-                            
-                if xnel[key]==1 or r<=exchangeprob[key]:
                     if xsampling[key]==0:
-                        popel=poptmp[key][new]
-                        
-                        if xnel[key]==1:
-                            xel=xtmp[key]
-                            xtmp[key]=popel
-                        else:
-                            xel=xtmp[key][old]
-                            xtmp[key][old]=popel
+                        for _ in range(len(poptmp[key])):
+                            selstep=int(round(triangular(-xstep[key],0,
+                                                         xstep[key]),0))
+                            
+                            if selstep==0:
+                                continue
+                            
+                            new=lstep[key]+selstep
+                            
+                            if new>=len(poptmp[key]):
+                                new-=len(poptmp[key])
+                            elif new<0:
+                                new+=len(poptmp[key])
+                            
+                            if r>changemove[key] or xdistinct[key]:
+                                break
+                            else:
+                                if xnel[key]==1:
+                                    if not xtmp[key]==poptmp[key][new]:
+                                        break                            
+                                else:
+                                    if not xtmp[key][old]==poptmp[key][new]:
+                                        break
+                            
+                if xnel[key]==1 or r<=changemove[key]:
+                    if xsampling[key]==0:
+                        if xdistinct[key]:
+                            if xnel[key]==1:
+                                xtmp[key],poptmp[key][new]=\
+                                    poptmp[key][new],xtmp[key]
+                            else:
+                                xtmp[key][old],poptmp[key][new]=\
+                                    poptmp[key][new],xtmp[key][old]
+                                    
+                            poptmp[key].sort()
                             
                             if xsort[key]:
                                 xtmp[key].sort()
-                                
-                        if xdistinct[key]:
-                            poptmp[key][new]=xel
-                            poptmp[key].sort()
+                        else:
+                            if xnel[key]==1:
+                                xtmp[key]=poptmp[key][new]
+                            else:
+                                xtmp[key][old]=poptmp[key][new]
                     else:
                         if xnel[key]==1:
                             xtmp[key]+=uniform(-xstep[key],xstep[key])
@@ -380,6 +402,20 @@ class Anneal:
                             
                             if xsort[key]:
                                 xtmp[key].sort()
+                elif r<=(changemove[key]+switchposmove[key]):
+                    for _ in range(int(len(xtmp[key])/2)):
+                        chosen=choice(len(xtmp[key]),2,False)
+                    
+                        if not xtmp[key][chosen[0]]==xtmp[key][chosen[1]]:
+                            xtmp[key][chosen[0]],xtmp[key][chosen[1]]=\
+                                xtmp[key][chosen[1]],xtmp[key][chosen[0]]
+                                
+                            break
+                    else:
+                        print("WARNING!!!!!! Failed %d times to find different elements in the solution to switch positions at iteration %d!" 
+                              % (int(len(xtmp[key])/2),j))
+                        
+                        continue
                 else:
                     if len(xtmp[key])==1:
                         r=0.0
@@ -425,11 +461,8 @@ class Anneal:
                 gamma=(1.0-self.__alpha)*gamma+self.__alpha*pmax
                 
                 if gamma==1.0 or uniform(0.0,1.0)<gamma:
-                    if xsampling[key]==0:                        
-                        if new<len(poptmp[key]):
-                            lstep[key]=new
-                        else:
-                            lstep[key]=0
+                    if xsampling[key]==0 and new is not None:
+                        lstep[key]=new                        
                                           
                     fcurr=ftmp.copy()
                     xcurr=deepcopy(xtmp)
@@ -1050,8 +1083,8 @@ class Anneal:
                 f=tmpdict["Values"]
                 population=tmpdict["Population"]
                 
-                if "SamplingSpace" in tmpdict.keys():
-                    ss=tmpdict["SamplingSpace"]
+                if "SampleSpace" in tmpdict.keys():
+                    ss=tmpdict["SampleSpace"]
                     
                     for key in ss.keys():
                         if ss[key]==1:
@@ -1084,13 +1117,13 @@ class Anneal:
         None.
         '''
         tmpdict={"Solution":x,"Values":f,"Population":population,
-                 "SamplingSpace":{}}
+                 "SampleSpace":{}}
         
         for key in population.keys():
             if isinstance(population[key],list):
-                tmpdict["SamplingSpace"][key]=0
+                tmpdict["SampleSpace"][key]=0
             elif isinstance(population[key],tuple):
-                tmpdict["SamplingSpace"][key]=1
+                tmpdict["SampleSpace"][key]=1
         
         json.dump(tmpdict,open("checkpoint.json","w"),indent=4)
         
@@ -1143,7 +1176,7 @@ class Anneal:
         set and specifies the maximum number of elements for that key in the 
         solution set, if the number of elements is variable. Default value is 
         {}, which means an unlimited number of elements can be present in the 
-        solution keys.
+        solution key.
     no_repeated_elements : dictionary, optional
         A Python dictionary where each key corresponds to a key in the solution 
         set and specifies whether an element cannot be repeated in the solution. 
@@ -1156,14 +1189,28 @@ class Anneal:
         solution. Default is {}, which means 0.1 for continuous search 
         spaces and half the number of elements in the population for discrete 
         search spaces.
-    exchange_probability : dictionary, optional
+    change_value_move : dictionary, optional
         A Python dictionary where each key corresponds to a key in the solution 
-        set and specifies the probability that elements will be exchanged 
-        between that key in the solution set and the population. If less than 1, 
-        it implies that there is a probability that elements will be added or 
-        removed from that key in the solution set. Default value is {}, which 
-        means that only exchanging elments between the solution an the 
-        population is allowed.
+        set and specifies the weight (non-normalized probability) used to select
+        a trial move in which the value of a randomly selected element in the 
+        solution set will be modified. How this modification is done depends on 
+        the sample space of solutions to the problem: (1) if discrete, the 
+        exchange of values between the solution and the population; or (2) if 
+        continuous, the random increment/decrement of the value of an element 
+        in the solution set. Default value is {}, which means the weight to 
+        select this trial move is equal to 1.0.
+    insert_or_delete_move : dictionary, optional
+        A Python dictionary where each key corresponds to a key in the solution 
+        set and specifies the weight (non-normalized probability) used to 
+        select a trial move in which an element will be inserted into or deleted 
+        from the solution set. Default value is {}, which means this trial move 
+        is not allowed, i.e., weight equal to zero.
+    switch_positions_move : dictionary, optional
+        A Python dictionary where each key corresponds to a key in the solution 
+        set and specifies the weight (non-normalized probability) used to 
+        select a trial move in which two randomly chosen elements in the solution 
+        set will switch their positions. Default value is {}, which means this 
+        trial move is not allowed, i.e., weight equal to zero.
     sort_solution_elements : dictionary, optional
         A Python dictionary where each key corresponds to a key in the solution 
         set and specifies if the list in that key must be sorted in ascending 
@@ -1172,7 +1219,7 @@ class Anneal:
         A Python dictionary where each key corresponds to a key in the solution 
         set and specifies the selection weight of this key in a Monte Carlo 
         iteration. Default value is {}, which means that all keys have the same 
-        selection weight and, i.e., the same probability of being selected.
+        selection weight, i.e., the same probability of being selected.
     '''
     @property
     def population(self):
@@ -1381,20 +1428,52 @@ class Anneal:
             raise MOSAError("Monte Carlo step size must be provided in a dictionary!")
 
     @property
-    def exchange_probability(self):
-        return self.__exchangeprob
+    def change_value_move(self):
+        return self.__changemove
         
-    @exchange_probability.setter
-    def exchange_probability(self,val):
+    @change_value_move.setter
+    def change_value_move(self,val):
         if isinstance(val,dict):
             for key,value in val.items():
-                if isinstance(value,float) and value>=0.0 and value<=1.0:
-                    self.__exchangeprob[key]=value
+                if isinstance(value,(float,int)) and value>=0.0:
+                    self.__changemove[key]=value
                 else:
-                    raise MOSAError("Key '%s' must contain a number in the [0,1] interval!!" 
+                    raise MOSAError("Key '%s' must contain a positive number!" 
                                     % key)
         else:
-            raise MOSAError("Exchange probability must be provided in a dictionary!")      
+            raise MOSAError("Weight of trial move must be provided in a dictionary!")
+            
+    @property
+    def insert_or_delete_move(self):
+        return self.__insordelmove
+    
+    @insert_or_delete_move.setter
+    def insert_or_delete_move(self,val):
+        if isinstance(val,dict):
+            for key,value in val.items():
+                if isinstance(value,(float,int)) and value>=0.0:
+                    self.__insordelmove[key]=value
+                else:
+                    raise MOSAError("Key '%s' must be a positive number!" 
+                                    % key)
+        else:
+            raise MOSAError("Weight of trial move must be provided in a dictionary!")
+            
+    @property
+    def switch_positions_move(self):
+        return self.__switchposmove
+    
+    @switch_positions_move.setter
+    def switch_positions_move(self,val):
+        if isinstance(val,dict):
+            for key,value in val.items():
+                if isinstance(value,(float,int)) and value>=0.0:
+                    self.__switchposmove[key]=value
+                else:
+                    raise MOSAError("Key '%s' must be a positive number!"
+                                    % key)
+        else:
+            raise MOSAError("Weight of trial move must be provided in a dictionary!")
 
     @property
     def sort_solution_elements(self):

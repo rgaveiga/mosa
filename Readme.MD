@@ -1,30 +1,8 @@
+# Multi-Objective Simulated Annealing (MOSA)
+
 Simulated Annealing (SA) has been initially proposed in [*Optimization by Simulated Annealing*, https://doi.org/10.1126/science.220.4598.671] as an optimization heuristic. Multi-objective Simulated Annealing (MOSA) extends the original, mono-objective SA to approximate the Pareto front in multi-objective optimization problems. A thorough discussion about MOSA and its algorithm variants can be found in [*Multi-objective Simulated Annealing: Principles and Algorithm Variants*, https://doi.org/10.1155/2019/8134674].
 
 In the following sections, the basic workflow of a MOSA run with this package is briefly described. Jupyter notebooks in the test directory provide usage examples.
-
-## Problem definition
-
-The very first step is to provide a Python dictionary, the **population**, from which the solutions will be sampled. For example, the population of the *alloy_optimization* problem in the test directory is defined as follows:
-
-```python
-population={"Component":df.Component.values.tolist(),"Concentration":(0.0,0.1)}
-```
-
-In the *population* dictionary above, the "Component" key is filled with data obtained from a *pandas* dataframe. If a key in the population contains a Python list, the corresponding key in the solutions can only contain elements taken from this list. Therefore, the search space represented by the key is **discrete**. On the other hand, the value in the "Concentration" key is a Python tuple with two numbers, the lower and upper bounds of a **continuous** search space. This indicates that the corresponding key in the solutions consists of a list that contains one or more float numbers randomly chosen within the lower and upper bounds.
-
-Subsequently, the user must implement a Python function that takes as its single argument a trial solution to the problem and returns the resulting objective values:
-
-```python
-def fobj(solution):
-    '''
-    The problem is implemented here. User-defined operations are carried out using 
-    the solution as input. f1 and f2, the return values, are the values of the 
-    objectives.
-    '''
-    return f1,f2
-```
-
-See the problems in the test directory for examples on how to implement such a function. Remember that the solution must also be a dictionary with the same keys as the population. 
 
 ## Setting up a MOSA run
 
@@ -97,14 +75,28 @@ Then the user assigns values to *Anneal*'s properties that will control the opti
         solution. Default is {}, which means 0.1 for continuous search 
         spaces and half the number of elements in the population for discrete 
         search spaces.
-    exchange_probability : dictionary, optional
+    change_value_move : dictionary, optional
         A Python dictionary where each key corresponds to a key in the solution 
-        set and specifies the probability that elements will be exchanged 
-        between that key in the solution set and the population. If less than 1, 
-        it implies that there is a probability that elements will be added or 
-        removed from that key in the solution set. Default value is {}, which 
-        means that only exchanging elments between the solution an the 
-        population is allowed.
+        set and specifies the weight (non-normalized probability) used to select
+        a trial move in which the value of a randomly selected element in the 
+        solution set will be modified. How this modification is done depends on 
+        the sample space of solutions to the problem: (1) if discrete, the 
+        exchange of values between the solution and the population; or (2) if 
+        continuous, the random increment/decrement of the value of an element 
+        in the solution set. Default value is {}, which means the weight to 
+        select this trial move is equal to 1.0.
+    insert_or_delete_move : dictionary, optional
+        A Python dictionary where each key corresponds to a key in the solution 
+        set and specifies the weight (non-normalized probability) used to 
+        select a trial move in which an element will be inserted into or deleted 
+        from the solution set. Default value is {}, which means this trial move 
+        is not allowed, i.e., weight equal to zero.
+    switch_positions_move : dictionary, optional
+        A Python dictionary where each key corresponds to a key in the solution 
+        set and specifies the weight (non-normalized probability) used to 
+        select a trial move in which two randomly chosen elements in the solution 
+        set will switch their positions. Default value is {}, which means this 
+        trial move is not allowed, i.e., weight equal to zero.
     sort_solution_elements : dictionary, optional
         A Python dictionary where each key corresponds to a key in the solution 
         set and specifies if the list in that key must be sorted in ascending 
@@ -113,8 +105,34 @@ Then the user assigns values to *Anneal*'s properties that will control the opti
         A Python dictionary where each key corresponds to a key in the solution 
         set and specifies the selection weight of this key in a Monte Carlo 
         iteration. Default value is {}, which means that all keys have the same 
-        selection weight and, i.e., the same probability of being selected.
+        selection weight, i.e., the same probability of being selected.
 ```
+
+## Problem definition
+
+The very first step is to provide a Python dictionary, the *population*, from which the solutions will be sampled. For example, the population of the *alloy_optimization* problem in the test directory is defined as follows:
+
+```python
+opt.population={"Component":Component.tolist(),"Concentration":(0.0,0.1)}
+```
+
+In the *population* dictionary above, the "Component" key is filled with data obtained from a *numpy* array converted to a Python list. If a key in the population contains a Python list, the corresponding key in the solutions can only contain elements taken from this list. Therefore, the sample space represented by the key is **discrete**. 
+
+On the other hand, the value in the "Concentration" key is a Python tuple with two numbers, the lower and upper bounds of a **continuous** sample space. This indicates that the corresponding key in the solutions consists of a list that contains one or more float numbers randomly chosen within the lower and upper bounds.
+
+Subsequently, the user must implement a Python function that takes as its single argument a trial solution to the problem and returns the resulting objective values:
+
+```python
+def fobj(solution):
+    '''
+    The problem is implemented here. User-defined operations are carried out using 
+    the solution as input. f1 and f2, the return values, are the values of the 
+    objectives.
+    '''
+    return f1,f2
+```
+
+See the problems in the test directory for examples on how to implement such a function. Remember that the solution must also be a dictionary with the same keys as the population.
 
 ## Running MOSA
 
