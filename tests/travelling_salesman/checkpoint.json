@@ -1,0 +1,32 @@
+{
+    "Solution": {
+        "Cities": [
+            "Tangerine City",
+            "Lemon City",
+            "Pomegranate City",
+            "Apple City",
+            "Banana City",
+            "Avocado City",
+            "Star Fruit City",
+            "Orange City",
+            "BlueBerry City",
+            "Passion Fruit City",
+            "Strawberry City",
+            "Pear City",
+            "Tomato City",
+            "Kiwi City",
+            "Pineapple City",
+            "Blackberry City",
+            "Cherry City"
+        ]
+    },
+    "Values": [
+        15.579064193013938
+    ],
+    "Population": {
+        "Cities": []
+    },
+    "SampleSpace": {
+        "Cities": 0
+    }
+}

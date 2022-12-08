@@ -91,11 +91,11 @@ Then the user assigns values to *Anneal*'s properties that will control the opti
         select a trial move in which an element will be inserted into or deleted 
         from the solution set. Default value is {}, which means this trial move 
         is not allowed, i.e., weight equal to zero.
-    switch_positions_move : dictionary, optional
+    swap_move : dictionary, optional
         A Python dictionary where each key corresponds to a key in the solution 
         set and specifies the weight (non-normalized probability) used to 
-        select a trial move in which two randomly chosen elements in the solution 
-        set will switch their positions. Default value is {}, which means this 
+        select a trial move in which the algorithm swaps two randomly chosen 
+        elements in the solution set. Default value is {}, which means this 
         trial move is not allowed, i.e., weight equal to zero.
     sort_solution_elements : dictionary, optional
         A Python dictionary where each key corresponds to a key in the solution 
@@ -106,6 +106,13 @@ Then the user assigns values to *Anneal*'s properties that will control the opti
         set and specifies the selection weight of this key in a Monte Carlo 
         iteration. Default value is {}, which means that all keys have the same 
         selection weight, i.e., the same probability of being selected.
+    track_optimization_progress : boolean, optional
+        Wheter to track or not optimization progress by saving the accepted 
+        objetive values into a Python list. Default is False.
+    accepted_objective_values : list, readonly
+        A Python list of accepted objective values over Monte Carlo algorithm 
+        iterations, useful for diagnostic purposes or for tracking optimization 
+        progress.
 ```
 
 ## Problem definition

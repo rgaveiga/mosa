@@ -25,7 +25,7 @@ class Anneal:
         self.__ntemp=10                
         self.__population={"X":(-1.0,1.0)}
         self.__changemove={}
-        self.__switchposmove={}
+        self.__swapmove={}
         self.__insordelmove={}
         self.__xnel={}
         self.__maxnel={}
@@ -41,7 +41,9 @@ class Anneal:
         self.__archivesize=1000
         self.__maxarchivereject=1000
         self.__alpha=0.0
-        self.__restart=True   
+        self.__restart=True
+        self.__track_opt_progress=False
+        self.__f=[]
 
     def evolve(self,func):
         '''
@@ -72,7 +74,7 @@ class Anneal:
         xsampling={}
         xbounds={}
         changemove={}
-        switchposmove={}
+        swapmove={}
         insordelmove={}
         xdistinct={}
         xnel={}
@@ -156,19 +158,17 @@ class Anneal:
                     raise MOSAError("Second element in key %s must be larger than the first one!" 
                                     % key)
                 
-                print("        Boundaries: ("+str(xbounds[key][0])+","+ 
-                      str(xbounds[key][1])+")")
+                print("        Boundaries: (%f,%f)" % (xbounds[key][0],
+                                                       xbounds[key][1]))
             elif isinstance(population[key],list):
                 print("        Discrete sample space")              
                 print("        Number of elements in the population: %d" 
                       % (len(population[key])))
                 
-                if len(population[key])<=1:
+                if len(population[key])<=1 and not from_checkpoint: 
                     raise MOSAError("Number of elements in the population must be greater than one!")
                     
                 xsampling[key]=0
-                
-                population[key].sort()
                 
                 if key in self.__xdistinct.keys():
                     xdistinct[key]=bool(self.__xdistinct[key])
@@ -202,14 +202,14 @@ class Anneal:
                 print("        Weight of 'change value' trial move: %f"
                       % changemove[key])
                             
-            if key in self.__switchposmove.keys() and \
-                self.__switchposmove[key]>0.0:
-                switchposmove[key]=float(self.__switchposmove[key])
+            if key in self.__swapmove.keys() and \
+                self.__swapmove[key]>0.0:
+                swapmove[key]=float(self.__swapmove[key])
                 
-                print("        Weight of 'switch positions' trial move: %f" 
-                      % switchposmove[key])
+                print("        Weight of 'swap' trial move: %f" 
+                      % swapmove[key])
             else:
-                switchposmove[key]=0.0
+                swapmove[key]=0.0
                 
             if key in self.__insordelmove.keys() and \
                 self.__insordelmove[key]>0.0:
@@ -232,7 +232,7 @@ class Anneal:
             else:
                 insordelmove[key]=0.0
                             
-            if switchposmove[key]==0.0 and key in self.__xsort.keys():
+            if swapmove[key]==0.0 and key in self.__xsort.keys():
                 xsort[key]=bool(self.__xsort[key])
             else:
                 xsort[key]=False
@@ -252,15 +252,26 @@ class Anneal:
                 if xsampling[key]==1:
                     xstep[key]=0.1
                 else:
-                    xstep[key]=int(len(population[key])/2)
+                    if changemove[key]>0.0:
+                        xstep[key]=int(len(population[key])/2)
+                    else:
+                        xstep[key]=0
                     
             if xsampling[key]==1:
                 print("        Maximum step size to choose a new value in the solution: %f" % xstep[key])
-            else:
+            elif xsampling[key]==0 and (changemove[key]+insordelmove[key])>0.0:
                 if xstep[key]>len(population[key])/2 or xstep[key]<=0:
                     xstep[key]=int(len(population[key])/2)
                                         
                 print("        Maximum step size to select an element in the population, using a triangular distribution: %d" % xstep[key])
+                
+            if xnel[key]==1 and insordelmove[key]==0.0:
+                changemove[key]=1.0
+                swapmove[key]=0.0
+                
+            if len(population[key])==0 and insordelmove[key]==0:
+                changemove[key]=0.0
+                swapmove[key]=1.0
                     
         print("------")
                 
@@ -299,6 +310,12 @@ class Anneal:
             if callable(func):
                 fcurr=list(func(xcurr))           
                 updated=self.__updatearchive(xcurr,fcurr)
+                
+                if self.__track_opt_progress:
+                    if len(fcurr)==1:
+                        self.__f.append(fcurr[0])
+                    else:
+                        self.__f.append(fcurr)
             else:
                 raise MOSAError("A Python function must be provided!")
             
@@ -311,7 +328,7 @@ class Anneal:
             weight=[1.0 for k in range(len(fcurr))]
             
         for key in keys:
-            if xsampling[key]==0:
+            if xsampling[key]==0 and (changemove[key]+insordelmove[key])>0.0:
                 lstep[key]=choice(len(population[key]))
                     
         for temp in self.__temp:
@@ -331,29 +348,31 @@ class Anneal:
                     if r<sellength[key]:
                         break
                     
-                r=uniform(0.0,(changemove[key]+switchposmove[key]+
-                               insordelmove[key]))
+                r=uniform(0.0,(changemove[key]+swapmove[key]+insordelmove[key]))
                 
-                if r<=changemove[key] or r>(changemove[key]+switchposmove[key]):
+                if r<changemove[key] or r>=(changemove[key]+swapmove[key]):
                     if xnel[key]>1:
                         old=choice(len(xtmp[key]))
                         
-                    if xsampling[key]==0:
+                    if xsampling[key]==0 and len(poptmp[key])>0:
                         for _ in range(len(poptmp[key])):
-                            selstep=int(round(triangular(-xstep[key],0,
-                                                         xstep[key]),0))
+                            if xstep[key]<=int(len(poptmp[key])/2):
+                                selstep=int(round(triangular(-xstep[key],0,
+                                                             xstep[key]),0))
                             
-                            if selstep==0:
-                                continue
+                                new=lstep[key]+selstep
                             
-                            new=lstep[key]+selstep
+                                if new>=len(poptmp[key]):
+                                    new-=len(poptmp[key])
+                                elif new<0:
+                                    new+=len(poptmp[key])
+                            else:
+                                if len(poptmp[key])==1:
+                                    new=0
+                                else:
+                                    new=choice(len(poptmp[key]))
                             
-                            if new>=len(poptmp[key]):
-                                new-=len(poptmp[key])
-                            elif new<0:
-                                new+=len(poptmp[key])
-                            
-                            if r>changemove[key] or xdistinct[key]:
+                            if r>=changemove[key] or xdistinct[key]:
                                 break
                             else:
                                 if xnel[key]==1:
@@ -362,9 +381,22 @@ class Anneal:
                                 else:
                                     if not xtmp[key][old]==poptmp[key][new]:
                                         break
+                        else:
+                            new=None
                             
-                if xnel[key]==1 or r<=changemove[key]:
-                    if xsampling[key]==0:
+                if xsampling[key]==0 and r<changemove[key] and new is None: 
+                    if insordelmove[key]>0.0:
+                        r=changemove[key]+swapmove[key]
+                    elif swapmove[key]>0.0 and xnel[key]>1:
+                        r=changemove[key]
+                    else:
+                        print("WARNING!!!!!! It was not possible to find an element in the key '%s' in the population to update the solution at iteration %d!" 
+                              % (key,j))
+                            
+                        continue
+                            
+                if r<changemove[key]:
+                    if xsampling[key]==0:                        
                         if xdistinct[key]:
                             if xnel[key]==1:
                                 xtmp[key],poptmp[key][new]=\
@@ -372,9 +404,7 @@ class Anneal:
                             else:
                                 xtmp[key][old],poptmp[key][new]=\
                                     poptmp[key][new],xtmp[key][old]
-                                    
-                            poptmp[key].sort()
-                            
+                                                                
                             if xsort[key]:
                                 xtmp[key].sort()
                         else:
@@ -402,7 +432,7 @@ class Anneal:
                             
                             if xsort[key]:
                                 xtmp[key].sort()
-                elif r<=(changemove[key]+switchposmove[key]):
+                elif r<(changemove[key]+swapmove[key]):
                     for _ in range(int(len(xtmp[key])/2)):
                         chosen=choice(len(xtmp[key]),2,False)
                     
@@ -412,8 +442,8 @@ class Anneal:
                                 
                             break
                     else:
-                        print("WARNING!!!!!! Failed %d times to find different elements in the solution to switch positions at iteration %d!" 
-                              % (int(len(xtmp[key])/2),j))
+                        print("WARNING!!!!!! Failed %d times to find different elements in key '%s' for swapping at iteration %d!" 
+                              % (int(len(xtmp[key])/2),key,j))
                         
                         continue
                 else:
@@ -440,7 +470,6 @@ class Anneal:
                     else:
                         if xsampling[key]==0 and xdistinct[key]:
                             poptmp[key].append(xtmp[key][old])
-                            poptmp[key].sort()
                             
                         xtmp[key].pop(old)
                                         
@@ -479,6 +508,12 @@ class Anneal:
                     self.__savecheckpoint(xcurr,fcurr,population)
                 else:
                     narchivereject+=1
+                    
+                if self.__track_opt_progress:
+                    if len(fcurr)==1:
+                        self.__f.append(fcurr[0])
+                    else:
+                        self.__f.append(fcurr)
                     
                 if narchivereject>=self.__maxarchivereject:
                     print("    Insertion in the archive consecutively rejected %d times!" % self.__maxarchivereject)
@@ -1205,11 +1240,11 @@ class Anneal:
         select a trial move in which an element will be inserted into or deleted 
         from the solution set. Default value is {}, which means this trial move 
         is not allowed, i.e., weight equal to zero.
-    switch_positions_move : dictionary, optional
+    swap_move : dictionary, optional
         A Python dictionary where each key corresponds to a key in the solution 
         set and specifies the weight (non-normalized probability) used to 
-        select a trial move in which two randomly chosen elements in the solution 
-        set will switch their positions. Default value is {}, which means this 
+        select a trial move in which the algorithm swaps two randomly chosen 
+        elements in the solution set. Default value is {}, which means this 
         trial move is not allowed, i.e., weight equal to zero.
     sort_solution_elements : dictionary, optional
         A Python dictionary where each key corresponds to a key in the solution 
@@ -1220,6 +1255,13 @@ class Anneal:
         set and specifies the selection weight of this key in a Monte Carlo 
         iteration. Default value is {}, which means that all keys have the same 
         selection weight, i.e., the same probability of being selected.
+    track_optimization_progress : boolean, optional
+        Wheter to track or not optimization progress by saving the accepted 
+        objetive values into a Python list. Default is False.
+    accepted_objective_values : list, readonly
+        A Python list of accepted objective values over Monte Carlo algorithm 
+        iterations, useful for diagnostic purposes or for tracking optimization 
+        progress.
     '''
     @property
     def population(self):
@@ -1409,7 +1451,7 @@ class Anneal:
                 else:
                     raise MOSAError("Key '%s' must contain a boolean!" % key)
         else:
-            raise MOSAError("Remove from population must be provided as a dictionary!")
+            raise MOSAError("Whether or not to repeat elements in the solution must be provided as a dictionary!")
  
     @property
     def mc_step_size(self):
@@ -1460,15 +1502,15 @@ class Anneal:
             raise MOSAError("Weight of trial move must be provided in a dictionary!")
             
     @property
-    def switch_positions_move(self):
-        return self.__switchposmove
+    def swap_move(self):
+        return self.__swapmove
     
-    @switch_positions_move.setter
-    def switch_positions_move(self,val):
+    @swap_move.setter
+    def swap_move(self,val):
         if isinstance(val,dict):
             for key,value in val.items():
                 if isinstance(value,(float,int)) and value>=0.0:
-                    self.__switchposmove[key]=value
+                    self.__swapmove[key]=value
                 else:
                     raise MOSAError("Key '%s' must be a positive number!"
                                     % key)
@@ -1504,6 +1546,21 @@ class Anneal:
                     raise MOSAError("Key '%s' must contain a number!" % key)
         else:
             raise MOSAError("Solution key selection weights must be provided as a dictionary!")
+
+    @property
+    def track_optimization_progress(self):
+        return self.__track_opt_progress
+    
+    @track_optimization_progress.setter
+    def track_optimization_progress(self,val):
+        if isinstance(val,bool):
+            self.__track_opt_progress=val
+        else:
+            raise MOSAError("Tracking or not optimization progress must be a boolean!")
+            
+    @property
+    def accepted_objective_values(self):
+        return self.__f
     
 class MOSAError(Exception):
     def __init__(self,message=""):
