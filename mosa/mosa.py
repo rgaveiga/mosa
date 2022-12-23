@@ -85,6 +85,8 @@ class Anneal:
         keys=[]
         from_checkpoint=False
         pmax=0.0
+        MAX_FAILED=10
+        MIN_STEP_LENGTH=10
         
         self.__temp=[self.__initemp*self.__decrease**i 
                        for i in range(self.__ntemp)]
@@ -263,7 +265,16 @@ class Anneal:
                 if xstep[key]>len(population[key])/2 or xstep[key]<=0:
                     xstep[key]=int(len(population[key])/2)
                                         
-                print("        Maximum step size to select an element in the population, using a triangular distribution: %d" % xstep[key])
+                if  xstep[key]>=MIN_STEP_LENGTH:
+                    print("        Maximum step size to select an element in the population, using a triangular distribution: %d" % xstep[key])
+                else:
+                    print("        Elements selected at random from the population")
+
+            if xsampling[key]==0 and (changemove[key]+insordelmove[key])>0.0:
+                if len(population[key])==1:
+                    lstep[key]=0
+                else:
+                    lstep[key]=choice(len(population[key]))
                 
             if xnel[key]==1 and insordelmove[key]==0.0:
                 changemove[key]=1.0
@@ -326,10 +337,6 @@ class Anneal:
             weight=self.__weight.copy()
         else:
             weight=[1.0 for k in range(len(fcurr))]
-            
-        for key in keys:
-            if xsampling[key]==0 and (changemove[key]+insordelmove[key])>0.0:
-                lstep[key]=choice(len(population[key]))
                     
         for temp in self.__temp:
             print("TEMPERATURE: %.6f" % temp)
@@ -355,11 +362,12 @@ class Anneal:
                         old=choice(len(xtmp[key]))
                         
                     if xsampling[key]==0 and len(poptmp[key])>0:
-                        for _ in range(len(poptmp[key])):
-                            if xstep[key]<=int(len(poptmp[key])/2):
+                        for _ in range(MAX_FAILED):
+                            if len(poptmp[key])==1:
+                                new=0
+                            elif xstep[key]>=MIN_STEP_LENGTH:
                                 selstep=int(round(triangular(-xstep[key],0,
                                                              xstep[key]),0))
-                            
                                 new=lstep[key]+selstep
                             
                                 if new>=len(poptmp[key]):
@@ -367,10 +375,7 @@ class Anneal:
                                 elif new<0:
                                     new+=len(poptmp[key])
                             else:
-                                if len(poptmp[key])==1:
-                                    new=0
-                                else:
-                                    new=choice(len(poptmp[key]))
+                                new=choice(len(poptmp[key]))
                             
                             if r>=changemove[key] or xdistinct[key]:
                                 break
