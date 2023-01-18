@@ -1,8 +1,16 @@
 # Multi-Objective Simulated Annealing (MOSA)
 
-Simulated Annealing (SA) has been initially proposed in [*Optimization by Simulated Annealing*, https://doi.org/10.1126/science.220.4598.671] as an optimization heuristic. Multi-objective Simulated Annealing (MOSA) extends the original, mono-objective SA to approximate the Pareto front in multi-objective optimization problems. A thorough discussion about MOSA and its algorithm variants can be found in [*Multi-objective Simulated Annealing: Principles and Algorithm Variants*, https://doi.org/10.1155/2019/8134674].
+Simulated Annealing (SA) has been initially proposed in [*Optimization by Simulated Annealing*](https://doi.org/10.1126/science.220.4598.671) as an optimization heuristic. Multi-objective Simulated Annealing (MOSA) extends the original, single-objective SA to approximate the Pareto front in multi-objective optimization problems. A thorough discussion about MOSA and its algorithm variants can be found in [*Multi-objective Simulated Annealing: Principles and Algorithm Variants*](https://doi.org/10.1155/2019/8134674).
 
-In the following sections, the basic workflow of a MOSA run with this package is briefly described. Jupyter notebooks in the test directory provide usage examples.
+In the following sections, the basic workflow of a MOSA run with this package is briefly described. Jupyter notebooks in the *test*  directory provide usage examples.
+
+## Installing MOSA
+
+The easiest way to install MOSA is using **pip**:
+
+```
+pip install mosa
+```
 
 ## Setting up a MOSA run
 
