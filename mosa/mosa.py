@@ -409,14 +409,14 @@ class Anneal:
                             else:
                                 xtmp[key][old],poptmp[key][new]=\
                                     poptmp[key][new],xtmp[key][old]
-                                                                
-                            if xsort[key]:
-                                xtmp[key].sort()
                         else:
                             if xnel[key]==1:
                                 xtmp[key]=poptmp[key][new]
                             else:
                                 xtmp[key][old]=poptmp[key][new]
+                                                    
+                        if xsort[key] and xnel[key]>1:
+                            xtmp[key].sort()                                        
                     else:
                         if xnel[key]==1:
                             xtmp[key]+=uniform(-xstep[key],xstep[key])
