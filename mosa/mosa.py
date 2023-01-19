@@ -413,10 +413,7 @@ class Anneal:
                             if xnel[key]==1:
                                 xtmp[key]=poptmp[key][new]
                             else:
-                                xtmp[key][old]=poptmp[key][new]
-                                                    
-                        if xsort[key] and xnel[key]>1:
-                            xtmp[key].sort()                                        
+                                xtmp[key][old]=poptmp[key][new]                                        
                     else:
                         if xnel[key]==1:
                             xtmp[key]+=uniform(-xstep[key],xstep[key])
@@ -435,8 +432,8 @@ class Anneal:
                                 xtmp[key][old]+=(xbounds[key][1]-
                                                  xbounds[key][0])
                             
-                            if xsort[key]:
-                                xtmp[key].sort()
+                    if xsort[key] and xnel[key]>1:
+                        xtmp[key].sort()
                 elif r<(changemove[key]+swapmove[key]):
                     for _ in range(int(len(xtmp[key])/2)):
                         chosen=choice(len(xtmp[key]),2,False)
