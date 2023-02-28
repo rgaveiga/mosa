@@ -1,4 +1,5 @@
 from __future__ import print_function
+from __future__ import division
 import json
 from copy import deepcopy
 from numpy.random import choice,triangular,uniform,shuffle
@@ -44,6 +45,7 @@ class Anneal:
         self.__restart=True
         self.__track_opt_progress=False
         self.__f=[]
+        self.__verbose=False
 
     def evolve(self,func):
         '''
@@ -337,9 +339,14 @@ class Anneal:
             weight=self.__weight.copy()
         else:
             weight=[1.0 for k in range(len(fcurr))]
+
+        if not self.__verbose:
+            print("Starting at temperature: %.6f" % self.__temp[0])
+            print("Evolving solutions to the problem, please wait...")
                     
         for temp in self.__temp:
-            print("TEMPERATURE: %.6f" % temp)
+            if self.__verbose:
+                print("TEMPERATURE: %.6f" % temp)
             
             nupdated=0
             naccept=0
@@ -395,8 +402,9 @@ class Anneal:
                     elif swapmove[key]>0.0 and xnel[key]>1:
                         r=changemove[key]
                     else:
-                        print("WARNING!!!!!! It was not possible to find an element in the key '%s' in the population to update the solution at iteration %d!" 
-                              % (key,j))
+                        if self.__verbose:
+                            print("WARNING!!!!!! It was not possible to find an element in the key '%s' in the population to update the solution at iteration %d!" 
+                                  % (key,j))
                             
                         continue
                             
@@ -444,8 +452,9 @@ class Anneal:
                                 
                             break
                     else:
-                        print("WARNING!!!!!! Failed %d times to find different elements in key '%s' for swapping at iteration %d!" 
-                              % (int(len(xtmp[key])/2),key,j))
+                        if self.__verbose:
+                            print("WARNING!!!!!! Failed %d times to find different elements in key '%s' for swapping at iteration %d!" 
+                                  % (int(len(xtmp[key])/2),key,j))
                         
                         continue
                 else:
@@ -518,33 +527,46 @@ class Anneal:
                         self.__f.append(fcurr)
                     
                 if narchivereject>=self.__maxarchivereject:
-                    print("    Insertion in the archive consecutively rejected %d times!" % self.__maxarchivereject)
-                    print("    Quiting at iteration %d..." % j)
+                    if self.__verbose:
+                        print("    Insertion in the archive consecutively rejected %d times!" % self.__maxarchivereject)
+                        print("    Quiting at iteration %d..." % j)
+                    else:
+                        print("Too many attempts to insert a solution in the archive failed!")
+                        print("Stopping at temperature: %.6f" % temp)
+                        
                     print("------")
                     print("\n--- THE END ---")
                     
                     self.savex()
                     
                     return
-                           
-            if naccept>0:
-                print("    Number of accepted moves: %d." % naccept)                   
-                print("    Fraction of accepted moves: %.6f." % 
-                      (naccept/self.__niter))
-            
-                if nupdated>0:
-                    print("    Number of archive updates: %d." % nupdated)
-                    print("    Fraction of archive updates in accepted moves: %.6f." % 
-                          (nupdated/naccept))
-                    
-                    self.savex()
-                else:
-                    print("    No archive update.")
-            else:
-                print("    No move accepted.")
+
+            if self.__verbose:                           
+                if naccept>0:
+                    print("    Number of accepted moves: %d." % naccept)                   
+                    print("    Fraction of accepted moves: %.6f." % 
+                          (naccept/self.__niter))
                 
-            print("------")
+                    if nupdated>0:
+                        print("    Number of archive updates: %d." % nupdated)
+                        print("    Fraction of archive updates in accepted moves: %.6f." % 
+                              (nupdated/naccept))
+                    else:
+                        print("    No archive update.")
+                else:
+                    print("    No move accepted.")
+        
+            if self.__verbose:            
+                print("------")
             
+            if nupdated>0:
+                self.savex()
+            
+        if not self.__verbose:
+            print("Maximum number of temperatures reached!")
+            print("Stopping at temperature:  %.6f" % temp)
+            print("------")
+        
         print("\n--- THE END ---")
         
     def prunedominated(self,xset={},delduplicated=False):
@@ -1258,12 +1280,14 @@ class Anneal:
         iteration. Default value is {}, which means that all keys have the same 
         selection weight, i.e., the same probability of being selected.
     track_optimization_progress : boolean, optional
-        Wheter to track or not optimization progress by saving the accepted 
+        Whether to track or not optimization progress by saving the accepted 
         objetive values into a Python list. Default is False.
     accepted_objective_values : list, readonly
         A Python list of accepted objective values over Monte Carlo algorithm 
         iterations, useful for diagnostic purposes or for tracking optimization 
         progress.
+    verbose : boolean, optional
+        Whether to display verbose output or not. Default is False.
     '''
     @property
     def population(self):
@@ -1563,6 +1587,17 @@ class Anneal:
     @property
     def accepted_objective_values(self):
         return self.__f
+    
+    @property
+    def verbose(self):
+        return self.__verbose
+    
+    @verbose.setter
+    def verbose(self,val):
+        if isinstance(val,bool):
+            self.__verbose=val
+        else:
+            raise MOSAError("Displaying or not verbose output must be a boolean!")
     
 class MOSAError(Exception):
     def __init__(self,message=""):

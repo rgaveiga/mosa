@@ -115,12 +115,14 @@ Then the user assigns values to *Anneal*'s properties that will control the opti
         iteration. Default value is {}, which means that all keys have the same 
         selection weight, i.e., the same probability of being selected.
     track_optimization_progress : boolean, optional
-        Wheter to track or not optimization progress by saving the accepted 
+        Whether to track or not optimization progress by saving the accepted 
         objetive values into a Python list. Default is False.
     accepted_objective_values : list, readonly
         A Python list of accepted objective values over Monte Carlo algorithm 
         iterations, useful for diagnostic purposes or for tracking optimization 
         progress.
+    verbose : boolean, optional
+        Whether to display verbose output or not. Default is False.
 ```
 
 ## Problem definition
