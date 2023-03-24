@@ -3,28 +3,28 @@
         {
             "Cities": [
                 "Orange City",
-                "Strawberry City",
-                "Avocado City",
-                "Tangerine City",
-                "Blackberry City",
-                "Kiwi City",
-                "Pear City",
-                "Banana City",
-                "BlueBerry City",
                 "Star Fruit City",
-                "Apple City",
                 "Lemon City",
-                "Tomato City",
+                "Pear City",
+                "Strawberry City",
+                "Apple City",
                 "Pomegranate City",
+                "BlueBerry City",
+                "Kiwi City",
                 "Passion Fruit City",
+                "Avocado City",
                 "Pineapple City",
+                "Blackberry City",
+                "Banana City",
+                "Tomato City",
+                "Tangerine City",
                 "Cherry City"
             ]
         }
     ],
     "Values": [
         [
-            15.263532185788886
+            83.87673834782892
         ]
     ]
 }
