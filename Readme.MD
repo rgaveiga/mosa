@@ -115,7 +115,6 @@ Then the user assigns values to *Anneal*'s properties that will control the opti
 - *verbose* : boolean, optional
 
     Whether to display verbose output or not. Default is False.
-```
 
 ## Problem definition
 
