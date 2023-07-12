@@ -21,81 +21,99 @@ opt=Anneal()
 
 Then the user assigns values to *Anneal*'s properties that will control the optimization process. These properties are described below:
 
-- population : dictionary, optional
+- *population* : dictionary, optional
 
     A Python dictionary, each key of which contains the data that can be used to achieve an optimized solution to the problem. Default is {"X":(-1.0,1.0)}.
 
-```
-archive : dictionary
-    A Python dictionary with two keys: "Solution", which contains a list of     the best solutions to the problem,
-    and "Values", which contains a list     of the corresponding objective values. It should not be changed 
-    manually.
-restart : logical, optional
-    Whether the optimization process must restart from a previous run (if a checkpoint file is available) or not.
-    Default is True.
-objective_weights : list, optional
-    A Python list containing weights for the objectives, one per objective. Default is [], which means the same weight
-    (1.0) for all objectives.
-initial_temperature : double, optional
+- *archive* : dictionary
+
+    A Python dictionary with two keys: "Solution", which contains a list of     the best solutions to the problem, and "Values", which contains a list of the corresponding objective values. It should not be changed  manually.
+
+- *restart* : logical, optional
+
+    Whether the optimization process must restart from a previous run (if a checkpoint file is available) or not. Default is True.
+
+- *objective_weights* : list, optional
+
+    A Python list containing weights for the objectives, one per objective. Default is [], which means the same weight (1.0) for all objectives.
+
+- *initial_temperature* : double, optional
+
     Initial temperature for the Simulated Annealing algorithm. Default value is 1.0.
-temperature_decrease_factor : double, optional
-    Decrease factor of the temperature during Simulated Annealing. It determines how fast the quench will occur. Default
-    value is 0.9.
-number_of_temperatures : integer, optional
+
+- *temperature_decrease_factor* : double, optional
+
+    Decrease factor of the temperature during Simulated Annealing. It determines how fast the quench will occur. Default value is 0.9.
+
+- *number_of_temperatures* : integer, optional
+
     Number of temperatures to be considered in Simulated Annealing. Default is 10.
-number_of_iterations : integer, optional
+
+- *number_of_iterations* : integer, optional
+
     Number of Monte Carlo iterations per temperature. Default is 1000.
-archive_size : integer, optional
+
+- *archive_size* : integer, optional
+
     Maximum number of solutions in the archive. Default value is 1000.
-archive_file : string, optional
+
+- *archive_file* : string, optional
+
     Text file where the archive should be saved to. Default value is 'archive.json'.
-maximum_archive_rejections : integer, optional
-    Maximum number of consecutive rejections of insertion of a solution in the archive. Once reached, the optimization 
-    process finishes. Default value is 1000.
-alpha : float, optional
+
+- *maximum_archive_rejections* : integer, optional
+
+    Maximum number of consecutive rejections of insertion of a solution in the archive. Once reached, the optimization process finishes. Default value is 1000.
+
+- *alpha* : float, optional
+
     Value of the alpha parameter. Default value is 0.0.
-number_of_solution_elements : dictionary, optional
-    A Python dictionary where each key corresponds to a key in the solution set and specifies the number of elements for
-    that key in the solution set. Default value is {}, which means one element for all keys in the solution.
-maximum_number_of_solution_elements : dictionary, optional
-    A Python dictionary where each key corresponds to a key in the solution set and specifies the maximum number of elements
-    for that key in the solution set, if the number of elements is variable. Default value is {}, which means an unlimited 
-    number of elements can be present in the solution keys.
-no_repeated_elements : dictionary, optional
-    A Python dictionary where each key corresponds to a key in the solution set and specifies whether an element cannot be 
-    repeated in the solution. Default value is {}, which means that repetitions are allowed. 
-mc_step_size : dictionary, optional
-    A Python dictionary where each key corresponds to a key in the solution and specifies the maximum number of steps, to the
-    left or to the right, that the Monte Carlo algorithm can take when randomly selecting an element in the corresponding key
-    in the population to insert in the solution. Default is {}, which means 0.1 for continuous search spaces and half the number
-    of elements in the population for discrete search spaces.
-change_value_move : dictionary, optional
-    A Python dictionary where each key corresponds to a key in the solution set and specifies the weight (non-normalized 
-    probability) used to select a trial move in which the value of a randomly selected element in the solution set will be modified.
-    How this modification is done depends on the sample space of solutions to the problem: (1) if discrete, the exchange of values
-    between the solution and the population; or (2) if continuous, the random increment/decrement of the value of an element in the 
-    solution set. Default value is {}, which means the weight to select this trial move is equal to 1.0.
-insert_or_delete_move : dictionary, optional
-    A Python dictionary where each key corresponds to a key in the solution set and specifies the weight (non-normalized probability) 
-    used to select a trial move in which an element will be inserted into or deleted from the solution set. Default value is {}, which 
-    means this trial move is not allowed, i.e., weight equal to zero.
-swap_move : dictionary, optional
-    A Python dictionary where each key corresponds to a key in the solution set and specifies the weight (non-normalized probability) 
-    used to select a trial move in which the algorithm swaps two randomly chosen elements in the solution set. Default value is {}, 
-    which means this trial move is not allowed, i.e., weight equal to zero.
-sort_solution_elements : dictionary, optional
-    A Python dictionary where each key corresponds to a key in the solution set and specifies if the list in that key must be sorted in 
-    ascending order. Default is {}, which means no sorting at all.
-solution_key_selection_weights : dictionary, optional
-    A Python dictionary where each key corresponds to a key in the solution set and specifies the selection weight of this key in a 
-    Monte Carlo iteration. Default value is {}, which means that all keys have the same selection weight, i.e., the same probability of 
-    being selected.
-track_optimization_progress : boolean, optional
-    Whether to track or not optimization progress by saving the accepted objetive values into a Python list. Default is False.
-accepted_objective_values : list, readonly
-    A Python list of accepted objective values over Monte Carlo algorithm iterations, useful for diagnostic purposes or for tracking 
-    optimization progress.
-verbose : boolean, optional
+
+- *number_of_solution_elements* : dictionary, optional
+
+    A Python dictionary where each key corresponds to a key in the solution set and specifies the number of elements for that key in the solution set. Default value is {}, which means one element for all keys in the solution.
+
+- *maximum_number_of_solution_elements* : dictionary, optional
+
+    A Python dictionary where each key corresponds to a key in the solution set and specifies the maximum number of elements for that key in the solution set, if the number of elements is variable. Default value is {}, which means an unlimited number of elements can be present in the solution keys.
+
+- *no_repeated_elements* : dictionary, optional
+
+    A Python dictionary where each key corresponds to a key in the solution set and specifies whether an element cannot be repeated in the solution. Default value is {}, which means that repetitions are allowed.
+
+- *mc_step_size* : dictionary, optional
+
+    A Python dictionary where each key corresponds to a key in the solution and specifies the maximum number of steps, to the left or to the right, that the Monte Carlo algorithm can take when randomly selecting an element in the corresponding key in the population to insert in the solution. Default is {}, which means 0.1 for continuous search spaces and half the number of elements in the population for discrete search spaces.
+
+- *change_value_move* : dictionary, optional
+
+    A Python dictionary where each key corresponds to a key in the solution set and specifies the weight (non-normalized probability) used to select a trial move in which the value of a randomly selected element in the solution set will be modified. How this modification is done depends on the sample space of solutions to the problem: (1) if discrete, the exchange of values between the solution and the population; or (2) if continuous, the random increment/decrement of the value of an element in the solution set. Default value is {}, which means the weight to select this trial move is equal to 1.0. 
+
+- *insert_or_delete_move* : dictionary, optional
+
+    A Python dictionary where each key corresponds to a key in the solution set and specifies the weight (non-normalized probability) used to select a trial move in which an element will be inserted into or deleted from the solution set. Default value is {}, which means this trial move is not allowed, i.e., weight equal to zero. 
+
+- *swap_move* : dictionary, optional
+
+    A Python dictionary where each key corresponds to a key in the solution set and specifies the weight (non-normalized probability) used to select a trial move in which the algorithm swaps two randomly chosen elements in the solution set. Default value is {}, which means this trial move is not allowed, i.e., weight equal to zero.
+
+- *sort_solution_elements* : dictionary, optional
+
+    A Python dictionary where each key corresponds to a key in the solution set and specifies if the list in that key must be sorted in ascending order. Default is {}, which means no sorting at all.
+
+- *solution_key_selection_weights* : dictionary, optional
+
+    A Python dictionary where each key corresponds to a key in the solution set and specifies the selection weight of this key in a Monte Carlo iteration. Default value is {}, which means that all keys have the same selection weight, i.e., the same probability of being selected.
+
+- *track_optimization_progress* : boolean, optional
+
+    Whether to track or not optimization progress by saving the accepted objetive values into a Python list. Default is False. 
+
+- *accepted_objective_values* : list, readonly
+    A Python list of accepted objective values over Monte Carlo algorithm iterations, useful for diagnostic purposes or for tracking optimization progress.
+
+- *verbose* : boolean, optional
+
     Whether to display verbose output or not. Default is False.
 ```
 
