@@ -21,10 +21,11 @@ opt=Anneal()
 
 Then the user assigns values to *Anneal*'s properties that will control the optimization process. These properties are described below:
 
+> population : dictionary, optional
+>    A Python dictionary, each key of which contains the data that can be used to achieve an optimized solution to
+>    the problem. Default is {"X":(-1.0,1.0)}.
+
 ```
-population : dictionary, optional
-    A Python dictionary, each key of which contains the data that can be used to achieve an optimized solution to
-    the problem. Default is {"X":(-1.0,1.0)}.
 archive : dictionary
     A Python dictionary with two keys: "Solution", which contains a list of     the best solutions to the problem,
     and "Values", which contains a list     of the corresponding objective values. It should not be changed 
