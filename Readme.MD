@@ -8,7 +8,9 @@ In the following sections, the basic workflow of a MOSA run with this package is
 
 The easiest way to install MOSA is using **pip**:
 
-> pip install mosa
+```
+pip install mosa
+```
 
 ## Setting up a MOSA run
 
