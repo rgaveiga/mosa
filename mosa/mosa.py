@@ -2,13 +2,16 @@ from __future__ import print_function
 from __future__ import division
 import json
 from copy import deepcopy
+from numpy import array
 from numpy.random import choice,triangular,uniform,shuffle
 from math import exp,inf
+from .models import InputData, Solution
+import matplotlib.pyplot as plt
 
 class Anneal:
-    def __init__(self):
+    def __init__(self, inputs: InputData) -> None:
         '''
-        __init__() -> class constructor, initializes object attributes.
+        __init__() -> class constructor.
 
         Returns
         -------
@@ -20,10 +23,9 @@ class Anneal:
         print("         Developed by Prof. Roberto Gomes         ")
         print("   Universidade Federal do ABC (UFABC), Brazil    ")
         print("\n")
+        
+        self.inputs = inputs 
 
-        self.__initemp=1.0
-        self.__decrease=0.9
-        self.__ntemp=10                
         self.__population={"X":(-1.0,1.0)}
         self.__changemove={}
         self.__swapmove={}
@@ -90,8 +92,8 @@ class Anneal:
         MAX_FAILED=10
         MIN_STEP_LENGTH=10
         
-        self.__temp=[self.__initemp*self.__decrease**i 
-                       for i in range(self.__ntemp)]
+        self.__temp=[self.inputs.initial_temperature*self.inputs.decrease_factor**i 
+                       for i in range(self.inputs.n_temp)]
 
         if self.__restart:        
             xcurr,fcurr,population=self.__getcheckpoint()
@@ -959,12 +961,7 @@ class Anneal:
         Returns
         -------
         None.
-        '''
-        try:
-            import matplotlib.pyplot as plt
-        except:
-            raise MOSAError("Matplotlib is not available in your system!")
-        
+        '''        
         f=[[],[]]
         
         if not bool(xset):
@@ -1346,34 +1343,34 @@ class Anneal:
         
     @property
     def initial_temperature(self):
-        return self.__initemp
+        return self.inputs.initial_temperature
     
     @initial_temperature.setter
     def initial_temperature(self,val):
         if isinstance(val,(int,float)) and val>0.0:
-            self.__initemp=val
+            self.inputs.initial_temperature=val
         else:
             raise MOSAError("Initial temperature must be a number greater than zero!")       
 
     @property
     def temperature_decrease_factor(self):
-        return self.__decrease
+        return self.inputs.decrease_factor
         
     @temperature_decrease_factor.setter
     def temperature_decrease_factor(self,val):
         if isinstance(val,float) and val>0.0 and val<1.0:
-            self.__decrease=val
+            self.inputs.decrease_factor=val
         else:
             raise MOSAError("Decrease factor must be a number greater than zero and less than one!")
 
     @property
     def number_of_temperatures(self):
-        return self.__ntemp
+        return self.inputs.n_temp
     
     @number_of_temperatures.setter
     def number_of_temperatures(self,val):
         if isinstance(val,int) and val>0:
-            self.__ntemp=val
+            self.inputs.n_temp=val
         else:
             raise MOSAError("Number of annealing temperatures must be an integer greater than zero!")
  
