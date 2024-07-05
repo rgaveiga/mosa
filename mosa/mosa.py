@@ -92,7 +92,7 @@ class Anneal:
         MAX_FAILED=10
         MIN_STEP_LENGTH=10
         
-        self.__temp=[self.inputs.initial_temperature*self.inputs.decrease_factor**i 
+        self.__temp=[self.inputs.initial_temperature*self.inputs.temperature_decrease_factor**i 
                        for i in range(self.inputs.n_temp)]
 
         if self.__restart:        
@@ -1186,26 +1186,13 @@ class Anneal:
     '''
     Class properties
     ----------------
-    population : dictionary, optional
-        A Python dictionary, each key of which contains the data that can be 
-        used to achieve an optimized solution to the problem. Default is
-        {"X":(-1.0,1.0)}.
     archive : dictionary
         A Python dictionary with two keys: "Solution", which contains a list of 
         the best solutions to the problem, and "Values", which contains a list 
         of the corresponding objective values. It should not be changed manually.
-    restart : logical, optional
-        Whether the optimization process must restart from a previous run (if 
-        a checkpoint file is available) or not. Default is True.
     objective_weights : list, optional
         A Python list containing weights for the objectives, one per objective.
         Default is [], which means the same weight (1.0) for all objectives.
-    initial_temperature : double, optional
-        Initial temperature for the Simulated Annealing algorithm. Default 
-        value is 1.0.
-    temperature_decrease_factor : double, optional
-        Decrease factor of the temperature during Simulated Annealing. It
-        determines how fast the quench will occur. Default value is 0.9.
     number_of_temperatures : integer, optional
         Number of temperatures to be considered in Simulated Annealing.
         Default is 10.
@@ -1245,28 +1232,6 @@ class Anneal:
         solution. Default is {}, which means 0.1 for continuous search 
         spaces and half the number of elements in the population for discrete 
         search spaces.
-    change_value_move : dictionary, optional
-        A Python dictionary where each key corresponds to a key in the solution 
-        set and specifies the weight (non-normalized probability) used to select
-        a trial move in which the value of a randomly selected element in the 
-        solution set will be modified. How this modification is done depends on 
-        the sample space of solutions to the problem: (1) if discrete, the 
-        exchange of values between the solution and the population; or (2) if 
-        continuous, the random increment/decrement of the value of an element 
-        in the solution set. Default value is {}, which means the weight to 
-        select this trial move is equal to 1.0.
-    insert_or_delete_move : dictionary, optional
-        A Python dictionary where each key corresponds to a key in the solution 
-        set and specifies the weight (non-normalized probability) used to 
-        select a trial move in which an element will be inserted into or deleted 
-        from the solution set. Default value is {}, which means this trial move 
-        is not allowed, i.e., weight equal to zero.
-    swap_move : dictionary, optional
-        A Python dictionary where each key corresponds to a key in the solution 
-        set and specifies the weight (non-normalized probability) used to 
-        select a trial move in which the algorithm swaps two randomly chosen 
-        elements in the solution set. Default value is {}, which means this 
-        trial move is not allowed, i.e., weight equal to zero.
     sort_solution_elements : dictionary, optional
         A Python dictionary where each key corresponds to a key in the solution 
         set and specifies if the list in that key must be sorted in ascending 
@@ -1285,18 +1250,7 @@ class Anneal:
         progress.
     verbose : boolean, optional
         Whether to display verbose output or not. Default is False.
-    '''
-    @property
-    def population(self):
-        return self.__population
-    
-    @population.setter
-    def population(self,val):
-        if isinstance(val,dict) and bool(val):
-            self.__population=val
-        else:
-            raise MOSAError("Population must be a non-empty dictionary!")
-            
+    '''           
     @property
     def archive(self):
         print("WARNING! The archive should not be changed manually!")
@@ -1318,17 +1272,6 @@ class Anneal:
             raise MOSAError("The archive must be a non-empty dictionary!")
                 
         self.__archive=val
-        
-    @property
-    def restart(self):
-        return self.__restart
-    
-    @restart.setter
-    def restart(self,val):
-        if isinstance(val,bool):
-            self.__restart=val
-        else:
-            raise MOSAError("Restart must be a boolean!")
             
     @property
     def objective_weights(self):
@@ -1340,28 +1283,6 @@ class Anneal:
             self.__weight=val
         else:
             raise MOSAError("The weights must be provided in a list!")
-        
-    @property
-    def initial_temperature(self):
-        return self.inputs.initial_temperature
-    
-    @initial_temperature.setter
-    def initial_temperature(self,val):
-        if isinstance(val,(int,float)) and val>0.0:
-            self.inputs.initial_temperature=val
-        else:
-            raise MOSAError("Initial temperature must be a number greater than zero!")       
-
-    @property
-    def temperature_decrease_factor(self):
-        return self.inputs.decrease_factor
-        
-    @temperature_decrease_factor.setter
-    def temperature_decrease_factor(self,val):
-        if isinstance(val,float) and val>0.0 and val<1.0:
-            self.inputs.decrease_factor=val
-        else:
-            raise MOSAError("Decrease factor must be a number greater than zero and less than one!")
 
     @property
     def number_of_temperatures(self):
