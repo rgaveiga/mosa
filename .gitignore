@@ -1,4 +1,5 @@
 tests/
+tests/out*
 tests/*.png
 tests/run_*.py
 tests/*.json
