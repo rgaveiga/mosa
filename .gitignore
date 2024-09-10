@@ -1,3 +1,5 @@
 tests/
+tests/*.png
 tests/run_*.py
 tests/*.json
+examples/*.json
