@@ -1,1 +1,3 @@
-run_*.py
+tests/
+tests/run_*.py
+tests/*.json
