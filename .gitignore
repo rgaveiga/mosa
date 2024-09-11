@@ -1,3 +1,4 @@
+mosa/__pycache__/
 tests/
 tests/out*
 tests/*.png

@@ -15,7 +15,7 @@ class Anneal:
         -------
         None.
         """
-        
+
         print("--------------------------------------------------")
         print("    MULTI-OBJECTIVE SIMULATED ANNEALING (MOSA)    ")
         print("--------------------------------------------------")
@@ -62,7 +62,7 @@ class Anneal:
         -------
         None.
         """
-        
+
         print("--- BEGIN: Evolving a solution ---\n")
 
         from_checkpoint: bool = False
@@ -609,7 +609,7 @@ class Anneal:
 
     def prunedominated(self, xset: dict = {}, delduplicated: bool = False) -> dict:
         """
-        Returns a subset of the full or reduced archive that contains only 
+        Returns a subset of the full or reduced archive that contains only
         non-dominated solutions.
 
         Parameters
@@ -629,7 +629,7 @@ class Anneal:
             A Python dictionary representing the solution archive with only
             the solutions that are non-dominated.
         """
-        
+
         tmpdict: dict = {}
         tmpdict["Solution"]: list = []
         tmpdict["Values"]: list = []
@@ -705,7 +705,7 @@ class Anneal:
         -------
         None.
         """
-        
+
         if isinstance(xset, dict):
             if not bool(xset):
                 xset = self.__archive
@@ -736,7 +736,7 @@ class Anneal:
         -------
         None.
         """
-        
+
         if isinstance(archivefile, str):
             archivefile = archivefile.strip()
 
@@ -760,7 +760,7 @@ class Anneal:
 
     def trimx(self, xset: dict = {}, thresholds: list = []) -> dict:
         """
-        Extracts from the archive the solutions where the objective values are 
+        Extracts from the archive the solutions where the objective values are
         less than the given threshold values.
 
         Parameters
@@ -779,7 +779,7 @@ class Anneal:
             A Python dictionary representing the solution archive with only
             the solutions that are in agreement with the thresholds.
         """
-        
+
         tmpdict: dict = {}
         tmpdict["Solution"]: list = []
         tmpdict["Values"]: list = []
@@ -821,7 +821,7 @@ class Anneal:
 
     def reducex(self, xset: dict = {}, index: int = 0, nel: int = 5) -> dict:
         """
-        Reduces and sorts in ascending order the archive according to the selected 
+        Reduces and sorts in ascending order the archive according to the selected
         objective function.
 
         Parameters
@@ -842,7 +842,7 @@ class Anneal:
         tmpdict : dictionary
             A Python dictionary representing the reduced solution archive.
         """
-        
+
         tmpdict: dict = {}
         tmpdict["Solution"]: list = []
         tmpdict["Values"]: list = []
@@ -899,7 +899,7 @@ class Anneal:
         tmpdict : dictionary
             A Python dictionary containing the merged solution archives.
         """
-        
+
         tmpdict: dict = {}
 
         if len(xsetlist) <= 1:
@@ -954,7 +954,7 @@ class Anneal:
         -------
         None.
         """
-        
+
         if not bool(xset):
             xset = self.__archive
         else:
@@ -973,7 +973,7 @@ class Anneal:
 
     def printx(self, xset: dict = {}) -> None:
         """
-        Prints the solutions in the archive (full or reduced) in a more human 
+        Prints the solutions in the archive (full or reduced) in a more human
         readable format.
 
         Parameters
@@ -987,7 +987,7 @@ class Anneal:
         -------
         None.
         """
-        
+
         if not bool(xset):
             xset = self.__archive
         else:
@@ -1013,7 +1013,9 @@ class Anneal:
         for i in range(len(xset["Values"])):
             print("%d) %s" % (i + 1, xset["Values"][i]))
 
-    def plotfront(self, xset: dict = {}, index1: int = 0, index2: int = 1, file: str | None = None) -> None:
+    def plotfront(
+        self, xset: dict = {}, index1: int = 0, index2: int = 1, file: str | None = None
+    ) -> None:
         """
         Plots 2D scatter plots of selected pairs of objective values.
 
@@ -1030,14 +1032,14 @@ class Anneal:
             Index of the objective function the value of which will be
             displayed along y-axis. The default is 1.
         file : string, optional
-            Name of the image file where the plot will be saved. The default is 
+            Name of the image file where the plot will be saved. The default is
             None, which means that no figure will be created.
 
         Returns
         -------
         None.
         """
-        
+
         try:
             import matplotlib.pyplot as plt
         except:
@@ -1073,10 +1075,10 @@ class Anneal:
             plt.ylabel("f%d" % index2)
             plt.grid()
             plt.scatter(f[0], f[1])
-            
-            if file is not None and len(file)>0:
+
+            if file is not None and len(file) > 0:
                 plt.savefig(file)
-            
+
             plt.show()
         else:
             raise MOSAError("Index out of range!")
@@ -1096,7 +1098,7 @@ class Anneal:
         -------
         None.
         """
-        
+
         if not bool(xset):
             xset = self.__archive
         else:
@@ -1138,8 +1140,8 @@ class Anneal:
 
     def __updatearchive(self, x: dict, f: list) -> int:
         """
-        Checks if the solution given as argument is better than solutions randomly 
-        (and sequentially) chosen from the archive. If so, the archive is updated, 
+        Checks if the solution given as argument is better than solutions randomly
+        (and sequentially) chosen from the archive. If so, the archive is updated,
         this solution is appended and a worse solution is removed.
 
         Parameters
@@ -1155,7 +1157,7 @@ class Anneal:
         updated : integer
             1, if the archive is updated, or 0, if not.
         """
-        
+
         updated: int = 0
         indexlist = list(range(len(self.__archive["Values"])))
 
@@ -1220,7 +1222,7 @@ class Anneal:
             A Python dictionary containing the population compatible with the
             solution.
         """
-        
+
         tmpdict: dict = {}
         x: dict = {}
         f: list = []
@@ -1272,7 +1274,7 @@ class Anneal:
         -------
         None.
         """
-        
+
         tmpdict: dict = {
             "Solution": x,
             "Values": f,
