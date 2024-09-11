@@ -1,0 +1,7 @@
+mosa/__pycache__/
+tests/
+tests/out*
+tests/*.png
+tests/run_*.py
+tests/*.json
+examples/*.json
