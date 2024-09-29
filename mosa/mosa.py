@@ -23,31 +23,31 @@ class Anneal:
         print("   Universidade Federal do ABC (UFABC), Brazil    ")
         print("\n")
 
-        self.__initemp: float = 1.0
-        self.__decrease: float = 0.9
-        self.__ntemp: int = 10
-        self.__population: dict = {"X": (-1.0, 1.0)}
-        self.__changemove: dict = {}
-        self.__swapmove: dict = {}
-        self.__insordelmove: dict = {}
-        self.__xnel: dict = {}
-        self.__maxnel: dict = {}
-        self.__xdistinct: dict = {}
-        self.__xstep: dict = {}
-        self.__xsort: dict = {}
-        self.__xselweight: dict = {}
-        self.__archive: dict = {}
-        self.__temp: list = []
-        self.__weight: list = []
-        self.__niter: int = 1000
-        self.__archivefile: str = "archive.json"
-        self.__archivesize: int = 1000
-        self.__maxarchivereject: int = 1000
-        self.__alpha: float = 0.0
-        self.__restart: bool = True
-        self.__track_opt_progress: bool = False
-        self.__f: list = []
-        self.__verbose: bool = False
+        self._initemp: float = 1.0
+        self._decrease: float = 0.9
+        self._ntemp: int = 10
+        self._population: dict = {"X": (-1.0, 1.0)}
+        self._changemove: dict = {}
+        self._swapmove: dict = {}
+        self._insordelmove: dict = {}
+        self._xnel: dict = {}
+        self._maxnel: dict = {}
+        self._xdistinct: dict = {}
+        self._xstep: dict = {}
+        self._xsort: dict = {}
+        self._xselweight: dict = {}
+        self._archive: dict = {}
+        self._temp: list = []
+        self._weight: list = []
+        self._niter: int = 1000
+        self._archivefile: str = "archive.json"
+        self._archivesize: int = 1000
+        self._maxarchivereject: int = 1000
+        self._alpha: float = 0.0
+        self._restart: bool = True
+        self._trackoptprogress: bool = False
+        self._f: list = []
+        self._verbose: bool = False
 
     def evolve(self, func: object) -> None:
         """
@@ -96,34 +96,32 @@ class Anneal:
         MAX_FAILED: int = 10
         MIN_STEP_LENGTH: int = 10
 
-        self.__temp = [
-            self.__initemp * self.__decrease**i for i in range(self.__ntemp)
-        ]
+        self._temp = [self._initemp * self._decrease**i for i in range(self._ntemp)]
 
-        if self.__restart:
+        if self._restart:
             xcurr, fcurr, population = self.__getcheckpoint()
 
-            if not bool(self.__archive):
+            if not bool(self._archive):
                 try:
                     print(
                         "Trying to load the archive from file %s..."
-                        % self.__archivefile
+                        % self._archivefile
                     )
 
-                    self.__archive = json.load(open(self.__archivefile, "r"))
+                    self._archive = json.load(open(self._archivefile, "r"))
                 except FileNotFoundError:
                     print(
                         "File %s not found! Initializing an empty archive..."
-                        % self.__archivefile
+                        % self._archivefile
                     )
 
-                    self.__archive = {"Solution": [], "Values": []}
+                    self._archive = {"Solution": [], "Values": []}
 
                 print("Done!")
         else:
             print("Initializing an empty archive...")
 
-            self.__archive = {"Solution": [], "Values": []}
+            self._archive = {"Solution": [], "Values": []}
 
             print("Done!")
 
@@ -135,10 +133,10 @@ class Anneal:
                     "Solution and population dictionaries must have the same keys!"
                 )
         else:
-            if bool(self.__population):
+            if bool(self._population):
                 xcurr = {}
                 fcurr = []
-                population = deepcopy(self.__population)
+                population = deepcopy(self._population)
             else:
                 raise MOSAError("A population must be provided!")
 
@@ -150,8 +148,8 @@ class Anneal:
         for key in keys:
             print("    ['%s']:" % key)
 
-            if key in self.__xnel.keys() and self.__xnel[key] > 0:
-                xnel[key] = self.__xnel[key]
+            if key in self._xnel.keys() and self._xnel[key] > 0:
+                xnel[key] = self._xnel[key]
             else:
                 xnel[key] = 1
 
@@ -191,8 +189,8 @@ class Anneal:
 
                 xsampling[key] = 0
 
-                if key in self.__xdistinct.keys():
-                    xdistinct[key] = bool(self.__xdistinct[key])
+                if key in self._xdistinct.keys():
+                    xdistinct[key] = bool(self._xdistinct[key])
                 else:
                     xdistinct[key] = False
 
@@ -203,11 +201,11 @@ class Anneal:
             else:
                 raise MOSAError("Wrong format of key %s!" % key)
 
-            if key in self.__xselweight.keys():
-                totlength += self.__xselweight[key]
+            if key in self._xselweight.keys():
+                totlength += self._xselweight[key]
 
                 print(
-                    "        Selection weight of this key: %f" % self.__xselweight[key]
+                    "        Selection weight of this key: %f" % self._xselweight[key]
                 )
             else:
                 totlength += 1.0
@@ -216,8 +214,8 @@ class Anneal:
 
             sellength[key] = totlength
 
-            if key in self.__changemove.keys() and self.__changemove[key] >= 0.0:
-                changemove[key] = float(self.__changemove[key])
+            if key in self._changemove.keys() and self._changemove[key] >= 0.0:
+                changemove[key] = float(self._changemove[key])
             else:
                 changemove[key] = 1.0
 
@@ -226,23 +224,23 @@ class Anneal:
                     "        Weight of 'change value' trial move: %f" % changemove[key]
                 )
 
-            if key in self.__swapmove.keys() and self.__swapmove[key] > 0.0:
-                swapmove[key] = float(self.__swapmove[key])
+            if key in self._swapmove.keys() and self._swapmove[key] > 0.0:
+                swapmove[key] = float(self._swapmove[key])
 
                 print("        Weight of 'swap' trial move: %f" % swapmove[key])
             else:
                 swapmove[key] = 0.0
 
-            if key in self.__insordelmove.keys() and self.__insordelmove[key] > 0.0:
-                insordelmove[key] = float(self.__insordelmove[key])
+            if key in self._insordelmove.keys() and self._insordelmove[key] > 0.0:
+                insordelmove[key] = float(self._insordelmove[key])
 
                 print(
                     "        Weight of 'insert or delete' trial move: %f"
                     % insordelmove[key]
                 )
 
-                if key in self.__maxnel.keys() and self.__maxnel[key] >= xnel[key]:
-                    maxnel[key] = int(self.__maxnel[key])
+                if key in self._maxnel.keys() and self._maxnel[key] >= xnel[key]:
+                    maxnel[key] = int(self._maxnel[key])
 
                     if maxnel[key] <= 1:
                         maxnel[key] = 2
@@ -253,21 +251,21 @@ class Anneal:
             else:
                 insordelmove[key] = 0.0
 
-            if swapmove[key] == 0.0 and key in self.__xsort.keys():
-                xsort[key] = bool(self.__xsort[key])
+            if swapmove[key] == 0.0 and key in self._xsort.keys():
+                xsort[key] = bool(self._xsort[key])
             else:
                 xsort[key] = False
 
             print("        Solution sorted after trial move: %s" % xsort[key])
 
-            if key in self.__xstep.keys():
+            if key in self._xstep.keys():
                 if xsampling[key] == 1:
-                    xstep[key] = float(self.__xstep[key])
+                    xstep[key] = float(self._xstep[key])
 
                     if xstep[key] <= 0.0:
                         xstep[key] = 0.1
                 else:
-                    xstep[key] = int(self.__xstep[key])
+                    xstep[key] = int(self._xstep[key])
             else:
                 if xsampling[key] == 1:
                     xstep[key] = 0.1
@@ -345,34 +343,34 @@ class Anneal:
                 fcurr = list(func(xcurr))
                 updated = self.__updatearchive(xcurr, fcurr)
 
-                if self.__track_opt_progress:
+                if self._trackoptprogress:
                     if len(fcurr) == 1:
-                        self.__f.append(fcurr[0])
+                        self._f.append(fcurr[0])
                     else:
-                        self.__f.append(fcurr)
+                        self._f.append(fcurr)
             else:
                 raise MOSAError("A Python function must be provided!")
 
         print("Done!")
         print("------")
 
-        if len(fcurr) == len(self.__weight):
-            weight = self.__weight.copy()
+        if len(fcurr) == len(self._weight):
+            weight = self._weight.copy()
         else:
             weight = [1.0 for k in range(len(fcurr))]
 
-        if not self.__verbose:
-            print("Starting at temperature: %.6f" % self.__temp[0])
+        if not self._verbose:
+            print("Starting at temperature: %.6f" % self._temp[0])
             print("Evolving solutions to the problem, please wait...")
 
-        for temp in self.__temp:
-            if self.__verbose:
+        for temp in self._temp:
+            if self._verbose:
                 print("TEMPERATURE: %.6f" % temp)
 
             nupdated = 0
             naccept = 0
 
-            for j in range(self.__niter):
+            for j in range(self._niter):
                 selstep = chosen = old = new = None
                 xtmp = deepcopy(xcurr)
                 poptmp = deepcopy(population)
@@ -424,7 +422,7 @@ class Anneal:
                     elif swapmove[key] > 0.0 and xnel[key] > 1:
                         r = changemove[key]
                     else:
-                        if self.__verbose:
+                        if self._verbose:
                             print(
                                 "WARNING!!!!!! It was not possible to find an element in the key '%s' in the population to update the solution at iteration %d!"
                                 % (key, j)
@@ -480,7 +478,7 @@ class Anneal:
 
                             break
                     else:
-                        if self.__verbose:
+                        if self._verbose:
                             print(
                                 "WARNING!!!!!! Failed %d times to find different elements in key '%s' for swapping at iteration %d!"
                                 % (int(len(xtmp[key]) / 2), key, j)
@@ -528,7 +526,7 @@ class Anneal:
 
                     gamma *= p
 
-                gamma = (1.0 - self.__alpha) * gamma + self.__alpha * pmax
+                gamma = (1.0 - self._alpha) * gamma + self._alpha * pmax
 
                 if gamma == 1.0 or uniform(0.0, 1.0) < gamma:
                     if xsampling[key] == 0 and new is not None:
@@ -550,17 +548,17 @@ class Anneal:
                 else:
                     narchivereject += 1
 
-                if self.__track_opt_progress:
+                if self._trackoptprogress:
                     if len(fcurr) == 1:
-                        self.__f.append(fcurr[0])
+                        self._f.append(fcurr[0])
                     else:
-                        self.__f.append(fcurr)
+                        self._f.append(fcurr)
 
-                if narchivereject >= self.__maxarchivereject:
-                    if self.__verbose:
+                if narchivereject >= self._maxarchivereject:
+                    if self._verbose:
                         print(
                             "    Insertion in the archive consecutively rejected %d times!"
-                            % self.__maxarchivereject
+                            % self._maxarchivereject
                         )
                         print("    Quiting at iteration %d..." % j)
                     else:
@@ -576,12 +574,12 @@ class Anneal:
 
                     return
 
-            if self.__verbose:
+            if self._verbose:
                 if naccept > 0:
                     print("    Number of accepted moves: %d." % naccept)
                     print(
                         "    Fraction of accepted moves: %.6f."
-                        % (naccept / self.__niter)
+                        % (naccept / self._niter)
                     )
 
                     if nupdated > 0:
@@ -600,7 +598,7 @@ class Anneal:
             if nupdated > 0:
                 self.savex()
 
-        if not self.__verbose:
+        if not self._verbose:
             print("Maximum number of temperatures reached!")
             print("Stopping at temperature:  %.6f" % temp)
             print("------")
@@ -638,7 +636,7 @@ class Anneal:
         ne: int
 
         if not bool(xset):
-            xset = self.__archive
+            xset = self._archive
         else:
             if not ("Solution" in xset.keys() and "Values" in xset.keys()):
                 raise MOSAError(
@@ -708,7 +706,7 @@ class Anneal:
 
         if isinstance(xset, dict):
             if not bool(xset):
-                xset = self.__archive
+                xset = self._archive
         else:
             raise MOSAError("The solution archive must be provided as a dictionary!")
 
@@ -716,7 +714,7 @@ class Anneal:
             archivefile = archivefile.strip()
 
             if len(archivefile) == 0:
-                archivefile = self.__archivefile
+                archivefile = self._archivefile
         else:
             raise MOSAError("The name of the archive file must be a string!")
 
@@ -741,7 +739,7 @@ class Anneal:
             archivefile = archivefile.strip()
 
             if len(archivefile) == 0:
-                archivefile = self.__archivefile
+                archivefile = self._archivefile
         else:
             raise MOSAError("Name of the archive file must be a string!")
 
@@ -756,7 +754,7 @@ class Anneal:
 
             return
 
-        self.__archive = tmpdict
+        self._archive = tmpdict
 
     def trimx(self, xset: dict = {}, thresholds: list = []) -> dict:
         """
@@ -786,7 +784,7 @@ class Anneal:
         included: bool
 
         if not bool(xset):
-            xset = self.__archive
+            xset = self._archive
         else:
             if not ("Solution" in xset.keys() and "Values" in xset.keys()):
                 raise MOSAError(
@@ -848,7 +846,7 @@ class Anneal:
         tmpdict["Values"]: list = []
 
         if not bool(xset):
-            xset = self.__archive
+            xset = self._archive
         else:
             if not ("Solution" in xset.keys() and "Values" in xset.keys()):
                 raise MOSAError(
@@ -941,7 +939,7 @@ class Anneal:
 
     def copyx(self, xset: dict = {}) -> None:
         """
-        Returns a copy of the archive.
+        Returns a copy of the solution archive.
 
         Parameters
         ----------
@@ -956,7 +954,7 @@ class Anneal:
         """
 
         if not bool(xset):
-            xset = self.__archive
+            xset = self._archive
         else:
             if not ("Solution" in xset.keys() and "Values" in xset.keys()):
                 raise MOSAError(
@@ -989,7 +987,7 @@ class Anneal:
         """
 
         if not bool(xset):
-            xset = self.__archive
+            xset = self._archive
         else:
             if not ("Solution" in xset.keys() and "Values" in xset.keys()):
                 raise MOSAError(
@@ -1048,7 +1046,7 @@ class Anneal:
         f: list = [[], []]
 
         if not bool(xset):
-            xset = self.__archive
+            xset = self._archive
         else:
             if not ("Solution" in xset.keys() and "Values" in xset.keys()):
                 raise MOSAError(
@@ -1100,7 +1098,7 @@ class Anneal:
         """
 
         if not bool(xset):
-            xset = self.__archive
+            xset = self._archive
         else:
             if not ("Solution" in xset.keys() and "Values" in xset.keys()):
                 raise MOSAError(
@@ -1138,6 +1136,126 @@ class Anneal:
                         print("    Maximum: %f" % fmax[j])
                         print("    Average: %f" % (favg[j] / (i + 1)))
 
+    def setpopulation(self, **keys) -> None:
+        """
+        Sets the population.
+
+        Parameters
+        ----------
+        **keys : Keyword arguments
+            A series of key-value pairs where each key contains the data that can
+            be used to achieve an optimized solution to the problem.
+            
+        Returns
+        -------
+        None.
+        """
+
+        if len(keys) > 0:
+            for key, value in keys.items():
+                self._population[key] = value
+        else:
+            raise MOSAError("No keyword was provided!")
+            
+    def setkeyparams(self, key: str, **params) -> None:
+        """
+        Sets the optimization parameters for the specified key in the solution 
+        to the problem.
+
+        Parameters
+        ----------
+        key : str
+            A key in the solution to the problem.
+        **params : Keyword arguments
+            Names of the optimization parameters with respective values. They can 
+            any of the alternatives below:
+                - number_of_solution_elements
+                - maximum_number_of_solution_elements
+                - no_repeated_elements
+                - mc_step_size
+                - change_value_move
+                - insert_or_delete_move
+                - swap_move
+                - sort_solution_elements
+                - solution_key_selection_weights
+                
+        Returns
+        -------
+        None.
+        """
+        
+        allowed: dict
+        
+        if len(params)>0:
+            allowed = {
+                "number_of_solution_elements":"self._xnel",
+                "maximum_number_of_solution_elements":"self._maxnel",
+                "no_repeated_elements":"self._xdistinct",
+                "mc_step_size":"self._xstep",
+                "change_value_move":"self._changemove",
+                "insert_or_delete_move":"self._insordelmove",
+                "swap_move":"self._swapmove",
+                "sort_solution_elements":"self._xsort",
+                "solution_key_selection_weights":"self._xselweight",
+            }
+            
+            for param,value in params.items():
+                if param in allowed:
+                    exec(f"{allowed[param]}[key]=value")
+        else:
+            raise MOSAError("No keyword was provided!")
+
+    def setoptparam(self, param: str, **keys) -> None:
+        """
+        Sets the values of the specified optimization parameter.
+
+        Parameters
+        ----------
+        param : str
+            Name of the optimization parameter. It must be one of the alternatives below:
+                - number_of_solution_elements
+                - maximum_number_of_solution_elements
+                - no_repeated_elements
+                - mc_step_size
+                - change_value_move
+                - insert_or_delete_move
+                - swap_move
+                - sort_solution_elements
+                - solution_key_selection_weights
+        **keys : Keyword arguments
+            A series of key-value pairs where each key corresponds to a key in the
+            solution to the problem.
+            
+        Returns
+        -------
+        None.
+        """
+
+        params: tuple
+        execstr: str
+
+        if len(keys) > 0:
+            params = {
+                "number_of_solution_elements":"self._xnel",
+                "maximum_number_of_solution_elements":"self._maxnel",
+                "no_repeated_elements":"self._xdistinct",
+                "mc_step_size":"self._xstep",
+                "change_value_move":"self._changemove",
+                "insert_or_delete_move":"self._insordelmove",
+                "swap_move":"self._swapmove",
+                "sort_solution_elements":"self._xsort",
+                "solution_key_selection_weights":"self._xselweight",
+            }
+
+            if param in params:
+                execstr = "for key,value in keys.items():\n"
+                execstr += f"    {params[param]}[key]=value"
+                exec(execstr)
+            else:
+                raise MOSAError("Optimization parameter does not exist!")
+        else:
+            raise MOSAError("No keyword was provided!")
+
     def __updatearchive(self, x: dict, f: list) -> int:
         """
         Checks if the solution given as argument is better than solutions randomly
@@ -1159,13 +1277,13 @@ class Anneal:
         """
 
         updated: int = 0
-        indexlist = list(range(len(self.__archive["Values"])))
+        indexlist = list(range(len(self._archive["Values"])))
 
         for i in indexlist:
-            if f == self.__archive["Values"][i]:
+            if f == self._archive["Values"][i]:
                 return updated
 
-        if len(self.__archive["Solution"]) == 0:
+        if len(self._archive["Solution"]) == 0:
             updated = 1
         else:
             shuffle(indexlist)
@@ -1173,19 +1291,19 @@ class Anneal:
             for i in indexlist:
                 nl = ng = 0
 
-                for j in range(len(self.__archive["Values"][i])):
-                    if f[j] < self.__archive["Values"][i][j]:
+                for j in range(len(self._archive["Values"][i])):
+                    if f[j] < self._archive["Values"][i][j]:
                         nl += 1
-                    elif f[j] > self.__archive["Values"][i][j]:
+                    elif f[j] > self._archive["Values"][i][j]:
                         ng += 1
 
-                if len(self.__archive["Solution"]) < self.__archivesize:
+                if len(self._archive["Solution"]) < self._archivesize:
                     if nl > 0:
                         updated = 1
 
                         if ng == 0:
-                            self.__archive["Solution"].pop(i)
-                            self.__archive["Values"].pop(i)
+                            self._archive["Solution"].pop(i)
+                            self._archive["Values"].pop(i)
 
                             break
                     else:
@@ -1194,16 +1312,16 @@ class Anneal:
                         break
                 else:
                     if nl > 0 and ng == 0:
-                        self.__archive["Solution"].pop(i)
-                        self.__archive["Values"].pop(i)
+                        self._archive["Solution"].pop(i)
+                        self._archive["Values"].pop(i)
 
                         updated = 1
 
                         break
 
         if updated == 1:
-            self.__archive["Solution"].append(x)
-            self.__archive["Values"].append(f)
+            self._archive["Solution"].append(x)
+            self._archive["Values"].append(f)
 
         return updated
 
@@ -1396,25 +1514,21 @@ class Anneal:
 
     @property
     def population(self) -> dict:
-        return self.__population
+        return self._population
 
     @population.setter
     def population(self, val: dict) -> None:
         if isinstance(val, dict) and bool(val):
-            self.__population = val
+            self._population = val
         else:
             raise MOSAError("Population must be a non-empty dictionary!")
 
     @property
     def archive(self) -> dict:
-        print("WARNING! The archive should not be changed manually!")
-
-        return self.__archive
+        return self._archive
 
     @archive.setter
     def archive(self, val: dict) -> None:
-        print("WARNING! The archive should not be changed manually!")
-
         if isinstance(val, dict) and bool(val):
             if not ("Solution" in val.keys() and "Values" in val.keys()):
                 raise MOSAError(
@@ -1429,49 +1543,49 @@ class Anneal:
         else:
             raise MOSAError("The archive must be a non-empty dictionary!")
 
-        self.__archive = val
+        self._archive = val
 
     @property
     def restart(self) -> bool:
-        return self.__restart
+        return self._restart
 
     @restart.setter
     def restart(self, val: bool) -> None:
         if isinstance(val, bool):
-            self.__restart = val
+            self._restart = val
         else:
             raise MOSAError("Restart must be a boolean!")
 
     @property
     def objective_weights(self) -> list:
-        return self.__weight
+        return self._weight
 
     @objective_weights.setter
     def objective_weights(self, val: list) -> None:
         if isinstance(val, list):
-            self.__weight = val
+            self._weight = val
         else:
             raise MOSAError("The weights must be provided in a list!")
 
     @property
     def initial_temperature(self) -> float:
-        return self.__initemp
+        return self._initemp
 
     @initial_temperature.setter
     def initial_temperature(self, val: int | float) -> None:
         if isinstance(val, (int, float)) and val > 0.0:
-            self.__initemp = val
+            self._initemp = val
         else:
             raise MOSAError("Initial temperature must be a number greater than zero!")
 
     @property
     def temperature_decrease_factor(self) -> float:
-        return self.__decrease
+        return self._decrease
 
     @temperature_decrease_factor.setter
     def temperature_decrease_factor(self, val: float) -> None:
         if isinstance(val, float) and val > 0.0 and val < 1.0:
-            self.__decrease = val
+            self._decrease = val
         else:
             raise MOSAError(
                 "Decrease factor must be a number greater than zero and less than one!"
@@ -1479,12 +1593,12 @@ class Anneal:
 
     @property
     def number_of_temperatures(self) -> int:
-        return self.__ntemp
+        return self._ntemp
 
     @number_of_temperatures.setter
     def number_of_temperatures(self, val: int) -> None:
         if isinstance(val, int) and val > 0:
-            self.__ntemp = val
+            self._ntemp = val
         else:
             raise MOSAError(
                 "Number of annealing temperatures must be an integer greater than zero!"
@@ -1492,12 +1606,12 @@ class Anneal:
 
     @property
     def number_of_iterations(self) -> int:
-        return self.__niter
+        return self._niter
 
     @number_of_iterations.setter
     def number_of_iterations(self, val: int) -> None:
         if isinstance(val, int) and val > 0:
-            self.__niter = val
+            self._niter = val
         else:
             raise MOSAError(
                 "Number of iterations must be an integer greater than zero!"
@@ -1505,34 +1619,34 @@ class Anneal:
 
     @property
     def archive_size(self) -> int:
-        return self.__archivesize
+        return self._archivesize
 
     @archive_size.setter
     def archive_size(self, val: int) -> None:
         if isinstance(val, int) and val > 0:
-            self.__archivesize = val
+            self._archivesize = val
         else:
             raise MOSAError("The archive size must be an integer greater than zero!")
 
     @property
     def archive_file(self) -> str:
-        return self.__archivefile
+        return self._archivefile
 
     @archive_file.setter
     def archive_file(self, val: str) -> None:
         if isinstance(val, str) and len(val.strip()) > 0:
-            self.__archivefile = val.strip()
+            self._archivefile = val.strip()
         else:
             raise MOSAError("A file name must be provided!")
 
     @property
     def maximum_archive_rejections(self) -> int:
-        return self.__maxarchivereject
+        return self._maxarchivereject
 
     @maximum_archive_rejections.setter
     def maximum_archive_rejections(self, val: int) -> None:
         if isinstance(val, int) and val > 0:
-            self.__maxarchivereject = val
+            self._maxarchivereject = val
         else:
             raise MOSAError(
                 "Maximum archive rejections must be an integer greater than zero!"
@@ -1540,25 +1654,25 @@ class Anneal:
 
     @property
     def alpha(self) -> float:
-        return self.__alpha
+        return self._alpha
 
     @alpha.setter
     def alpha(self, val: float) -> None:
         if isinstance(val, float) and val >= 0.0 and val <= 1.0:
-            self.__alpha = val
+            self._alpha = val
         else:
             raise MOSAError("Alpha must be a number between zero and one!")
 
     @property
     def number_of_solution_elements(self) -> dict:
-        return self.__xnel
+        return self._xnel
 
     @number_of_solution_elements.setter
     def number_of_solution_elements(self, val: dict) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, int) and value > 0:
-                    self.__xnel[key] = value
+                    self._xnel[key] = value
                 else:
                     raise MOSAError(
                         "Key '%s' must contain an integer greater than zero!" % key
@@ -1570,14 +1684,14 @@ class Anneal:
 
     @property
     def maximum_number_of_solution_elements(self) -> dict:
-        return self.__maxnel
+        return self._maxnel
 
     @maximum_number_of_solution_elements.setter
     def maximum_number_of_solution_elements(self, val: dict) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, int) and value >= 2:
-                    self.__maxnel[key] = value
+                    self._maxnel[key] = value
                 else:
                     raise MOSAError(
                         "Key '%s' must contain an integer greater than or equal to 2!"
@@ -1590,14 +1704,14 @@ class Anneal:
 
     @property
     def no_repeated_elements(self) -> dict:
-        return self.__xdistinct
+        return self._xdistinct
 
     @no_repeated_elements.setter
     def no_repeated_elements(self, val: dict) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, bool):
-                    self.__xdistinct[key] = value
+                    self._xdistinct[key] = value
                 else:
                     raise MOSAError("Key '%s' must contain a boolean!" % key)
         else:
@@ -1607,14 +1721,14 @@ class Anneal:
 
     @property
     def mc_step_size(self) -> dict:
-        return self.__xstep
+        return self._xstep
 
     @mc_step_size.setter
     def mc_step_size(self, val: dict) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, (int, float)):
-                    self.__xstep[key] = value
+                    self._xstep[key] = value
                 else:
                     raise MOSAError("Key '%s' must contain a number!" % key)
         else:
@@ -1622,14 +1736,14 @@ class Anneal:
 
     @property
     def change_value_move(self) -> dict:
-        return self.__changemove
+        return self._changemove
 
     @change_value_move.setter
     def change_value_move(self, val: dict) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, (float, int)) and value >= 0.0:
-                    self.__changemove[key] = value
+                    self._changemove[key] = value
                 else:
                     raise MOSAError("Key '%s' must contain a positive number!" % key)
         else:
@@ -1637,14 +1751,14 @@ class Anneal:
 
     @property
     def insert_or_delete_move(self) -> dict:
-        return self.__insordelmove
+        return self._insordelmove
 
     @insert_or_delete_move.setter
     def insert_or_delete_move(self, val: dict) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, (float, int)) and value >= 0.0:
-                    self.__insordelmove[key] = value
+                    self._insordelmove[key] = value
                 else:
                     raise MOSAError("Key '%s' must be a positive number!" % key)
         else:
@@ -1652,14 +1766,14 @@ class Anneal:
 
     @property
     def swap_move(self) -> dict:
-        return self.__swapmove
+        return self._swapmove
 
     @swap_move.setter
     def swap_move(self, val: dict) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, (float, int)) and value >= 0.0:
-                    self.__swapmove[key] = value
+                    self._swapmove[key] = value
                 else:
                     raise MOSAError("Key '%s' must be a positive number!" % key)
         else:
@@ -1667,14 +1781,14 @@ class Anneal:
 
     @property
     def sort_solution_elements(self) -> dict:
-        return self.__xsort
+        return self._xsort
 
     @sort_solution_elements.setter
     def sort_solution_elements(self, val: dict) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, bool):
-                    self.__xsort[key] = value
+                    self._xsort[key] = value
                 else:
                     raise MOSAError("Key '%s' must contain a boolean!" % key)
         else:
@@ -1682,14 +1796,14 @@ class Anneal:
 
     @property
     def solution_key_selection_weights(self) -> dict:
-        return self.__xselweight
+        return self._xselweight
 
     @solution_key_selection_weights.setter
     def solution_key_selection_weights(self, val: dict) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, (int, float)):
-                    self.__xselweight[key] = value
+                    self._xselweight[key] = value
                 else:
                     raise MOSAError("Key '%s' must contain a number!" % key)
         else:
@@ -1699,27 +1813,27 @@ class Anneal:
 
     @property
     def track_optimization_progress(self) -> bool:
-        return self.__track_opt_progress
+        return self._trackoptprogress
 
     @track_optimization_progress.setter
     def track_optimization_progress(self, val: bool) -> None:
         if isinstance(val, bool):
-            self.__track_opt_progress = val
+            self._trackoptprogress = val
         else:
             raise MOSAError("Tracking or not optimization progress must be a boolean!")
 
     @property
     def accepted_objective_values(self) -> list:
-        return self.__f
+        return self._f
 
     @property
     def verbose(self) -> bool:
-        return self.__verbose
+        return self._verbose
 
     @verbose.setter
     def verbose(self, val: bool) -> None:
         if isinstance(val, bool):
-            self.__verbose = val
+            self._verbose = val
         else:
             raise MOSAError("Displaying or not verbose output must be a boolean!")
 
