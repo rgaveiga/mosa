@@ -9,7 +9,7 @@ from math import exp, inf
 class Anneal:
     def __init__(self) -> None:
         """
-        Class constructor, initializes object attributes.
+        Initializes object attributes.
 
         Returns
         -------
@@ -26,7 +26,7 @@ class Anneal:
         self._initemp: float = 1.0
         self._decrease: float = 0.9
         self._ntemp: int = 10
-        self._population: dict = {"X": (-1.0, 1.0)}
+        self._population: dict = {}
         self._changemove: dict = {}
         self._swapmove: dict = {}
         self._insordelmove: dict = {}
@@ -56,7 +56,7 @@ class Anneal:
         Parameters
         ----------
         func : Python object
-            A Python function that returns the value of the objective(s).
+            Function that returns the value(s) of the objective(s).
 
         Returns
         -------
@@ -104,8 +104,7 @@ class Anneal:
             if not bool(self._archive):
                 try:
                     print(
-                        "Trying to load the archive from file %s..."
-                        % self._archivefile
+                        "Trying to load the archive from file %s..." % self._archivefile
                     )
 
                     self._archive = json.load(open(self._archivefile, "r"))
@@ -612,20 +611,17 @@ class Anneal:
 
         Parameters
         ----------
-        xset : dictionary, optional
-            A Python dictionary containing the full solution archive or a
-            reduced solution archive. The default is {}, meaning the full
-            solution archive.
-        delduplicated : logical, optional
-            Whether to delete or not a solution if the objective values are
-            strictly equal to the values of a previous solution. The default
-            is False.
+        xset : dict, optional
+            Full or reduced solution archive. The default is {}, meaning the
+            full solution archive.
+        delduplicated : bool, optional
+            Delete a solution if the objective values are strictly equal to the
+            values of a previous solution. The default is False.
 
         Returns
         -------
-        tmpdict : dictionary
-            A Python dictionary representing the solution archive with only
-            the solutions that are non-dominated.
+        dict
+            Solution archive with non-dominated solutions.
         """
 
         tmpdict: dict = {}
@@ -691,12 +687,11 @@ class Anneal:
 
         Parameters
         ----------
-        xset : dictionary, optional
-            A Python dictionary containing the full solution archive or a
-            reduced solution archive. Default is {}, meaning the full solution
-            archive.
+        xset : dict, optional
+            Full or reduced solution archive. The default is {}, meaning the full
+            solution archive.
         archivefile : string, optional
-            Name of the archive file. Default is '', which means the main
+            Name of the archive file. The default is '', which means the main
             archive file.
 
         Returns
@@ -727,7 +722,7 @@ class Anneal:
         Parameters
         ----------
         archivefile : string, optional
-            Name of the archive file. Default is '', which means the main
+            Name of the archive file. The default is '', which means the main
             archive file will be used.
 
         Returns
@@ -756,26 +751,23 @@ class Anneal:
 
         self._archive = tmpdict
 
-    def trimx(self, xset: dict = {}, thresholds: list = []) -> dict:
+    def trimx(self, xset: dict = {}, thresholds: tuple | list = []) -> dict:
         """
         Extracts from the archive the solutions where the objective values are
-        less than the given threshold values.
+        less than or equal to the thresholds.
 
         Parameters
         ----------
-        xset : dictionary, optional
-            A Python dictionary containing the full solution archive or a
-            reduced solution archive. The default is {}, meaning the full
+        xset : dict, optional
+            Full or reduced solution archive. The default is {}, meaning the full
             solution archive.
-        thresholds : list, optional
-            Maximum values of the objective funcions required for a solution
-            to be selected. The default is an empty list.
+        thresholds : tuple | list, optional
+            Maximum values of the objective functions. The default is an empty list.
 
         Returns
         -------
-        tmpdict : dictionary
-            A Python dictionary representing the solution archive with only
-            the solutions that are in agreement with the thresholds.
+        dict
+            Solution archive with only the selected solutions.
         """
 
         tmpdict: dict = {}
@@ -824,21 +816,18 @@ class Anneal:
 
         Parameters
         ----------
-        xset : dictionary, optional
-            A Python dictionary containing the full solution archive or a
-            reduced solution archive. The default is {}, meaning the full
+        xset : dict, optional
+            Full or reduced solution archive. The default is {}, meaning the full
             solution archive.
-        index : integer, optional
-            Index of the objective function that will be used when comparing
-            solutions that will be sorted and introduced in the reduced
-            solution archive. The default is 0.
-        nel : integer, optional
+        index : int, optional
+            Index of the objective function. The default is 0.
+        nel : int, optional
             Number of solutions stored in the reduced archive. The default is 5.
 
         Returns
         -------
-        tmpdict : dictionary
-            A Python dictionary representing the reduced solution archive.
+        dict
+            Reduced solution archive.
         """
 
         tmpdict: dict = {}
@@ -890,12 +879,12 @@ class Anneal:
         Parameters
         ----------
         xsetlist : list
-            A Python list containing the solution archives to be merged.
+            Solution archives to be merged.
 
         Returns
         -------
-        tmpdict : dictionary
-            A Python dictionary containing the merged solution archives.
+        dict
+            Merged solution archives.
         """
 
         tmpdict: dict = {}
@@ -937,20 +926,20 @@ class Anneal:
 
         return tmpdict
 
-    def copyx(self, xset: dict = {}) -> None:
+    def copyx(self, xset: dict = {}) -> dict:
         """
         Returns a copy of the solution archive.
 
         Parameters
         ----------
-        xset : dictionary, optional
-            A Python dictionary containing the full solution archive or a
-            reduced solution archive. The default is {}, meaning the full
+        xset : dict, optional
+            Full or reduced solution archive. The default is {}, meaning the full
             solution archive.
 
         Returns
         -------
-        None.
+        dict
+            Copy of the solution archive.
         """
 
         if not bool(xset):
@@ -969,16 +958,15 @@ class Anneal:
 
         return deepcopy(xset)
 
+    # TODO: Show Solutions and Values together
     def printx(self, xset: dict = {}) -> None:
         """
-        Prints the solutions in the archive (full or reduced) in a more human
-        readable format.
+        Prints the solutions in the archive in a more human readable format.
 
         Parameters
         ----------
-        xset : dictionary, optional
-            A Python dictionary containing the full solution archive or a
-            reduced solution archive. The default is {}, meaning the full
+        xset : dict, optional
+            Full or reduced solution archive. The default is {}, meaning the full
             solution archive.
 
         Returns
@@ -1011,6 +999,7 @@ class Anneal:
         for i in range(len(xset["Values"])):
             print("%d) %s" % (i + 1, xset["Values"][i]))
 
+    # TODO: Show up to three objective functions in a single plot
     def plotfront(
         self, xset: dict = {}, index1: int = 0, index2: int = 1, file: str | None = None
     ) -> None:
@@ -1019,16 +1008,15 @@ class Anneal:
 
         Parameters
         ----------
-        xset : dictionary, optional
-            A Python dictionary containing the full solution archive or a
-            reduced solution archive. The default is {}, meaning the full
+        xset : dict, optional
+            Full or reduced solution archive. The default is {}, meaning the full
             solution archive.
-        index1 : integer, optional
-            Index of the objective function the value of which will be
-            displayed along x-axis. The default is 0.
-        index2 : integer, optional
-            Index of the objective function the value of which will be
-            displayed along y-axis. The default is 1.
+        index1 : int, optional
+            Index of the objective function displayed along x-axis. The default
+            is 0.
+        index2 : int, optional
+            Index of the objective function displayed along y-axis. The default
+            is 1.
         file : string, optional
             Name of the image file where the plot will be saved. The default is
             None, which means that no figure will be created.
@@ -1081,15 +1069,15 @@ class Anneal:
         else:
             raise MOSAError("Index out of range!")
 
+    # TODO: Use numpy functions and compute also the standard deviation
     def printstats(self, xset: dict = {}) -> None:
         """
         Prints the minimum, maximum and average values of the objectives.
 
         Parameters
         ----------
-        xset : dictionary, optional
-            A Python dictionary containing the full solution archive or a
-            reduced solution archive. The default is {}, meaning the full
+        xset : dict, optional
+            Full or reduced solution archive. The default is {}, meaning the full
             solution archive.
 
         Returns
@@ -1145,7 +1133,7 @@ class Anneal:
         **keys : Keyword arguments
             A series of key-value pairs where each key contains the data that can
             be used to achieve an optimized solution to the problem.
-            
+
         Returns
         -------
         None.
@@ -1156,10 +1144,10 @@ class Anneal:
                 self._population[key] = value
         else:
             raise MOSAError("No keyword was provided!")
-            
+
     def setkeyparams(self, key: str, **params) -> None:
         """
-        Sets the optimization parameters for the specified key in the solution 
+        Sets the optimization parameters for the specified key in the solution
         to the problem.
 
         Parameters
@@ -1167,8 +1155,8 @@ class Anneal:
         key : str
             A key in the solution to the problem.
         **params : Keyword arguments
-            Names of the optimization parameters with respective values. They can 
-            any of the alternatives below:
+            Names of the optimization parameters with respective values. They can
+            be any of the alternatives below:
                 - number_of_solution_elements
                 - maximum_number_of_solution_elements
                 - no_repeated_elements
@@ -1178,28 +1166,28 @@ class Anneal:
                 - swap_move
                 - sort_solution_elements
                 - solution_key_selection_weights
-                
+
         Returns
         -------
         None.
         """
-        
+
         allowed: dict
-        
-        if len(params)>0:
+
+        if len(params) > 0:
             allowed = {
-                "number_of_solution_elements":"self._xnel",
-                "maximum_number_of_solution_elements":"self._maxnel",
-                "no_repeated_elements":"self._xdistinct",
-                "mc_step_size":"self._xstep",
-                "change_value_move":"self._changemove",
-                "insert_or_delete_move":"self._insordelmove",
-                "swap_move":"self._swapmove",
-                "sort_solution_elements":"self._xsort",
-                "solution_key_selection_weights":"self._xselweight",
+                "number_of_solution_elements": "self._xnel",
+                "maximum_number_of_solution_elements": "self._maxnel",
+                "no_repeated_elements": "self._xdistinct",
+                "mc_step_size": "self._xstep",
+                "change_value_move": "self._changemove",
+                "insert_or_delete_move": "self._insordelmove",
+                "swap_move": "self._swapmove",
+                "sort_solution_elements": "self._xsort",
+                "solution_key_selection_weights": "self._xselweight",
             }
-            
-            for param,value in params.items():
+
+            for param, value in params.items():
                 if param in allowed:
                     exec(f"{allowed[param]}[key]=value")
         else:
@@ -1225,7 +1213,7 @@ class Anneal:
         **keys : Keyword arguments
             A series of key-value pairs where each key corresponds to a key in the
             solution to the problem.
-            
+
         Returns
         -------
         None.
@@ -1236,15 +1224,15 @@ class Anneal:
 
         if len(keys) > 0:
             params = {
-                "number_of_solution_elements":"self._xnel",
-                "maximum_number_of_solution_elements":"self._maxnel",
-                "no_repeated_elements":"self._xdistinct",
-                "mc_step_size":"self._xstep",
-                "change_value_move":"self._changemove",
-                "insert_or_delete_move":"self._insordelmove",
-                "swap_move":"self._swapmove",
-                "sort_solution_elements":"self._xsort",
-                "solution_key_selection_weights":"self._xselweight",
+                "number_of_solution_elements": "self._xnel",
+                "maximum_number_of_solution_elements": "self._maxnel",
+                "no_repeated_elements": "self._xdistinct",
+                "mc_step_size": "self._xstep",
+                "change_value_move": "self._changemove",
+                "insert_or_delete_move": "self._insordelmove",
+                "swap_move": "self._swapmove",
+                "sort_solution_elements": "self._xsort",
+                "solution_key_selection_weights": "self._xselweight",
             }
 
             if param in params:
@@ -1258,21 +1246,20 @@ class Anneal:
 
     def __updatearchive(self, x: dict, f: list) -> int:
         """
-        Checks if the solution given as argument is better than solutions randomly
-        (and sequentially) chosen from the archive. If so, the archive is updated,
-        this solution is appended and a worse solution is removed.
+        Checks if this solution is better than solutions already in the archive.
+        If so, the archive is updated, this solution is appended and a worse solution
+        is removed.
 
         Parameters
         ----------
-        x : dictionary
-            A Python dictionary containing the solution.
+        x : dict
+            Solution.
         f : list
-            A Python list containing the values of the objectives associated
-            with the solution.
+            Objective values.
 
         Returns
         -------
-        updated : integer
+        int
             1, if the archive is updated, or 0, if not.
         """
 
@@ -1331,14 +1318,8 @@ class Anneal:
 
         Returns
         -------
-        x : dictionary
-            A Python dictionary containing a solution.
-        f : list
-            A Python list containing the values of the objective functions
-            associated with the solution.
-        population : dictionary
-            A Python dictionary containing the population compatible with the
-            solution.
+        tuple
+            Solution, objective values, and population compatible with the solution.
         """
 
         tmpdict: dict = {}
@@ -1379,14 +1360,12 @@ class Anneal:
 
         Parameters
         ----------
-        x : dictionary
-            A Python dictionary containing the solution.
+        x : dict
+            Solution.
         f : list
-            A Python list containing the values of the objectives associated
-            with the solution.
-        population : dictionary
-            A Python dictionary containing the population compatilbe with the
-            solution.
+            Objective values.
+        population : dict
+            Population compatilbe with the solution.
 
         Returns
         -------
@@ -1411,105 +1390,77 @@ class Anneal:
     """
     Class properties
     ----------------
-    population : dictionary, optional
-        A Python dictionary, each key of which contains the data that can be 
-        used to achieve an optimized solution to the problem. Default is
-        {"X":(-1.0,1.0)}.
-    archive : dictionary
-        A Python dictionary with two keys: "Solution", which contains a list of 
-        the best solutions to the problem, and "Values", which contains a list 
-        of the corresponding objective values. It should not be changed manually.
-    restart : logical, optional
-        Whether the optimization process must restart from a previous run (if 
-        a checkpoint file is available) or not. Default is True.
+    population : dict
+        Population where each key represents the data that can be used to achieve 
+        an optimized solution to the problem.
+    archive : dict
+        Solution archive. It should not be changed manually.
+    restart : bool, optional
+        Restarts from a previous run if a checkpoint file is available. The 
+        default is True.
     objective_weights : list, optional
-        A Python list containing weights for the objectives, one per objective.
-        Default is [], which means the same weight (1.0) for all objectives.
-    initial_temperature : double, optional
-        Initial temperature for the Simulated Annealing algorithm. Default 
-        value is 1.0.
-    temperature_decrease_factor : double, optional
-        Decrease factor of the temperature during Simulated Annealing. It
-        determines how fast the quench will occur. Default value is 0.9.
-    number_of_temperatures : integer, optional
-        Number of temperatures to be considered in Simulated Annealing.
-        Default is 10.
-    number_of_iterations : integer, optional
-        Number of Monte Carlo iterations per temperature. Default is 1000.
-    archive_size : integer, optional
-        Maximum number of solutions in the archive. Default value is 1000.
-    archive_file : string, optional
-        Text file where the archive should be saved to. Default value is
-        'archive.json'.
-    maximum_archive_rejections : integer, optional
+        Weights for the objectives. The default is [], which means the same 
+        weight (1.0) for all objectives.
+    initial_temperature : float, optional
+        Initial temperature. The default is 1.0.
+    temperature_decrease_factor : float, optional
+        Decrease factor of the temperature. The default is 0.9.
+    number_of_temperatures : int, optional
+        Number of temperatures. The default is 10.
+    number_of_iterations : int, optional
+        Number of Monte Carlo iterations per temperature. The default is 1000.
+    archive_size : int, optional
+        Maximum number of solutions in the archive. The default is 1000.
+    archive_file : str, optional
+        Name of the archive file. The default is 'archive.json'.
+    maximum_archive_rejections : int, optional
         Maximum number of consecutive rejections of insertion of a solution 
-        in the archive. Once reached, the optimization process finishes.
-        Default value is 1000.
+        in the archive. The default is 1000.
     alpha : float, optional
-        Value of the alpha parameter. Default value is 0.0.
-    number_of_solution_elements : dictionary, optional
-        A Python dictionary where each key corresponds to a key in the solution 
-        set and specifies the number of elements for that key in the solution 
-        set. Default value is {}, which means one element for all keys in the 
-        solution.
-    maximum_number_of_solution_elements : dictionary, optional
-        A Python dictionary where each key corresponds to a key in the solution 
-        set and specifies the maximum number of elements for that key in the 
-        solution set, if the number of elements is variable. Default value is 
-        {}, which means an unlimited number of elements can be present in the 
-        solution key.
-    no_repeated_elements : dictionary, optional
-        A Python dictionary where each key corresponds to a key in the solution 
-        set and specifies whether an element cannot be repeated in the solution. 
-        Default value is {}, which means that repetitions are allowed.
-    mc_step_size : dictionary, optional
-        A Python dictionary where each key corresponds to a key in the solution 
-        and specifies the maximum number of steps, to the left or to the right, 
-        that the Monte Carlo algorithm can take when randomly selecting an 
-        element in the corresponding key in the population to insert in the 
-        solution. Default is {}, which means 0.1 for continuous search 
-        spaces and half the number of elements in the population for discrete 
-        search spaces.
-    change_value_move : dictionary, optional
-        A Python dictionary where each key corresponds to a key in the solution 
-        set and specifies the weight (non-normalized probability) used to select
-        a trial move in which the value of a randomly selected element in the 
-        solution set will be modified. How this modification is done depends on 
-        the sample space of solutions to the problem: (1) if discrete, the 
-        exchange of values between the solution and the population; or (2) if 
-        continuous, the random increment/decrement of the value of an element 
-        in the solution set. Default value is {}, which means the weight to 
-        select this trial move is equal to 1.0.
-    insert_or_delete_move : dictionary, optional
-        A Python dictionary where each key corresponds to a key in the solution 
-        set and specifies the weight (non-normalized probability) used to 
-        select a trial move in which an element will be inserted into or deleted 
-        from the solution set. Default value is {}, which means this trial move 
-        is not allowed, i.e., weight equal to zero.
-    swap_move : dictionary, optional
-        A Python dictionary where each key corresponds to a key in the solution 
-        set and specifies the weight (non-normalized probability) used to 
-        select a trial move in which the algorithm swaps two randomly chosen 
-        elements in the solution set. Default value is {}, which means this 
-        trial move is not allowed, i.e., weight equal to zero.
-    sort_solution_elements : dictionary, optional
-        A Python dictionary where each key corresponds to a key in the solution 
-        set and specifies if the list in that key must be sorted in ascending 
-        order. Default is {}, which means no sorting at all.
-    solution_key_selection_weights : dictionary, optional
-        A Python dictionary where each key corresponds to a key in the solution 
-        set and specifies the selection weight of this key in a Monte Carlo 
-        iteration. Default value is {}, which means that all keys have the same 
-        selection weight, i.e., the same probability of being selected.
-    track_optimization_progress : boolean, optional
-        Whether to track or not optimization progress by saving the accepted 
-        objetive values into a Python list. Default is False.
+        Alpha parameter. The default is 0.0.
+    number_of_solution_elements : dict, optional
+        Number of elements for each key in the solution. The default is {}, which 
+        means one element for all keys in the solution.
+    maximum_number_of_solution_elements : dict, optional
+        Maximum number of elements for each key in the solution set, if the number 
+        of elements is variable. The default is {}, which means an unlimited number 
+        of elements.
+    no_repeated_elements : dict, optional
+        Determines that an element cannot be repeated in the solution. The default 
+        is {}, which means that repetitions are allowed.
+    mc_step_size : dict, optional
+        Monte Carlo step size for each key in the solution. The default is {}, 
+        which means 0.1 for continuous search space and half the number of elements 
+        in the population for discrete search space.
+    change_value_move : dict, optional
+        Weight (non-normalized probability) to select a trial move where the value 
+        of a randomly selected element in the solution will be modified. For  
+        discrete search space, it implies the exchange of values between the 
+        solution and the population. For continuous search space, the value of 
+        the solution element is randomly incremented/decremented. The default 
+        is {}, which means the weight to select this trial move is equal to 1.0.
+    insert_or_delete_move : dict, optional
+        Weight (non-normalized probability) to select a trial move where an element 
+        will be inserted into or deleted from the solution. The default is {}, 
+        which means this trial move is not allowed, i.e., weight equal to zero.
+    swap_move : dict, optional
+        Weight (non-normalized probability) to select a trial move where elements 
+        will be swaped in the solution. The default is {}, which means this trial 
+        move is not allowed, i.e., weight equal to zero.
+    sort_solution_elements : dict, optional
+        Elements in a solution key will be sorted in ascending order. The default 
+        is {}, which means no sorting at all.
+    solution_key_selection_weights : dict, optional
+        Selection weight for each solution key in a Monte Carlo iteration. The 
+        default value is {}, which means that all keys have the same selection 
+        weight, i.e., the same probability of being selected.
+    track_optimization_progress : bool, optional
+        Tracks the optimization progress by saving the accepted objetive values 
+        into a Python list. The default is False.
     accepted_objective_values : list, readonly
-        A Python list of accepted objective values over Monte Carlo algorithm 
-        iterations, useful for diagnostic purposes or for tracking optimization 
-        progress.
-    verbose : boolean, optional
-        Whether to display verbose output or not. Default is False.
+        Accepted objective values over Monte Carlo iterations.
+    verbose : bool, optional
+        Displays verbose output. The default is False.
     """
 
     @property
@@ -1841,26 +1792,27 @@ class Anneal:
 class MOSAError(Exception):
     def __init__(self, message: str = "") -> None:
         """
-        __init__ -> class constructor.
+        Class constructor.
 
         Parameters
         ----------
-        message : string, optional
-            Error message to be displayed. The default is "".
+        message : str, optional
+            Error message. The default is "".
 
         Returns
         -------
         None.
         """
+
         self.message = message
 
     def __str__(self) -> str:
         """
-        __str__ -> returns the error message.
+        Returns the error message.
 
         Returns
         -------
-        message
-            Error message to be displayed.
+        str
+            Error message.
         """
         return self.message
