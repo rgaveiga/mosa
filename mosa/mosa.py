@@ -19,9 +19,8 @@ class Anneal:
         print("--------------------------------------------------")
         print("    MULTI-OBJECTIVE SIMULATED ANNEALING (MOSA)    ")
         print("--------------------------------------------------")
-        print("         Developed by Prof. Roberto Gomes         ")
-        print("   Universidade Federal do ABC (UFABC), Brazil    ")
-        print("\n")
+        print("       Developed by Prof. Roberto Gomes, PhD      ")
+        print("   Universidade Federal do ABC (UFABC), Brazil\n    ")
 
         self._initemp: float = 1.0
         self._decrease: float = 0.9
@@ -606,8 +605,8 @@ class Anneal:
 
     def prunedominated(self, xset: dict = {}, delduplicated: bool = False) -> dict:
         """
-        Returns a subset of the full or reduced archive that contains only
-        non-dominated solutions.
+        Returns a subset of the full or reduced archive containing only non-dominated
+        solutions.
 
         Parameters
         ----------
