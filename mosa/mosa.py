@@ -9,7 +9,7 @@ from math import exp, inf
 class Anneal:
     def __init__(self) -> None:
         """
-        Class constructor, initializes object attributes.
+        Initializes object attributes.
 
         Returns
         -------
@@ -19,35 +19,34 @@ class Anneal:
         print("--------------------------------------------------")
         print("    MULTI-OBJECTIVE SIMULATED ANNEALING (MOSA)    ")
         print("--------------------------------------------------")
-        print("         Developed by Prof. Roberto Gomes         ")
-        print("   Universidade Federal do ABC (UFABC), Brazil    ")
-        print("\n")
+        print("       Developed by Prof. Roberto Gomes, PhD      ")
+        print("   Universidade Federal do ABC (UFABC), Brazil\n    ")
 
-        self.__initemp: float = 1.0
-        self.__decrease: float = 0.9
-        self.__ntemp: int = 10
-        self.__population: dict = {"X": (-1.0, 1.0)}
-        self.__changemove: dict = {}
-        self.__swapmove: dict = {}
-        self.__insordelmove: dict = {}
-        self.__xnel: dict = {}
-        self.__maxnel: dict = {}
-        self.__xdistinct: dict = {}
-        self.__xstep: dict = {}
-        self.__xsort: dict = {}
-        self.__xselweight: dict = {}
-        self.__archive: dict = {}
-        self.__temp: list = []
-        self.__weight: list = []
-        self.__niter: int = 1000
-        self.__archivefile: str = "archive.json"
-        self.__archivesize: int = 1000
-        self.__maxarchivereject: int = 1000
-        self.__alpha: float = 0.0
-        self.__restart: bool = True
-        self.__track_opt_progress: bool = False
-        self.__f: list = []
-        self.__verbose: bool = False
+        self._initemp: float = 1.0
+        self._decrease: float = 0.9
+        self._ntemp: int = 10
+        self._population: dict = {}
+        self._changemove: dict = {}
+        self._swapmove: dict = {}
+        self._insordelmove: dict = {}
+        self._xnel: dict = {}
+        self._maxnel: dict = {}
+        self._xdistinct: dict = {}
+        self._xstep: dict = {}
+        self._xsort: dict = {}
+        self._xselweight: dict = {}
+        self._archive: dict = {}
+        self._temp: list = []
+        self._weight: list = []
+        self._niter: int = 1000
+        self._archivefile: str = "archive.json"
+        self._archivesize: int = 1000
+        self._maxarchivereject: int = 1000
+        self._alpha: float = 0.0
+        self._restart: bool = True
+        self._trackoptprogress: bool = False
+        self._f: list = []
+        self._verbose: bool = False
 
     def evolve(self, func: object) -> None:
         """
@@ -56,7 +55,7 @@ class Anneal:
         Parameters
         ----------
         func : Python object
-            A Python function that returns the value of the objective(s).
+            Function that returns the value(s) of the objective(s).
 
         Returns
         -------
@@ -96,34 +95,31 @@ class Anneal:
         MAX_FAILED: int = 10
         MIN_STEP_LENGTH: int = 10
 
-        self.__temp = [
-            self.__initemp * self.__decrease**i for i in range(self.__ntemp)
-        ]
+        self._temp = [self._initemp * self._decrease**i for i in range(self._ntemp)]
 
-        if self.__restart:
+        if self._restart:
             xcurr, fcurr, population = self.__getcheckpoint()
 
-            if not bool(self.__archive):
+            if not bool(self._archive):
                 try:
                     print(
-                        "Trying to load the archive from file %s..."
-                        % self.__archivefile
+                        "Trying to load the archive from file %s..." % self._archivefile
                     )
 
-                    self.__archive = json.load(open(self.__archivefile, "r"))
+                    self._archive = json.load(open(self._archivefile, "r"))
                 except FileNotFoundError:
                     print(
                         "File %s not found! Initializing an empty archive..."
-                        % self.__archivefile
+                        % self._archivefile
                     )
 
-                    self.__archive = {"Solution": [], "Values": []}
+                    self._archive = {"Solution": [], "Values": []}
 
                 print("Done!")
         else:
             print("Initializing an empty archive...")
 
-            self.__archive = {"Solution": [], "Values": []}
+            self._archive = {"Solution": [], "Values": []}
 
             print("Done!")
 
@@ -135,10 +131,10 @@ class Anneal:
                     "Solution and population dictionaries must have the same keys!"
                 )
         else:
-            if bool(self.__population):
+            if bool(self._population):
                 xcurr = {}
                 fcurr = []
-                population = deepcopy(self.__population)
+                population = deepcopy(self._population)
             else:
                 raise MOSAError("A population must be provided!")
 
@@ -150,8 +146,8 @@ class Anneal:
         for key in keys:
             print("    ['%s']:" % key)
 
-            if key in self.__xnel.keys() and self.__xnel[key] > 0:
-                xnel[key] = self.__xnel[key]
+            if key in self._xnel.keys() and self._xnel[key] > 0:
+                xnel[key] = self._xnel[key]
             else:
                 xnel[key] = 1
 
@@ -191,8 +187,8 @@ class Anneal:
 
                 xsampling[key] = 0
 
-                if key in self.__xdistinct.keys():
-                    xdistinct[key] = bool(self.__xdistinct[key])
+                if key in self._xdistinct.keys():
+                    xdistinct[key] = bool(self._xdistinct[key])
                 else:
                     xdistinct[key] = False
 
@@ -203,11 +199,11 @@ class Anneal:
             else:
                 raise MOSAError("Wrong format of key %s!" % key)
 
-            if key in self.__xselweight.keys():
-                totlength += self.__xselweight[key]
+            if key in self._xselweight.keys():
+                totlength += self._xselweight[key]
 
                 print(
-                    "        Selection weight of this key: %f" % self.__xselweight[key]
+                    "        Selection weight of this key: %f" % self._xselweight[key]
                 )
             else:
                 totlength += 1.0
@@ -216,8 +212,8 @@ class Anneal:
 
             sellength[key] = totlength
 
-            if key in self.__changemove.keys() and self.__changemove[key] >= 0.0:
-                changemove[key] = float(self.__changemove[key])
+            if key in self._changemove.keys() and self._changemove[key] >= 0.0:
+                changemove[key] = float(self._changemove[key])
             else:
                 changemove[key] = 1.0
 
@@ -226,23 +222,23 @@ class Anneal:
                     "        Weight of 'change value' trial move: %f" % changemove[key]
                 )
 
-            if key in self.__swapmove.keys() and self.__swapmove[key] > 0.0:
-                swapmove[key] = float(self.__swapmove[key])
+            if key in self._swapmove.keys() and self._swapmove[key] > 0.0:
+                swapmove[key] = float(self._swapmove[key])
 
                 print("        Weight of 'swap' trial move: %f" % swapmove[key])
             else:
                 swapmove[key] = 0.0
 
-            if key in self.__insordelmove.keys() and self.__insordelmove[key] > 0.0:
-                insordelmove[key] = float(self.__insordelmove[key])
+            if key in self._insordelmove.keys() and self._insordelmove[key] > 0.0:
+                insordelmove[key] = float(self._insordelmove[key])
 
                 print(
                     "        Weight of 'insert or delete' trial move: %f"
                     % insordelmove[key]
                 )
 
-                if key in self.__maxnel.keys() and self.__maxnel[key] >= xnel[key]:
-                    maxnel[key] = int(self.__maxnel[key])
+                if key in self._maxnel.keys() and self._maxnel[key] >= xnel[key]:
+                    maxnel[key] = int(self._maxnel[key])
 
                     if maxnel[key] <= 1:
                         maxnel[key] = 2
@@ -253,21 +249,21 @@ class Anneal:
             else:
                 insordelmove[key] = 0.0
 
-            if swapmove[key] == 0.0 and key in self.__xsort.keys():
-                xsort[key] = bool(self.__xsort[key])
+            if swapmove[key] == 0.0 and key in self._xsort.keys():
+                xsort[key] = bool(self._xsort[key])
             else:
                 xsort[key] = False
 
             print("        Solution sorted after trial move: %s" % xsort[key])
 
-            if key in self.__xstep.keys():
+            if key in self._xstep.keys():
                 if xsampling[key] == 1:
-                    xstep[key] = float(self.__xstep[key])
+                    xstep[key] = float(self._xstep[key])
 
                     if xstep[key] <= 0.0:
                         xstep[key] = 0.1
                 else:
-                    xstep[key] = int(self.__xstep[key])
+                    xstep[key] = int(self._xstep[key])
             else:
                 if xsampling[key] == 1:
                     xstep[key] = 0.1
@@ -345,34 +341,34 @@ class Anneal:
                 fcurr = list(func(xcurr))
                 updated = self.__updatearchive(xcurr, fcurr)
 
-                if self.__track_opt_progress:
+                if self._trackoptprogress:
                     if len(fcurr) == 1:
-                        self.__f.append(fcurr[0])
+                        self._f.append(fcurr[0])
                     else:
-                        self.__f.append(fcurr)
+                        self._f.append(fcurr)
             else:
                 raise MOSAError("A Python function must be provided!")
 
         print("Done!")
         print("------")
 
-        if len(fcurr) == len(self.__weight):
-            weight = self.__weight.copy()
+        if len(fcurr) == len(self._weight):
+            weight = self._weight.copy()
         else:
             weight = [1.0 for k in range(len(fcurr))]
 
-        if not self.__verbose:
-            print("Starting at temperature: %.6f" % self.__temp[0])
+        if not self._verbose:
+            print("Starting at temperature: %.6f" % self._temp[0])
             print("Evolving solutions to the problem, please wait...")
 
-        for temp in self.__temp:
-            if self.__verbose:
+        for temp in self._temp:
+            if self._verbose:
                 print("TEMPERATURE: %.6f" % temp)
 
             nupdated = 0
             naccept = 0
 
-            for j in range(self.__niter):
+            for j in range(self._niter):
                 selstep = chosen = old = new = None
                 xtmp = deepcopy(xcurr)
                 poptmp = deepcopy(population)
@@ -424,7 +420,7 @@ class Anneal:
                     elif swapmove[key] > 0.0 and xnel[key] > 1:
                         r = changemove[key]
                     else:
-                        if self.__verbose:
+                        if self._verbose:
                             print(
                                 "WARNING!!!!!! It was not possible to find an element in the key '%s' in the population to update the solution at iteration %d!"
                                 % (key, j)
@@ -480,7 +476,7 @@ class Anneal:
 
                             break
                     else:
-                        if self.__verbose:
+                        if self._verbose:
                             print(
                                 "WARNING!!!!!! Failed %d times to find different elements in key '%s' for swapping at iteration %d!"
                                 % (int(len(xtmp[key]) / 2), key, j)
@@ -528,7 +524,7 @@ class Anneal:
 
                     gamma *= p
 
-                gamma = (1.0 - self.__alpha) * gamma + self.__alpha * pmax
+                gamma = (1.0 - self._alpha) * gamma + self._alpha * pmax
 
                 if gamma == 1.0 or uniform(0.0, 1.0) < gamma:
                     if xsampling[key] == 0 and new is not None:
@@ -550,17 +546,17 @@ class Anneal:
                 else:
                     narchivereject += 1
 
-                if self.__track_opt_progress:
+                if self._trackoptprogress:
                     if len(fcurr) == 1:
-                        self.__f.append(fcurr[0])
+                        self._f.append(fcurr[0])
                     else:
-                        self.__f.append(fcurr)
+                        self._f.append(fcurr)
 
-                if narchivereject >= self.__maxarchivereject:
-                    if self.__verbose:
+                if narchivereject >= self._maxarchivereject:
+                    if self._verbose:
                         print(
                             "    Insertion in the archive consecutively rejected %d times!"
-                            % self.__maxarchivereject
+                            % self._maxarchivereject
                         )
                         print("    Quiting at iteration %d..." % j)
                     else:
@@ -576,12 +572,12 @@ class Anneal:
 
                     return
 
-            if self.__verbose:
+            if self._verbose:
                 if naccept > 0:
                     print("    Number of accepted moves: %d." % naccept)
                     print(
                         "    Fraction of accepted moves: %.6f."
-                        % (naccept / self.__niter)
+                        % (naccept / self._niter)
                     )
 
                     if nupdated > 0:
@@ -600,7 +596,7 @@ class Anneal:
             if nupdated > 0:
                 self.savex()
 
-        if not self.__verbose:
+        if not self._verbose:
             print("Maximum number of temperatures reached!")
             print("Stopping at temperature:  %.6f" % temp)
             print("------")
@@ -609,25 +605,22 @@ class Anneal:
 
     def prunedominated(self, xset: dict = {}, delduplicated: bool = False) -> dict:
         """
-        Returns a subset of the full or reduced archive that contains only
-        non-dominated solutions.
+        Returns a subset of the full or reduced archive containing only non-dominated
+        solutions.
 
         Parameters
         ----------
-        xset : dictionary, optional
-            A Python dictionary containing the full solution archive or a
-            reduced solution archive. The default is {}, meaning the full
-            solution archive.
-        delduplicated : logical, optional
-            Whether to delete or not a solution if the objective values are
-            strictly equal to the values of a previous solution. The default
-            is False.
+        xset : dict, optional
+            Full or reduced solution archive. The default is {}, meaning the
+            full solution archive.
+        delduplicated : bool, optional
+            Delete a solution if the objective values are strictly equal to the
+            values of a previous solution. The default is False.
 
         Returns
         -------
-        tmpdict : dictionary
-            A Python dictionary representing the solution archive with only
-            the solutions that are non-dominated.
+        dict
+            Solution archive with non-dominated solutions.
         """
 
         tmpdict: dict = {}
@@ -638,7 +631,7 @@ class Anneal:
         ne: int
 
         if not bool(xset):
-            xset = self.__archive
+            xset = self._archive
         else:
             if not ("Solution" in xset.keys() and "Values" in xset.keys()):
                 raise MOSAError(
@@ -693,12 +686,11 @@ class Anneal:
 
         Parameters
         ----------
-        xset : dictionary, optional
-            A Python dictionary containing the full solution archive or a
-            reduced solution archive. Default is {}, meaning the full solution
-            archive.
+        xset : dict, optional
+            Full or reduced solution archive. The default is {}, meaning the full
+            solution archive.
         archivefile : string, optional
-            Name of the archive file. Default is '', which means the main
+            Name of the archive file. The default is '', which means the main
             archive file.
 
         Returns
@@ -708,7 +700,7 @@ class Anneal:
 
         if isinstance(xset, dict):
             if not bool(xset):
-                xset = self.__archive
+                xset = self._archive
         else:
             raise MOSAError("The solution archive must be provided as a dictionary!")
 
@@ -716,7 +708,7 @@ class Anneal:
             archivefile = archivefile.strip()
 
             if len(archivefile) == 0:
-                archivefile = self.__archivefile
+                archivefile = self._archivefile
         else:
             raise MOSAError("The name of the archive file must be a string!")
 
@@ -729,7 +721,7 @@ class Anneal:
         Parameters
         ----------
         archivefile : string, optional
-            Name of the archive file. Default is '', which means the main
+            Name of the archive file. The default is '', which means the main
             archive file will be used.
 
         Returns
@@ -741,7 +733,7 @@ class Anneal:
             archivefile = archivefile.strip()
 
             if len(archivefile) == 0:
-                archivefile = self.__archivefile
+                archivefile = self._archivefile
         else:
             raise MOSAError("Name of the archive file must be a string!")
 
@@ -756,28 +748,25 @@ class Anneal:
 
             return
 
-        self.__archive = tmpdict
+        self._archive = tmpdict
 
-    def trimx(self, xset: dict = {}, thresholds: list = []) -> dict:
+    def trimx(self, xset: dict = {}, thresholds: tuple | list = []) -> dict:
         """
         Extracts from the archive the solutions where the objective values are
-        less than the given threshold values.
+        less than or equal to the thresholds.
 
         Parameters
         ----------
-        xset : dictionary, optional
-            A Python dictionary containing the full solution archive or a
-            reduced solution archive. The default is {}, meaning the full
+        xset : dict, optional
+            Full or reduced solution archive. The default is {}, meaning the full
             solution archive.
-        thresholds : list, optional
-            Maximum values of the objective funcions required for a solution
-            to be selected. The default is an empty list.
+        thresholds : tuple | list, optional
+            Maximum values of the objective functions. The default is an empty list.
 
         Returns
         -------
-        tmpdict : dictionary
-            A Python dictionary representing the solution archive with only
-            the solutions that are in agreement with the thresholds.
+        dict
+            Solution archive with only the selected solutions.
         """
 
         tmpdict: dict = {}
@@ -786,7 +775,7 @@ class Anneal:
         included: bool
 
         if not bool(xset):
-            xset = self.__archive
+            xset = self._archive
         else:
             if not ("Solution" in xset.keys() and "Values" in xset.keys()):
                 raise MOSAError(
@@ -826,21 +815,18 @@ class Anneal:
 
         Parameters
         ----------
-        xset : dictionary, optional
-            A Python dictionary containing the full solution archive or a
-            reduced solution archive. The default is {}, meaning the full
+        xset : dict, optional
+            Full or reduced solution archive. The default is {}, meaning the full
             solution archive.
-        index : integer, optional
-            Index of the objective function that will be used when comparing
-            solutions that will be sorted and introduced in the reduced
-            solution archive. The default is 0.
-        nel : integer, optional
+        index : int, optional
+            Index of the objective function. The default is 0.
+        nel : int, optional
             Number of solutions stored in the reduced archive. The default is 5.
 
         Returns
         -------
-        tmpdict : dictionary
-            A Python dictionary representing the reduced solution archive.
+        dict
+            Reduced solution archive.
         """
 
         tmpdict: dict = {}
@@ -848,7 +834,7 @@ class Anneal:
         tmpdict["Values"]: list = []
 
         if not bool(xset):
-            xset = self.__archive
+            xset = self._archive
         else:
             if not ("Solution" in xset.keys() and "Values" in xset.keys()):
                 raise MOSAError(
@@ -892,12 +878,12 @@ class Anneal:
         Parameters
         ----------
         xsetlist : list
-            A Python list containing the solution archives to be merged.
+            Solution archives to be merged.
 
         Returns
         -------
-        tmpdict : dictionary
-            A Python dictionary containing the merged solution archives.
+        dict
+            Merged solution archives.
         """
 
         tmpdict: dict = {}
@@ -939,24 +925,24 @@ class Anneal:
 
         return tmpdict
 
-    def copyx(self, xset: dict = {}) -> None:
+    def copyx(self, xset: dict = {}) -> dict:
         """
-        Returns a copy of the archive.
+        Returns a copy of the solution archive.
 
         Parameters
         ----------
-        xset : dictionary, optional
-            A Python dictionary containing the full solution archive or a
-            reduced solution archive. The default is {}, meaning the full
+        xset : dict, optional
+            Full or reduced solution archive. The default is {}, meaning the full
             solution archive.
 
         Returns
         -------
-        None.
+        dict
+            Copy of the solution archive.
         """
 
         if not bool(xset):
-            xset = self.__archive
+            xset = self._archive
         else:
             if not ("Solution" in xset.keys() and "Values" in xset.keys()):
                 raise MOSAError(
@@ -971,16 +957,15 @@ class Anneal:
 
         return deepcopy(xset)
 
+    # TODO: Show Solutions and Values together
     def printx(self, xset: dict = {}) -> None:
         """
-        Prints the solutions in the archive (full or reduced) in a more human
-        readable format.
+        Prints the solutions in the archive in a more human readable format.
 
         Parameters
         ----------
-        xset : dictionary, optional
-            A Python dictionary containing the full solution archive or a
-            reduced solution archive. The default is {}, meaning the full
+        xset : dict, optional
+            Full or reduced solution archive. The default is {}, meaning the full
             solution archive.
 
         Returns
@@ -989,7 +974,7 @@ class Anneal:
         """
 
         if not bool(xset):
-            xset = self.__archive
+            xset = self._archive
         else:
             if not ("Solution" in xset.keys() and "Values" in xset.keys()):
                 raise MOSAError(
@@ -1013,6 +998,7 @@ class Anneal:
         for i in range(len(xset["Values"])):
             print("%d) %s" % (i + 1, xset["Values"][i]))
 
+    # TODO: Show up to three objective functions in a single plot
     def plotfront(
         self, xset: dict = {}, index1: int = 0, index2: int = 1, file: str | None = None
     ) -> None:
@@ -1021,16 +1007,15 @@ class Anneal:
 
         Parameters
         ----------
-        xset : dictionary, optional
-            A Python dictionary containing the full solution archive or a
-            reduced solution archive. The default is {}, meaning the full
+        xset : dict, optional
+            Full or reduced solution archive. The default is {}, meaning the full
             solution archive.
-        index1 : integer, optional
-            Index of the objective function the value of which will be
-            displayed along x-axis. The default is 0.
-        index2 : integer, optional
-            Index of the objective function the value of which will be
-            displayed along y-axis. The default is 1.
+        index1 : int, optional
+            Index of the objective function displayed along x-axis. The default
+            is 0.
+        index2 : int, optional
+            Index of the objective function displayed along y-axis. The default
+            is 1.
         file : string, optional
             Name of the image file where the plot will be saved. The default is
             None, which means that no figure will be created.
@@ -1048,7 +1033,7 @@ class Anneal:
         f: list = [[], []]
 
         if not bool(xset):
-            xset = self.__archive
+            xset = self._archive
         else:
             if not ("Solution" in xset.keys() and "Values" in xset.keys()):
                 raise MOSAError(
@@ -1083,15 +1068,15 @@ class Anneal:
         else:
             raise MOSAError("Index out of range!")
 
+    # TODO: Use numpy functions and compute also the standard deviation
     def printstats(self, xset: dict = {}) -> None:
         """
         Prints the minimum, maximum and average values of the objectives.
 
         Parameters
         ----------
-        xset : dictionary, optional
-            A Python dictionary containing the full solution archive or a
-            reduced solution archive. The default is {}, meaning the full
+        xset : dict, optional
+            Full or reduced solution archive. The default is {}, meaning the full
             solution archive.
 
         Returns
@@ -1100,7 +1085,7 @@ class Anneal:
         """
 
         if not bool(xset):
-            xset = self.__archive
+            xset = self._archive
         else:
             if not ("Solution" in xset.keys() and "Values" in xset.keys()):
                 raise MOSAError(
@@ -1138,34 +1123,153 @@ class Anneal:
                         print("    Maximum: %f" % fmax[j])
                         print("    Average: %f" % (favg[j] / (i + 1)))
 
-    def __updatearchive(self, x: dict, f: list) -> int:
+    def setpopulation(self, **keys) -> None:
         """
-        Checks if the solution given as argument is better than solutions randomly
-        (and sequentially) chosen from the archive. If so, the archive is updated,
-        this solution is appended and a worse solution is removed.
+        Sets the population.
 
         Parameters
         ----------
-        x : dictionary
-            A Python dictionary containing the solution.
-        f : list
-            A Python list containing the values of the objectives associated
-            with the solution.
+        **keys : Keyword arguments
+            A series of key-value pairs where each key contains the data that can
+            be used to achieve an optimized solution to the problem.
 
         Returns
         -------
-        updated : integer
+        None.
+        """
+
+        if len(keys) > 0:
+            for key, value in keys.items():
+                self._population[key] = value
+        else:
+            raise MOSAError("No keyword was provided!")
+
+    def setkeyparams(self, key: str, **params) -> None:
+        """
+        Sets the optimization parameters for the specified key in the solution
+        to the problem.
+
+        Parameters
+        ----------
+        key : str
+            A key in the solution to the problem.
+        **params : Keyword arguments
+            Names of the optimization parameters with respective values. They can
+            be any of the alternatives below:
+                - number_of_solution_elements
+                - maximum_number_of_solution_elements
+                - no_repeated_elements
+                - mc_step_size
+                - change_value_move
+                - insert_or_delete_move
+                - swap_move
+                - sort_solution_elements
+                - solution_key_selection_weights
+
+        Returns
+        -------
+        None.
+        """
+
+        allowed: dict
+
+        if len(params) > 0:
+            allowed = {
+                "number_of_solution_elements": "self._xnel",
+                "maximum_number_of_solution_elements": "self._maxnel",
+                "no_repeated_elements": "self._xdistinct",
+                "mc_step_size": "self._xstep",
+                "change_value_move": "self._changemove",
+                "insert_or_delete_move": "self._insordelmove",
+                "swap_move": "self._swapmove",
+                "sort_solution_elements": "self._xsort",
+                "solution_key_selection_weights": "self._xselweight",
+            }
+
+            for param, value in params.items():
+                if param in allowed:
+                    exec(f"{allowed[param]}[key]=value")
+        else:
+            raise MOSAError("No keyword was provided!")
+
+    def setoptparam(self, param: str, **keys) -> None:
+        """
+        Sets the values of the specified optimization parameter.
+
+        Parameters
+        ----------
+        param : str
+            Name of the optimization parameter. It must be one of the alternatives below:
+                - number_of_solution_elements
+                - maximum_number_of_solution_elements
+                - no_repeated_elements
+                - mc_step_size
+                - change_value_move
+                - insert_or_delete_move
+                - swap_move
+                - sort_solution_elements
+                - solution_key_selection_weights
+        **keys : Keyword arguments
+            A series of key-value pairs where each key corresponds to a key in the
+            solution to the problem.
+
+        Returns
+        -------
+        None.
+        """
+
+        params: tuple
+        execstr: str
+
+        if len(keys) > 0:
+            params = {
+                "number_of_solution_elements": "self._xnel",
+                "maximum_number_of_solution_elements": "self._maxnel",
+                "no_repeated_elements": "self._xdistinct",
+                "mc_step_size": "self._xstep",
+                "change_value_move": "self._changemove",
+                "insert_or_delete_move": "self._insordelmove",
+                "swap_move": "self._swapmove",
+                "sort_solution_elements": "self._xsort",
+                "solution_key_selection_weights": "self._xselweight",
+            }
+
+            if param in params:
+                execstr = "for key,value in keys.items():\n"
+                execstr += f"    {params[param]}[key]=value"
+                exec(execstr)
+            else:
+                raise MOSAError("Optimization parameter does not exist!")
+        else:
+            raise MOSAError("No keyword was provided!")
+
+    def __updatearchive(self, x: dict, f: list) -> int:
+        """
+        Checks if this solution is better than solutions already in the archive.
+        If so, the archive is updated, this solution is appended and a worse solution
+        is removed.
+
+        Parameters
+        ----------
+        x : dict
+            Solution.
+        f : list
+            Objective values.
+
+        Returns
+        -------
+        int
             1, if the archive is updated, or 0, if not.
         """
 
         updated: int = 0
-        indexlist = list(range(len(self.__archive["Values"])))
+        indexlist = list(range(len(self._archive["Values"])))
 
         for i in indexlist:
-            if f == self.__archive["Values"][i]:
+            if f == self._archive["Values"][i]:
                 return updated
 
-        if len(self.__archive["Solution"]) == 0:
+        if len(self._archive["Solution"]) == 0:
             updated = 1
         else:
             shuffle(indexlist)
@@ -1173,19 +1277,19 @@ class Anneal:
             for i in indexlist:
                 nl = ng = 0
 
-                for j in range(len(self.__archive["Values"][i])):
-                    if f[j] < self.__archive["Values"][i][j]:
+                for j in range(len(self._archive["Values"][i])):
+                    if f[j] < self._archive["Values"][i][j]:
                         nl += 1
-                    elif f[j] > self.__archive["Values"][i][j]:
+                    elif f[j] > self._archive["Values"][i][j]:
                         ng += 1
 
-                if len(self.__archive["Solution"]) < self.__archivesize:
+                if len(self._archive["Solution"]) < self._archivesize:
                     if nl > 0:
                         updated = 1
 
                         if ng == 0:
-                            self.__archive["Solution"].pop(i)
-                            self.__archive["Values"].pop(i)
+                            self._archive["Solution"].pop(i)
+                            self._archive["Values"].pop(i)
 
                             break
                     else:
@@ -1194,16 +1298,16 @@ class Anneal:
                         break
                 else:
                     if nl > 0 and ng == 0:
-                        self.__archive["Solution"].pop(i)
-                        self.__archive["Values"].pop(i)
+                        self._archive["Solution"].pop(i)
+                        self._archive["Values"].pop(i)
 
                         updated = 1
 
                         break
 
         if updated == 1:
-            self.__archive["Solution"].append(x)
-            self.__archive["Values"].append(f)
+            self._archive["Solution"].append(x)
+            self._archive["Values"].append(f)
 
         return updated
 
@@ -1213,14 +1317,8 @@ class Anneal:
 
         Returns
         -------
-        x : dictionary
-            A Python dictionary containing a solution.
-        f : list
-            A Python list containing the values of the objective functions
-            associated with the solution.
-        population : dictionary
-            A Python dictionary containing the population compatible with the
-            solution.
+        tuple
+            Solution, objective values, and population compatible with the solution.
         """
 
         tmpdict: dict = {}
@@ -1261,14 +1359,12 @@ class Anneal:
 
         Parameters
         ----------
-        x : dictionary
-            A Python dictionary containing the solution.
+        x : dict
+            Solution.
         f : list
-            A Python list containing the values of the objectives associated
-            with the solution.
-        population : dictionary
-            A Python dictionary containing the population compatilbe with the
-            solution.
+            Objective values.
+        population : dict
+            Population compatilbe with the solution.
 
         Returns
         -------
@@ -1293,128 +1389,96 @@ class Anneal:
     """
     Class properties
     ----------------
-    population : dictionary, optional
-        A Python dictionary, each key of which contains the data that can be 
-        used to achieve an optimized solution to the problem. Default is
-        {"X":(-1.0,1.0)}.
-    archive : dictionary
-        A Python dictionary with two keys: "Solution", which contains a list of 
-        the best solutions to the problem, and "Values", which contains a list 
-        of the corresponding objective values. It should not be changed manually.
-    restart : logical, optional
-        Whether the optimization process must restart from a previous run (if 
-        a checkpoint file is available) or not. Default is True.
+    population : dict
+        Population where each key represents the data that can be used to achieve 
+        an optimized solution to the problem.
+    archive : dict
+        Solution archive. It should not be changed manually.
+    restart : bool, optional
+        Restarts from a previous run if a checkpoint file is available. The 
+        default is True.
     objective_weights : list, optional
-        A Python list containing weights for the objectives, one per objective.
-        Default is [], which means the same weight (1.0) for all objectives.
-    initial_temperature : double, optional
-        Initial temperature for the Simulated Annealing algorithm. Default 
-        value is 1.0.
-    temperature_decrease_factor : double, optional
-        Decrease factor of the temperature during Simulated Annealing. It
-        determines how fast the quench will occur. Default value is 0.9.
-    number_of_temperatures : integer, optional
-        Number of temperatures to be considered in Simulated Annealing.
-        Default is 10.
-    number_of_iterations : integer, optional
-        Number of Monte Carlo iterations per temperature. Default is 1000.
-    archive_size : integer, optional
-        Maximum number of solutions in the archive. Default value is 1000.
-    archive_file : string, optional
-        Text file where the archive should be saved to. Default value is
-        'archive.json'.
-    maximum_archive_rejections : integer, optional
+        Weights for the objectives. The default is [], which means the same 
+        weight (1.0) for all objectives.
+    initial_temperature : float, optional
+        Initial temperature. The default is 1.0.
+    temperature_decrease_factor : float, optional
+        Decrease factor of the temperature. The default is 0.9.
+    number_of_temperatures : int, optional
+        Number of temperatures. The default is 10.
+    number_of_iterations : int, optional
+        Number of Monte Carlo iterations per temperature. The default is 1000.
+    archive_size : int, optional
+        Maximum number of solutions in the archive. The default is 1000.
+    archive_file : str, optional
+        Name of the archive file. The default is 'archive.json'.
+    maximum_archive_rejections : int, optional
         Maximum number of consecutive rejections of insertion of a solution 
-        in the archive. Once reached, the optimization process finishes.
-        Default value is 1000.
+        in the archive. The default is 1000.
     alpha : float, optional
-        Value of the alpha parameter. Default value is 0.0.
-    number_of_solution_elements : dictionary, optional
-        A Python dictionary where each key corresponds to a key in the solution 
-        set and specifies the number of elements for that key in the solution 
-        set. Default value is {}, which means one element for all keys in the 
-        solution.
-    maximum_number_of_solution_elements : dictionary, optional
-        A Python dictionary where each key corresponds to a key in the solution 
-        set and specifies the maximum number of elements for that key in the 
-        solution set, if the number of elements is variable. Default value is 
-        {}, which means an unlimited number of elements can be present in the 
-        solution key.
-    no_repeated_elements : dictionary, optional
-        A Python dictionary where each key corresponds to a key in the solution 
-        set and specifies whether an element cannot be repeated in the solution. 
-        Default value is {}, which means that repetitions are allowed.
-    mc_step_size : dictionary, optional
-        A Python dictionary where each key corresponds to a key in the solution 
-        and specifies the maximum number of steps, to the left or to the right, 
-        that the Monte Carlo algorithm can take when randomly selecting an 
-        element in the corresponding key in the population to insert in the 
-        solution. Default is {}, which means 0.1 for continuous search 
-        spaces and half the number of elements in the population for discrete 
-        search spaces.
-    change_value_move : dictionary, optional
-        A Python dictionary where each key corresponds to a key in the solution 
-        set and specifies the weight (non-normalized probability) used to select
-        a trial move in which the value of a randomly selected element in the 
-        solution set will be modified. How this modification is done depends on 
-        the sample space of solutions to the problem: (1) if discrete, the 
-        exchange of values between the solution and the population; or (2) if 
-        continuous, the random increment/decrement of the value of an element 
-        in the solution set. Default value is {}, which means the weight to 
-        select this trial move is equal to 1.0.
-    insert_or_delete_move : dictionary, optional
-        A Python dictionary where each key corresponds to a key in the solution 
-        set and specifies the weight (non-normalized probability) used to 
-        select a trial move in which an element will be inserted into or deleted 
-        from the solution set. Default value is {}, which means this trial move 
-        is not allowed, i.e., weight equal to zero.
-    swap_move : dictionary, optional
-        A Python dictionary where each key corresponds to a key in the solution 
-        set and specifies the weight (non-normalized probability) used to 
-        select a trial move in which the algorithm swaps two randomly chosen 
-        elements in the solution set. Default value is {}, which means this 
-        trial move is not allowed, i.e., weight equal to zero.
-    sort_solution_elements : dictionary, optional
-        A Python dictionary where each key corresponds to a key in the solution 
-        set and specifies if the list in that key must be sorted in ascending 
-        order. Default is {}, which means no sorting at all.
-    solution_key_selection_weights : dictionary, optional
-        A Python dictionary where each key corresponds to a key in the solution 
-        set and specifies the selection weight of this key in a Monte Carlo 
-        iteration. Default value is {}, which means that all keys have the same 
-        selection weight, i.e., the same probability of being selected.
-    track_optimization_progress : boolean, optional
-        Whether to track or not optimization progress by saving the accepted 
-        objetive values into a Python list. Default is False.
+        Alpha parameter. The default is 0.0.
+    number_of_solution_elements : dict, optional
+        Number of elements for each key in the solution. The default is {}, which 
+        means one element for all keys in the solution.
+    maximum_number_of_solution_elements : dict, optional
+        Maximum number of elements for each key in the solution set, if the number 
+        of elements is variable. The default is {}, which means an unlimited number 
+        of elements.
+    no_repeated_elements : dict, optional
+        Determines that an element cannot be repeated in the solution. The default 
+        is {}, which means that repetitions are allowed.
+    mc_step_size : dict, optional
+        Monte Carlo step size for each key in the solution. The default is {}, 
+        which means 0.1 for continuous search space and half the number of elements 
+        in the population for discrete search space.
+    change_value_move : dict, optional
+        Weight (non-normalized probability) to select a trial move where the value 
+        of a randomly selected element in the solution will be modified. For  
+        discrete search space, it implies the exchange of values between the 
+        solution and the population. For continuous search space, the value of 
+        the solution element is randomly incremented/decremented. The default 
+        is {}, which means the weight to select this trial move is equal to 1.0.
+    insert_or_delete_move : dict, optional
+        Weight (non-normalized probability) to select a trial move where an element 
+        will be inserted into or deleted from the solution. The default is {}, 
+        which means this trial move is not allowed, i.e., weight equal to zero.
+    swap_move : dict, optional
+        Weight (non-normalized probability) to select a trial move where elements 
+        will be swaped in the solution. The default is {}, which means this trial 
+        move is not allowed, i.e., weight equal to zero.
+    sort_solution_elements : dict, optional
+        Elements in a solution key will be sorted in ascending order. The default 
+        is {}, which means no sorting at all.
+    solution_key_selection_weights : dict, optional
+        Selection weight for each solution key in a Monte Carlo iteration. The 
+        default value is {}, which means that all keys have the same selection 
+        weight, i.e., the same probability of being selected.
+    track_optimization_progress : bool, optional
+        Tracks the optimization progress by saving the accepted objetive values 
+        into a Python list. The default is False.
     accepted_objective_values : list, readonly
-        A Python list of accepted objective values over Monte Carlo algorithm 
-        iterations, useful for diagnostic purposes or for tracking optimization 
-        progress.
-    verbose : boolean, optional
-        Whether to display verbose output or not. Default is False.
+        Accepted objective values over Monte Carlo iterations.
+    verbose : bool, optional
+        Displays verbose output. The default is False.
     """
 
     @property
     def population(self) -> dict:
-        return self.__population
+        return self._population
 
     @population.setter
     def population(self, val: dict) -> None:
         if isinstance(val, dict) and bool(val):
-            self.__population = val
+            self._population = val
         else:
             raise MOSAError("Population must be a non-empty dictionary!")
 
     @property
     def archive(self) -> dict:
-        print("WARNING! The archive should not be changed manually!")
-
-        return self.__archive
+        return self._archive
 
     @archive.setter
     def archive(self, val: dict) -> None:
-        print("WARNING! The archive should not be changed manually!")
-
         if isinstance(val, dict) and bool(val):
             if not ("Solution" in val.keys() and "Values" in val.keys()):
                 raise MOSAError(
@@ -1429,49 +1493,49 @@ class Anneal:
         else:
             raise MOSAError("The archive must be a non-empty dictionary!")
 
-        self.__archive = val
+        self._archive = val
 
     @property
     def restart(self) -> bool:
-        return self.__restart
+        return self._restart
 
     @restart.setter
     def restart(self, val: bool) -> None:
         if isinstance(val, bool):
-            self.__restart = val
+            self._restart = val
         else:
             raise MOSAError("Restart must be a boolean!")
 
     @property
     def objective_weights(self) -> list:
-        return self.__weight
+        return self._weight
 
     @objective_weights.setter
     def objective_weights(self, val: list) -> None:
         if isinstance(val, list):
-            self.__weight = val
+            self._weight = val
         else:
             raise MOSAError("The weights must be provided in a list!")
 
     @property
     def initial_temperature(self) -> float:
-        return self.__initemp
+        return self._initemp
 
     @initial_temperature.setter
     def initial_temperature(self, val: int | float) -> None:
         if isinstance(val, (int, float)) and val > 0.0:
-            self.__initemp = val
+            self._initemp = val
         else:
             raise MOSAError("Initial temperature must be a number greater than zero!")
 
     @property
     def temperature_decrease_factor(self) -> float:
-        return self.__decrease
+        return self._decrease
 
     @temperature_decrease_factor.setter
     def temperature_decrease_factor(self, val: float) -> None:
         if isinstance(val, float) and val > 0.0 and val < 1.0:
-            self.__decrease = val
+            self._decrease = val
         else:
             raise MOSAError(
                 "Decrease factor must be a number greater than zero and less than one!"
@@ -1479,12 +1543,12 @@ class Anneal:
 
     @property
     def number_of_temperatures(self) -> int:
-        return self.__ntemp
+        return self._ntemp
 
     @number_of_temperatures.setter
     def number_of_temperatures(self, val: int) -> None:
         if isinstance(val, int) and val > 0:
-            self.__ntemp = val
+            self._ntemp = val
         else:
             raise MOSAError(
                 "Number of annealing temperatures must be an integer greater than zero!"
@@ -1492,12 +1556,12 @@ class Anneal:
 
     @property
     def number_of_iterations(self) -> int:
-        return self.__niter
+        return self._niter
 
     @number_of_iterations.setter
     def number_of_iterations(self, val: int) -> None:
         if isinstance(val, int) and val > 0:
-            self.__niter = val
+            self._niter = val
         else:
             raise MOSAError(
                 "Number of iterations must be an integer greater than zero!"
@@ -1505,34 +1569,34 @@ class Anneal:
 
     @property
     def archive_size(self) -> int:
-        return self.__archivesize
+        return self._archivesize
 
     @archive_size.setter
     def archive_size(self, val: int) -> None:
         if isinstance(val, int) and val > 0:
-            self.__archivesize = val
+            self._archivesize = val
         else:
             raise MOSAError("The archive size must be an integer greater than zero!")
 
     @property
     def archive_file(self) -> str:
-        return self.__archivefile
+        return self._archivefile
 
     @archive_file.setter
     def archive_file(self, val: str) -> None:
         if isinstance(val, str) and len(val.strip()) > 0:
-            self.__archivefile = val.strip()
+            self._archivefile = val.strip()
         else:
             raise MOSAError("A file name must be provided!")
 
     @property
     def maximum_archive_rejections(self) -> int:
-        return self.__maxarchivereject
+        return self._maxarchivereject
 
     @maximum_archive_rejections.setter
     def maximum_archive_rejections(self, val: int) -> None:
         if isinstance(val, int) and val > 0:
-            self.__maxarchivereject = val
+            self._maxarchivereject = val
         else:
             raise MOSAError(
                 "Maximum archive rejections must be an integer greater than zero!"
@@ -1540,25 +1604,25 @@ class Anneal:
 
     @property
     def alpha(self) -> float:
-        return self.__alpha
+        return self._alpha
 
     @alpha.setter
     def alpha(self, val: float) -> None:
         if isinstance(val, float) and val >= 0.0 and val <= 1.0:
-            self.__alpha = val
+            self._alpha = val
         else:
             raise MOSAError("Alpha must be a number between zero and one!")
 
     @property
     def number_of_solution_elements(self) -> dict:
-        return self.__xnel
+        return self._xnel
 
     @number_of_solution_elements.setter
     def number_of_solution_elements(self, val: dict) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, int) and value > 0:
-                    self.__xnel[key] = value
+                    self._xnel[key] = value
                 else:
                     raise MOSAError(
                         "Key '%s' must contain an integer greater than zero!" % key
@@ -1570,14 +1634,14 @@ class Anneal:
 
     @property
     def maximum_number_of_solution_elements(self) -> dict:
-        return self.__maxnel
+        return self._maxnel
 
     @maximum_number_of_solution_elements.setter
     def maximum_number_of_solution_elements(self, val: dict) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, int) and value >= 2:
-                    self.__maxnel[key] = value
+                    self._maxnel[key] = value
                 else:
                     raise MOSAError(
                         "Key '%s' must contain an integer greater than or equal to 2!"
@@ -1590,14 +1654,14 @@ class Anneal:
 
     @property
     def no_repeated_elements(self) -> dict:
-        return self.__xdistinct
+        return self._xdistinct
 
     @no_repeated_elements.setter
     def no_repeated_elements(self, val: dict) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, bool):
-                    self.__xdistinct[key] = value
+                    self._xdistinct[key] = value
                 else:
                     raise MOSAError("Key '%s' must contain a boolean!" % key)
         else:
@@ -1607,14 +1671,14 @@ class Anneal:
 
     @property
     def mc_step_size(self) -> dict:
-        return self.__xstep
+        return self._xstep
 
     @mc_step_size.setter
     def mc_step_size(self, val: dict) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, (int, float)):
-                    self.__xstep[key] = value
+                    self._xstep[key] = value
                 else:
                     raise MOSAError("Key '%s' must contain a number!" % key)
         else:
@@ -1622,14 +1686,14 @@ class Anneal:
 
     @property
     def change_value_move(self) -> dict:
-        return self.__changemove
+        return self._changemove
 
     @change_value_move.setter
     def change_value_move(self, val: dict) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, (float, int)) and value >= 0.0:
-                    self.__changemove[key] = value
+                    self._changemove[key] = value
                 else:
                     raise MOSAError("Key '%s' must contain a positive number!" % key)
         else:
@@ -1637,14 +1701,14 @@ class Anneal:
 
     @property
     def insert_or_delete_move(self) -> dict:
-        return self.__insordelmove
+        return self._insordelmove
 
     @insert_or_delete_move.setter
     def insert_or_delete_move(self, val: dict) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, (float, int)) and value >= 0.0:
-                    self.__insordelmove[key] = value
+                    self._insordelmove[key] = value
                 else:
                     raise MOSAError("Key '%s' must be a positive number!" % key)
         else:
@@ -1652,14 +1716,14 @@ class Anneal:
 
     @property
     def swap_move(self) -> dict:
-        return self.__swapmove
+        return self._swapmove
 
     @swap_move.setter
     def swap_move(self, val: dict) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, (float, int)) and value >= 0.0:
-                    self.__swapmove[key] = value
+                    self._swapmove[key] = value
                 else:
                     raise MOSAError("Key '%s' must be a positive number!" % key)
         else:
@@ -1667,14 +1731,14 @@ class Anneal:
 
     @property
     def sort_solution_elements(self) -> dict:
-        return self.__xsort
+        return self._xsort
 
     @sort_solution_elements.setter
     def sort_solution_elements(self, val: dict) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, bool):
-                    self.__xsort[key] = value
+                    self._xsort[key] = value
                 else:
                     raise MOSAError("Key '%s' must contain a boolean!" % key)
         else:
@@ -1682,14 +1746,14 @@ class Anneal:
 
     @property
     def solution_key_selection_weights(self) -> dict:
-        return self.__xselweight
+        return self._xselweight
 
     @solution_key_selection_weights.setter
     def solution_key_selection_weights(self, val: dict) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, (int, float)):
-                    self.__xselweight[key] = value
+                    self._xselweight[key] = value
                 else:
                     raise MOSAError("Key '%s' must contain a number!" % key)
         else:
@@ -1699,27 +1763,27 @@ class Anneal:
 
     @property
     def track_optimization_progress(self) -> bool:
-        return self.__track_opt_progress
+        return self._trackoptprogress
 
     @track_optimization_progress.setter
     def track_optimization_progress(self, val: bool) -> None:
         if isinstance(val, bool):
-            self.__track_opt_progress = val
+            self._trackoptprogress = val
         else:
             raise MOSAError("Tracking or not optimization progress must be a boolean!")
 
     @property
     def accepted_objective_values(self) -> list:
-        return self.__f
+        return self._f
 
     @property
     def verbose(self) -> bool:
-        return self.__verbose
+        return self._verbose
 
     @verbose.setter
     def verbose(self, val: bool) -> None:
         if isinstance(val, bool):
-            self.__verbose = val
+            self._verbose = val
         else:
             raise MOSAError("Displaying or not verbose output must be a boolean!")
 
@@ -1727,26 +1791,27 @@ class Anneal:
 class MOSAError(Exception):
     def __init__(self, message: str = "") -> None:
         """
-        __init__ -> class constructor.
+        Class constructor.
 
         Parameters
         ----------
-        message : string, optional
-            Error message to be displayed. The default is "".
+        message : str, optional
+            Error message. The default is "".
 
         Returns
         -------
         None.
         """
+
         self.message = message
 
     def __str__(self) -> str:
         """
-        __str__ -> returns the error message.
+        Returns the error message.
 
         Returns
         -------
-        message
-            Error message to be displayed.
+        str
+            Error message.
         """
         return self.message

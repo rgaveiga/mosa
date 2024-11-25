@@ -1,7 +1,8 @@
-mosa/__pycache__/
-tests/
-tests/out*
-tests/*.png
-tests/run_*.py
+mosa/__pycache__
+run_check
+docs
+tests
 tests/*.json
-examples/*.json
+tests/__pycache__
+examples/*/*.json
+dist
