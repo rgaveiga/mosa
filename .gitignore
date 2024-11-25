@@ -5,3 +5,4 @@ tests
 tests/*.json
 tests/__pycache__
 examples/*/*.json
+dist
