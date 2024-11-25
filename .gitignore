@@ -1,5 +1,7 @@
 mosa/__pycache__
 run_check
+docs
+tests
 tests/*.json
 tests/__pycache__
 examples/*/*.json
