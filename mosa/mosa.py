@@ -12,8 +12,8 @@ class Anneal:
     Simulated Annealing (SA) has been initially proposed in `Optimization by Simulated 
     Annealing <https://doi.org/10.1126/science.220.4598.671>`_ as an optimization 
     heuristic. MOSA extends the original, single-objective SA to approximate the 
-    Pareto front in multi-objective optimization problems. A thorough discussion 
-    about MOSA and its algorithm variants can be found in `Multi-objective Simulated 
+    Pareto front in multi-objective optimization problems. A comprehensive discussion 
+    on MOSA and its algorithm variants can be found in `Multi-objective Simulated 
     Annealing: Principles and Algorithm Variants <https://doi.org/10.1155/2019/8134674>`_.
     
     Attributes
