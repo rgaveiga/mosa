@@ -4,3 +4,4 @@ docs
 tests
 tests/__pycache__
 dist
+*.old
