@@ -8,26 +8,26 @@ from math import exp, inf
 
 class Anneal:
     """
-    This class implements the Multi-Objective Simulated Annealing (MOSA) algorithm.    
-    Simulated Annealing (SA) has been initially proposed in `Optimization by Simulated 
-    Annealing <https://doi.org/10.1126/science.220.4598.671>`_ as an optimization 
-    heuristic. MOSA extends the original, single-objective SA to approximate the 
-    Pareto front in multi-objective optimization problems. A comprehensive discussion 
-    on MOSA and its algorithm variants can be found in `Multi-objective Simulated 
+    This class implements the Multi-Objective Simulated Annealing (MOSA) algorithm.
+    Simulated Annealing (SA) has been initially proposed in `Optimization by Simulated
+    Annealing <https://doi.org/10.1126/science.220.4598.671>`_ as an optimization
+    heuristic. MOSA extends the original, single-objective SA to approximate the
+    Pareto front in multi-objective optimization problems. A comprehensive discussion
+    on MOSA and its algorithm variants can be found in `Multi-objective Simulated
     Annealing: Principles and Algorithm Variants <https://doi.org/10.1155/2019/8134674>`_.
-    
+
     Attributes
     ----------
     population : dict
-        Population where each key represents the data that can be used to achieve 
+        Population where each key represents the data that can be used to achieve
         an optimized solution to the problem.
     archive : dict
         Solution archive. It should not be changed manually.
     restart : bool, optional
-        Restarts from a previous run if a checkpoint file is available. The 
+        Restarts from a previous run if a checkpoint file is available. The
         default is True.
     objective_weights : list, optional
-        Weights for the objectives. The default is [], which means the same 
+        Weights for the objectives. The default is [], which means the same
         weight (1.0) for all objectives.
     initial_temperature : float, optional
         Initial temperature. The default is 1.0.
@@ -42,54 +42,54 @@ class Anneal:
     archive_file : str, optional
         Name of the archive file. The default is 'archive.json'.
     maximum_archive_rejections : int, optional
-        Maximum number of consecutive rejections of insertion of a solution 
+        Maximum number of consecutive rejections of insertion of a solution
         in the archive. The default is 1000.
     alpha : float, optional
         Alpha parameter. The default is 0.0.
     number_of_solution_elements : dict, optional
-        Number of elements for each key in the solution. The default is {}, which 
+        Number of elements for each key in the solution. The default is {}, which
         means one element for all keys in the solution.
     maximum_number_of_solution_elements : dict, optional
-        Maximum number of elements for each key in the solution set, if the number 
-        of elements is variable. The default is {}, which means an unlimited number 
+        Maximum number of elements for each key in the solution set, if the number
+        of elements is variable. The default is {}, which means an unlimited number
         of elements.
     no_repeated_elements : dict, optional
-        Determines that an element cannot be repeated in the solution. The default 
+        Determines that an element cannot be repeated in the solution. The default
         is {}, which means that repetitions are allowed.
     mc_step_size : dict, optional
-        Monte Carlo step size for each key in the solution. The default is {}, 
-        which means 0.1 for continuous search space and half the number of elements 
+        Monte Carlo step size for each key in the solution. The default is {},
+        which means 0.1 for continuous search space and half the number of elements
         in the population for discrete search space.
     change_value_move : dict, optional
-        Weight (non-normalized probability) to select a trial move where the value 
-        of a randomly selected element in the solution will be modified. For  
-        discrete search space, it implies the exchange of values between the 
-        solution and the population. For continuous search space, the value of 
-        the solution element is randomly incremented/decremented. The default 
+        Weight (non-normalized probability) to select a trial move where the value
+        of a randomly selected element in the solution will be modified. For
+        discrete search space, it implies the exchange of values between the
+        solution and the population. For continuous search space, the value of
+        the solution element is randomly incremented/decremented. The default
         is {}, which means the weight to select this trial move is equal to 1.0.
     insert_or_delete_move : dict, optional
-        Weight (non-normalized probability) to select a trial move where an element 
-        will be inserted into or deleted from the solution. The default is {}, 
+        Weight (non-normalized probability) to select a trial move where an element
+        will be inserted into or deleted from the solution. The default is {},
         which means this trial move is not allowed, i.e., weight equal to zero.
     swap_move : dict, optional
-        Weight (non-normalized probability) to select a trial move where elements 
-        will be swaped in the solution. The default is {}, which means this trial 
+        Weight (non-normalized probability) to select a trial move where elements
+        will be swaped in the solution. The default is {}, which means this trial
         move is not allowed, i.e., weight equal to zero.
     sort_solution_elements : dict, optional
-        Elements in a solution key will be sorted in ascending order. The default 
+        Elements in a solution key will be sorted in ascending order. The default
         is {}, which means no sorting at all.
     solution_key_selection_weights : dict, optional
-        Selection weight for each solution key in a Monte Carlo iteration. The 
-        default value is {}, which means that all keys have the same selection 
+        Selection weight for each solution key in a Monte Carlo iteration. The
+        default value is {}, which means that all keys have the same selection
         weight, i.e., the same probability of being selected.
     track_optimization_progress : bool, optional
-        Tracks the optimization progress by saving the accepted objetive values 
+        Tracks the optimization progress by saving the accepted objetive values
         into a Python list. The default is False.
     accepted_objective_values : list, readonly
         Accepted objective values over Monte Carlo iterations.
     verbose : bool, optional
         Displays verbose output. The default is False.
-        
+
     Methods
     -------
     evolve(func)
@@ -125,7 +125,7 @@ class Anneal:
     setoptparam(param,**keys)
         Sets the values of the specified optimization parameter.
     """
-    
+
     def __init__(self) -> None:
         """
         Initializes object attributes.
@@ -1835,7 +1835,7 @@ class MOSAError(Exception):
     """
     This class implements exceptions raised by the MOSA algorithm.
     """
-    
+
     def __init__(self, message: str = "") -> None:
         """
         Class constructor.
