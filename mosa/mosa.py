@@ -211,6 +211,7 @@ class Anneal:
         totlength: float = 0.0
         sellength: dict = {}
         keys: list = []
+        args: str = ""
         MAX_FAILED: int = 10
         MIN_STEP_LENGTH: int = 10
 
@@ -457,7 +458,11 @@ class Anneal:
                         xcurr[key].sort()
 
             if callable(func):
-                fcurr = list(func(xcurr))
+                for key in keys:
+                    args += f"{key} = {xcurr[key]}, "
+                
+                exec(f"fcurr = list(func({args})")
+                
                 updated = self.__updatearchive(xcurr, fcurr)
 
                 if self._trackoptprogress:
@@ -630,7 +635,13 @@ class Anneal:
                         xtmp[key].pop(old)
 
                 gamma = 1.0
-                ftmp = list(func(xtmp))
+                
+                args = ""
+                
+                for key in keys:
+                    args += f"{key} = {xtmp[key]}, "
+                
+                exec(f"ftmp = list(func({args})")
 
                 for k in range(len(ftmp)):
                     if ftmp[k] < fcurr[k]:
