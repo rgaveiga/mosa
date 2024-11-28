@@ -461,7 +461,7 @@ class Anneal:
                 for key in keys:
                     args += f"{key} = {xcurr[key]}, "
                 
-                exec(f"fcurr = list(func({args})")
+                fcurr = eval(f"list(func({args}))")               
                 
                 updated = self.__updatearchive(xcurr, fcurr)
 
@@ -641,7 +641,7 @@ class Anneal:
                 for key in keys:
                     args += f"{key} = {xtmp[key]}, "
                 
-                exec(f"ftmp = list(func({args})")
+                ftmp = eval(f"list(func({args}))")
 
                 for k in range(len(ftmp)):
                     if ftmp[k] < fcurr[k]:
