@@ -1,15 +1,6 @@
 {
-    "Solution": {
-        "Component": [
-            "V",
-            "Y"
-        ],
-        "Concentration": 0.0029675796753349318
-    },
-    "Values": [
-        -27.59014130094553,
-        69.4667224558694
-    ],
+    "Solution": {"Component": ["V", "Y"], "Concentration": 0.0029675796753349318},
+    "Values": [-27.59014130094553, 69.4667224558694],
     "Population": {
         "Component": [
             "H",
@@ -35,15 +26,9 @@
             "U",
             "M",
             "P",
-            "Z"
+            "Z",
         ],
-        "Concentration": [
-            0.0,
-            0.1
-        ]
+        "Concentration": [0.0, 0.1],
     },
-    "SampleSpace": {
-        "Component": 0,
-        "Concentration": 1
-    }
+    "SampleSpace": {"Component": 0, "Concentration": 1},
 }
