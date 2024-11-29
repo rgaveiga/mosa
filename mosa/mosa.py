@@ -19,7 +19,7 @@ class Anneal:
     Attributes
     ----------
     population : dict
-        Population where each key represents the data that can be used to achieve
+        Population where each item represents the data that can be used to achieve
         an optimized solution to the problem.
     archive : dict
         Solution archive. It should not be changed manually.
@@ -46,41 +46,40 @@ class Anneal:
         in the archive. The default is 1000.
     alpha : float, optional
         Alpha parameter. The default is 0.0.
-    number_of_solution_elements : dict, optional
-        Number of elements for each key in the solution. The default is {}, which
-        means one element for all keys in the solution.
-    maximum_number_of_solution_elements : dict, optional
-        Maximum number of elements for each key in the solution set, if the number
-        of elements is variable. The default is {}, which means an unlimited number
-        of elements.
-    no_repeated_elements : dict, optional
-        Determines that an element cannot be repeated in the solution. The default
-        is {}, which means that repetitions are allowed.
+    number_of_elements : dict, optional
+        Number of elements for each solution item. The default is {}, which
+        means one element for all solution items.
+    maximum_number_of_elements : dict, optional
+        Maximum number of elements for each solution item, if the number of elements
+        is variable. The default is {}, which means an unlimited number of elements.
+    distinct_elements : dict, optional
+        Determines that an element cannot be repeated in a solution item. The
+        default is {}, which means that repetitions are allowed.
     mc_step_size : dict, optional
-        Monte Carlo step size for each key in the solution. The default is {},
-        which means 0.1 for continuous search space and half the number of elements
-        in the population for discrete search space.
+        Monte Carlo step size for each solution item. The default is {}, which
+        means 0.1 for continuous search space and half the number of elements
+        in a population item for discrete search space.
     change_value_move : dict, optional
         Weight (non-normalized probability) to select a trial move where the value
-        of a randomly selected element in the solution will be modified. For
+        of a randomly selected element in a solution item will be modified. For
         discrete search space, it implies the exchange of values between the
         solution and the population. For continuous search space, the value of
         the solution element is randomly incremented/decremented. The default
         is {}, which means the weight to select this trial move is equal to 1.0.
     insert_or_delete_move : dict, optional
         Weight (non-normalized probability) to select a trial move where an element
-        will be inserted into or deleted from the solution. The default is {},
+        will be inserted into or deleted from a solution item. The default is {},
         which means this trial move is not allowed, i.e., weight equal to zero.
     swap_move : dict, optional
         Weight (non-normalized probability) to select a trial move where elements
         will be swaped in the solution. The default is {}, which means this trial
         move is not allowed, i.e., weight equal to zero.
-    sort_solution_elements : dict, optional
-        Elements in a solution key will be sorted in ascending order. The default
+    sort_elements : dict, optional
+        Elements in a solution item will be sorted in ascending order. The default
         is {}, which means no sorting at all.
-    solution_key_selection_weights : dict, optional
-        Selection weight for each solution key in a Monte Carlo iteration. The
-        default value is {}, which means that all keys have the same selection
+    item_selection_weights : dict, optional
+        Selection weight for each solution item in a Monte Carlo iteration. The
+        default value is {}, which means that all items have the same selection
         weight, i.e., the same probability of being selected.
     track_optimization_progress : bool, optional
         Tracks the optimization progress by saving the accepted objetive values
@@ -94,12 +93,12 @@ class Anneal:
     -------
     evolve(func)
         Performs the optimization.
-    prunedominated(xset,delduplicated)
+    prune_dominated(xset,del_duplicated)
         Returns a subset of the full or reduced archive containing only non-dominated
         solutions.
-    savex(xset,archivefile)
+    savex(xset,archive_file)
         Saves the archive into a text file in JSON format.
-    loadx(archivefile)
+    loadx(archive_file)
         Loads solutions from a JSON file into the archive.
     trimx(xset,thresholds)
         Extracts from the archive the solutions where the objective values are
@@ -107,23 +106,23 @@ class Anneal:
     reducex(xset,index,nel)
         Reduces and sorts in ascending order the archive according to the selected
         objective function.
-    mergex(xsetlist)
+    mergex(xset_list)
         Merges a list of solution archives into a single solution archive.
     copyx(xset)
         Returns a copy of the solution archive.
     printx(xset)
         Prints the solutions in the archive in a more human readable format.
-    plotfront(xset,index1,index2,file)
+    plot_front(xset,index1,index2,file)
         Plots 2D scatter plots of selected pairs of objective values.
-    printstats(xset)
+    print_stats(xset)
         Prints the minimum, maximum and average values of the objectives.
-    setpopulation(**keys)
+    set_population(**items)
         Sets the population.
-    setkeyparams(key,**params)
-        Sets the optimization parameters for the specified key in the solution
-        to the problem.
-    setoptparam(param,**keys)
-        Sets the values of the specified optimization parameter.
+    set_item_params(item,**params)
+        Sets the optimization parameters for the specified solution item.
+    set_opt_param(param,**items)
+        Sets the values of the optimization parameter for the specified solution
+        items.
     """
 
     def __init__(self) -> None:
@@ -158,7 +157,7 @@ class Anneal:
         self._temp: list = []
         self._weight: list = []
         self._niter: int = 1000
-        self._archivefile: str = "archive.json"
+        self._archive_file: str = "archive.json"
         self._archivesize: int = 1000
         self._maxarchivereject: int = 1000
         self._alpha: float = 0.0
@@ -210,7 +209,8 @@ class Anneal:
         xsort: dict = {}
         totlength: float = 0.0
         sellength: dict = {}
-        keys: list = []
+        items: list = []
+        args: str = ""
         MAX_FAILED: int = 10
         MIN_STEP_LENGTH: int = 10
 
@@ -222,14 +222,13 @@ class Anneal:
             if not bool(self._archive):
                 try:
                     print(
-                        "Trying to load the archive from file %s..." % self._archivefile
+                        f"Trying to load the archive from file {self._archive_file}..."
                     )
 
-                    self._archive = json.load(open(self._archivefile, "r"))
+                    self._archive = json.load(open(self._archive_file, "r"))
                 except FileNotFoundError:
                     print(
-                        "File %s not found! Initializing an empty archive..."
-                        % self._archivefile
+                        f"File {self._archive_file} not found! Initializing an empty archive..."
                     )
 
                     self._archive = {"Solution": [], "Values": []}
@@ -246,9 +245,7 @@ class Anneal:
             if set(population.keys()) == set(xcurr.keys()):
                 from_checkpoint = True
             else:
-                raise MOSAError(
-                    "Solution and population dictionaries must have the same keys!"
-                )
+                raise MOSAError("Solution and population must have the same items!")
         else:
             if bool(self._population):
                 xcurr = {}
@@ -257,171 +254,156 @@ class Anneal:
             else:
                 raise MOSAError("A population must be provided!")
 
-        keys = list(population.keys())
+        items = list(population.keys())
 
-        print("------")
-        print("Keys in the population/solution dictionaries:")
+        print("------\n")
+        print("Items in the solution:\n======================\n")
 
-        for key in keys:
-            print("    ['%s']:" % key)
+        for item in items:
+            print(f"    {item}:")
 
-            if key in self._xnel.keys() and self._xnel[key] > 0:
-                xnel[key] = self._xnel[key]
+            if item in self._xnel.keys() and self._xnel[item] > 0:
+                xnel[item] = self._xnel[item]
             else:
-                xnel[key] = 1
+                xnel[item] = 1
 
-            print("        Number of elements in the solution: %d" % xnel[key])
+            print(f"        Number of elements: {xnel[item]}")
 
-            if isinstance(population[key], tuple):
-                print("        Continuous sample space")
+            if isinstance(population[item], tuple):
+                print("        Sample space: continuous")
 
-                if len(population[key]) <= 1:
-                    raise MOSAError("Two numbers are expected in key %s!" % key)
+                if len(population[item]) <= 1:
+                    raise MOSAError(f"Two numbers are expected in item {item}!")
 
-                xsampling[key] = 1
-                xbounds[key] = list(population[key])
+                xsampling[item] = 1
+                xbounds[item] = list(population[item])
 
-                if xbounds[key][1] < xbounds[key][0]:
-                    xbounds[key][0], xbounds[key][1] = xbounds[key][1], xbounds[key][0]
-                elif xbounds[key][1] == xbounds[key][0]:
+                if xbounds[item][1] < xbounds[item][0]:
+                    xbounds[item][0], xbounds[item][1] = (
+                        xbounds[item][1],
+                        xbounds[item][0],
+                    )
+                elif xbounds[item][1] == xbounds[item][0]:
                     raise MOSAError(
-                        "Second element in key %s must be larger than the first one!"
-                        % key
+                        f"Second element in item {item} must be larger than the first one!"
                     )
 
-                print(
-                    "        Boundaries: (%f,%f)" % (xbounds[key][0], xbounds[key][1])
-                )
-            elif isinstance(population[key], list):
-                print("        Discrete sample space")
-                print(
-                    "        Number of elements in the population: %d"
-                    % (len(population[key]))
-                )
+                print(f"        Boundaries: ({xbounds[item][0]},{xbounds[item][1]})")
+            elif isinstance(population[item], list):
+                print("        Sample space: discrete")
+                print(f"        Size of population item: {len(population[item])}")
 
-                if len(population[key]) <= 1 and not from_checkpoint:
+                if len(population[item]) <= 1 and not from_checkpoint:
                     raise MOSAError(
-                        "Number of elements in the population must be greater than one!"
+                        "Number of elements in the population item must be greater than one!"
                     )
 
-                xsampling[key] = 0
+                xsampling[item] = 0
 
-                if key in self._xdistinct.keys():
-                    xdistinct[key] = bool(self._xdistinct[key])
+                if item in self._xdistinct.keys():
+                    xdistinct[item] = bool(self._xdistinct[item])
                 else:
-                    xdistinct[key] = False
+                    xdistinct[item] = False
 
-                print(
-                    "        Elements cannot be repeated in the solution: %s"
-                    % xdistinct[key]
-                )
+                print(f"        Distinct elements: {xdistinct[item]}")
             else:
-                raise MOSAError("Wrong format of key %s!" % key)
+                raise MOSAError(f"Wrong format of item {item}!")
 
-            if key in self._xselweight.keys():
-                totlength += self._xselweight[key]
+            if item in self._xselweight.keys():
+                totlength += self._xselweight[item]
 
-                print(
-                    "        Selection weight of this key: %f" % self._xselweight[key]
-                )
+                print(f"        Selection weight: {self._xselweight[item]}")
             else:
                 totlength += 1.0
 
-                print("        Selection weight of this key: %f" % 1.0)
+                print("        Selection weight: 1.0")
 
-            sellength[key] = totlength
+            sellength[item] = totlength
 
-            if key in self._changemove.keys() and self._changemove[key] >= 0.0:
-                changemove[key] = float(self._changemove[key])
+            if item in self._changemove.keys() and self._changemove[item] >= 0.0:
+                changemove[item] = float(self._changemove[item])
             else:
-                changemove[key] = 1.0
+                changemove[item] = 1.0
 
-            if changemove[key] > 0.0:
+            if changemove[item] > 0.0:
                 print(
-                    "        Weight of 'change value' trial move: %f" % changemove[key]
+                    f"        Weight of 'change value' trial move: {changemove[item]}"
                 )
 
-            if key in self._swapmove.keys() and self._swapmove[key] > 0.0:
-                swapmove[key] = float(self._swapmove[key])
+            if item in self._swapmove.keys() and self._swapmove[item] > 0.0:
+                swapmove[item] = float(self._swapmove[item])
 
-                print("        Weight of 'swap' trial move: %f" % swapmove[key])
+                print(f"        Weight of 'swap' trial move: {swapmove[item]}")
             else:
-                swapmove[key] = 0.0
+                swapmove[item] = 0.0
 
-            if key in self._insordelmove.keys() and self._insordelmove[key] > 0.0:
-                insordelmove[key] = float(self._insordelmove[key])
+            if item in self._insordelmove.keys() and self._insordelmove[item] > 0.0:
+                insordelmove[item] = float(self._insordelmove[item])
 
                 print(
-                    "        Weight of 'insert or delete' trial move: %f"
-                    % insordelmove[key]
+                    f"        Weight of 'insert or delete' trial move: {insordelmove[item]}"
                 )
 
-                if key in self._maxnel.keys() and self._maxnel[key] >= xnel[key]:
-                    maxnel[key] = int(self._maxnel[key])
+                if item in self._maxnel.keys() and self._maxnel[item] >= xnel[item]:
+                    maxnel[item] = int(self._maxnel[item])
 
-                    if maxnel[key] <= 1:
-                        maxnel[key] = 2
+                    if maxnel[item] <= 1:
+                        maxnel[item] = 2
                 else:
-                    maxnel[key] = inf
+                    maxnel[item] = inf
 
-                print("        Maximum number of solution elements: %d" % maxnel[key])
+                print(f"        Maximum number of elements: {maxnel[item]}")
             else:
-                insordelmove[key] = 0.0
+                insordelmove[item] = 0.0
 
-            if swapmove[key] == 0.0 and key in self._xsort.keys():
-                xsort[key] = bool(self._xsort[key])
+            if swapmove[item] == 0.0 and item in self._xsort.keys():
+                xsort[item] = bool(self._xsort[item])
             else:
-                xsort[key] = False
+                xsort[item] = False
 
-            print("        Solution sorted after trial move: %s" % xsort[key])
+            print(f"        Sort values: {xsort[item]}")
 
-            if key in self._xstep.keys():
-                if xsampling[key] == 1:
-                    xstep[key] = float(self._xstep[key])
+            if item in self._xstep.keys():
+                if xsampling[item] == 1:
+                    xstep[item] = float(self._xstep[item])
 
-                    if xstep[key] <= 0.0:
-                        xstep[key] = 0.1
+                    if xstep[item] <= 0.0:
+                        xstep[item] = 0.1
                 else:
-                    xstep[key] = int(self._xstep[key])
+                    xstep[item] = int(self._xstep[item])
             else:
-                if xsampling[key] == 1:
-                    xstep[key] = 0.1
+                if xsampling[item] == 1:
+                    xstep[item] = 0.1
                 else:
-                    if changemove[key] > 0.0:
-                        xstep[key] = int(len(population[key]) / 2)
+                    if changemove[item] > 0.0:
+                        xstep[item] = int(len(population[item]) / 2)
                     else:
-                        xstep[key] = 0
+                        xstep[item] = 0
 
-            if xsampling[key] == 1:
-                print(
-                    "        Maximum step size to choose a new value in the solution: %f"
-                    % xstep[key]
-                )
-            elif xsampling[key] == 0 and (changemove[key] + insordelmove[key]) > 0.0:
-                if xstep[key] > len(population[key]) / 2 or xstep[key] <= 0:
-                    xstep[key] = int(len(population[key]) / 2)
+            if xsampling[item] == 1:
+                print(f"        Maximum step size: {xstep[item]}")
+            elif xsampling[item] == 0 and (changemove[item] + insordelmove[item]) > 0.0:
+                if xstep[item] > len(population[item]) / 2 or xstep[item] <= 0:
+                    xstep[item] = int(len(population[item]) / 2)
 
-                if xstep[key] >= MIN_STEP_LENGTH:
-                    print(
-                        "        Maximum step size to select an element in the population, using a triangular distribution: %d"
-                        % xstep[key]
-                    )
+                if xstep[item] >= MIN_STEP_LENGTH:
+                    print(f"        Maximum step size: {xstep[item]}")
                 else:
                     print("        Elements selected at random from the population")
 
-            if xsampling[key] == 0 and (changemove[key] + insordelmove[key]) > 0.0:
-                if len(population[key]) == 1:
-                    lstep[key] = 0
+            if xsampling[item] == 0 and (changemove[item] + insordelmove[item]) > 0.0:
+                if len(population[item]) == 1:
+                    lstep[item] = 0
                 else:
-                    lstep[key] = choice(len(population[key]))
+                    lstep[item] = choice(len(population[item]))
 
-            if xnel[key] == 1 and insordelmove[key] == 0.0:
-                changemove[key] = 1.0
-                swapmove[key] = 0.0
+            if xnel[item] == 1 and insordelmove[item] == 0.0:
+                changemove[item] = 1.0
+                swapmove[item] = 0.0
 
-            if len(population[key]) == 0 and insordelmove[key] == 0:
-                changemove[key] = 0.0
-                swapmove[key] = 1.0
+            if len(population[item]) == 0 and insordelmove[item] == 0:
+                changemove[item] = 0.0
+                swapmove[item] = 1.0
 
         print("------")
 
@@ -430,34 +412,40 @@ class Anneal:
         else:
             print("Initializing with a random solution from scratch...")
 
-            for key in keys:
-                if xnel[key] == 1:
-                    if xsampling[key] == 0:
-                        m = choice(len(population[key]))
-                        xcurr[key] = population[key][m]
+            for item in items:
+                if xnel[item] == 1:
+                    if xsampling[item] == 0:
+                        m = choice(len(population[item]))
+                        xcurr[item] = population[item][m]
 
-                        if xdistinct[key]:
-                            population[key].pop(m)
+                        if xdistinct[item]:
+                            population[item].pop(m)
                     else:
-                        xcurr[key] = uniform(xbounds[key][0], xbounds[key][1])
+                        xcurr[item] = uniform(xbounds[item][0], xbounds[item][1])
                 else:
-                    xcurr[key] = []
+                    xcurr[item] = []
 
-                    for j in range(xnel[key]):
-                        if xsampling[key] == 0:
-                            m = choice(len(population[key]))
-                            xcurr[key].append(population[key][m])
+                    for j in range(xnel[item]):
+                        if xsampling[item] == 0:
+                            m = choice(len(population[item]))
+                            xcurr[item].append(population[item][m])
 
-                            if xdistinct[key]:
-                                population[key].pop(m)
+                            if xdistinct[item]:
+                                population[item].pop(m)
                         else:
-                            xcurr[key].append(uniform(xbounds[key][0], xbounds[key][1]))
+                            xcurr[item].append(
+                                uniform(xbounds[item][0], xbounds[item][1])
+                            )
 
-                    if xsort[key]:
-                        xcurr[key].sort()
+                    if xsort[item]:
+                        xcurr[item].sort()
 
             if callable(func):
-                fcurr = list(func(xcurr))
+                for item in items:
+                    args += f"{item} = {xcurr[item]}, "
+
+                fcurr = eval(f"list(func({args}))")
+
                 updated = self.__updatearchive(xcurr, fcurr)
 
                 if self._trackoptprogress:
@@ -477,12 +465,12 @@ class Anneal:
             weight = [1.0 for k in range(len(fcurr))]
 
         if not self._verbose:
-            print("Starting at temperature: %.6f" % self._temp[0])
+            print(f"Starting at temperature: {self._temp[0]:.6f}")
             print("Evolving solutions to the problem, please wait...")
 
         for temp in self._temp:
             if self._verbose:
-                print("TEMPERATURE: %.6f" % temp)
+                print(f"TEMPERATURE: {temp:.6f}")
 
             nupdated = 0
             naccept = 0
@@ -494,143 +482,151 @@ class Anneal:
 
                 r = uniform(0.0, totlength)
 
-                for key in keys:
-                    if r < sellength[key]:
+                for item in items:
+                    if r < sellength[item]:
                         break
 
-                r = uniform(0.0, (changemove[key] + swapmove[key] + insordelmove[key]))
+                r = uniform(
+                    0.0, (changemove[item] + swapmove[item] + insordelmove[item])
+                )
 
-                if r < changemove[key] or r >= (changemove[key] + swapmove[key]):
-                    if xnel[key] > 1:
-                        old = choice(len(xtmp[key]))
+                if r < changemove[item] or r >= (changemove[item] + swapmove[item]):
+                    if xnel[item] > 1:
+                        old = choice(len(xtmp[item]))
 
-                    if xsampling[key] == 0 and len(poptmp[key]) > 0:
+                    if xsampling[item] == 0 and len(poptmp[item]) > 0:
                         for _ in range(MAX_FAILED):
-                            if len(poptmp[key]) == 1:
+                            if len(poptmp[item]) == 1:
                                 new = 0
-                            elif xstep[key] >= MIN_STEP_LENGTH:
+                            elif xstep[item] >= MIN_STEP_LENGTH:
                                 selstep = int(
-                                    round(triangular(-xstep[key], 0, xstep[key]), 0)
+                                    round(triangular(-xstep[item], 0, xstep[item]), 0)
                                 )
-                                new = lstep[key] + selstep
+                                new = lstep[item] + selstep
 
-                                if new >= len(poptmp[key]):
-                                    new -= len(poptmp[key])
+                                if new >= len(poptmp[item]):
+                                    new -= len(poptmp[item])
                                 elif new < 0:
-                                    new += len(poptmp[key])
+                                    new += len(poptmp[item])
                             else:
-                                new = choice(len(poptmp[key]))
+                                new = choice(len(poptmp[item]))
 
-                            if r >= changemove[key] or xdistinct[key]:
+                            if r >= changemove[item] or xdistinct[item]:
                                 break
                             else:
-                                if xnel[key] == 1:
-                                    if not xtmp[key] == poptmp[key][new]:
+                                if xnel[item] == 1:
+                                    if not xtmp[item] == poptmp[item][new]:
                                         break
                                 else:
-                                    if not xtmp[key][old] == poptmp[key][new]:
+                                    if not xtmp[item][old] == poptmp[item][new]:
                                         break
                         else:
                             new = None
 
-                if xsampling[key] == 0 and r < changemove[key] and new is None:
-                    if insordelmove[key] > 0.0:
-                        r = changemove[key] + swapmove[key]
-                    elif swapmove[key] > 0.0 and xnel[key] > 1:
-                        r = changemove[key]
+                if xsampling[item] == 0 and r < changemove[item] and new is None:
+                    if insordelmove[item] > 0.0:
+                        r = changemove[item] + swapmove[item]
+                    elif swapmove[item] > 0.0 and xnel[item] > 1:
+                        r = changemove[item]
                     else:
                         if self._verbose:
                             print(
-                                "WARNING!!!!!! It was not possible to find an element in the key '%s' in the population to update the solution at iteration %d!"
-                                % (key, j)
+                                f"WARNING!!!!!! It was not possible to find an element in item '{item}' in the population to update the solution at iteration {j}!"
                             )
 
                         continue
 
-                if r < changemove[key]:
-                    if xsampling[key] == 0:
-                        if xdistinct[key]:
-                            if xnel[key] == 1:
-                                xtmp[key], poptmp[key][new] = (
-                                    poptmp[key][new],
-                                    xtmp[key],
+                if r < changemove[item]:
+                    if xsampling[item] == 0:
+                        if xdistinct[item]:
+                            if xnel[item] == 1:
+                                xtmp[item], poptmp[item][new] = (
+                                    poptmp[item][new],
+                                    xtmp[item],
                                 )
                             else:
-                                xtmp[key][old], poptmp[key][new] = (
-                                    poptmp[key][new],
-                                    xtmp[key][old],
+                                xtmp[item][old], poptmp[item][new] = (
+                                    poptmp[item][new],
+                                    xtmp[item][old],
                                 )
                         else:
-                            if xnel[key] == 1:
-                                xtmp[key] = poptmp[key][new]
+                            if xnel[item] == 1:
+                                xtmp[item] = poptmp[item][new]
                             else:
-                                xtmp[key][old] = poptmp[key][new]
+                                xtmp[item][old] = poptmp[item][new]
                     else:
-                        if xnel[key] == 1:
-                            xtmp[key] += uniform(-xstep[key], xstep[key])
+                        if xnel[item] == 1:
+                            xtmp[item] += uniform(-xstep[item], xstep[item])
 
-                            if xtmp[key] > xbounds[key][1]:
-                                xtmp[key] -= xbounds[key][1] - xbounds[key][0]
-                            elif xtmp[key] < xbounds[key][0]:
-                                xtmp[key] += xbounds[key][1] - xbounds[key][0]
+                            if xtmp[item] > xbounds[item][1]:
+                                xtmp[item] -= xbounds[item][1] - xbounds[item][0]
+                            elif xtmp[item] < xbounds[item][0]:
+                                xtmp[item] += xbounds[item][1] - xbounds[item][0]
                         else:
-                            xtmp[key][old] += uniform(-xstep[key], xstep[key])
+                            xtmp[item][old] += uniform(-xstep[item], xstep[item])
 
-                            if xtmp[key][old] > xbounds[key][1]:
-                                xtmp[key][old] -= xbounds[key][1] - xbounds[key][0]
-                            elif xtmp[key][old] < xbounds[key][0]:
-                                xtmp[key][old] += xbounds[key][1] - xbounds[key][0]
+                            if xtmp[item][old] > xbounds[item][1]:
+                                xtmp[item][old] -= xbounds[item][1] - xbounds[item][0]
+                            elif xtmp[item][old] < xbounds[item][0]:
+                                xtmp[item][old] += xbounds[item][1] - xbounds[item][0]
 
-                    if xsort[key] and xnel[key] > 1:
-                        xtmp[key].sort()
-                elif r < (changemove[key] + swapmove[key]):
-                    for _ in range(int(len(xtmp[key]) / 2)):
-                        chosen = choice(len(xtmp[key]), 2, False)
+                    if xsort[item] and xnel[item] > 1:
+                        xtmp[item].sort()
+                elif r < (changemove[item] + swapmove[item]):
+                    for _ in range(int(len(xtmp[item]) / 2)):
+                        chosen = choice(len(xtmp[item]), 2, False)
 
-                        if not xtmp[key][chosen[0]] == xtmp[key][chosen[1]]:
-                            xtmp[key][chosen[0]], xtmp[key][chosen[1]] = (
-                                xtmp[key][chosen[1]],
-                                xtmp[key][chosen[0]],
+                        if not xtmp[item][chosen[0]] == xtmp[item][chosen[1]]:
+                            xtmp[item][chosen[0]], xtmp[item][chosen[1]] = (
+                                xtmp[item][chosen[1]],
+                                xtmp[item][chosen[0]],
                             )
 
                             break
                     else:
                         if self._verbose:
                             print(
-                                "WARNING!!!!!! Failed %d times to find different elements in key '%s' for swapping at iteration %d!"
-                                % (int(len(xtmp[key]) / 2), key, j)
+                                f"WARNING!!!!!! Failed {int(len(xtmp[item])/2)} times to find different elements in item '{item}' for swapping at iteration {j}!"
                             )
 
                         continue
                 else:
-                    if len(xtmp[key]) == 1:
+                    if len(xtmp[item]) == 1:
                         r = 0.0
-                    elif (xsampling[key] == 0 and len(poptmp[key]) == 0) or len(
-                        xtmp[key]
-                    ) >= maxnel[key]:
+                    elif (xsampling[item] == 0 and len(poptmp[item]) == 0) or len(
+                        xtmp[item]
+                    ) >= maxnel[item]:
                         r = 1.0
                     else:
                         r = uniform(0.0, 1.0)
 
                     if r < 0.5:
-                        if xsampling[key] == 0:
-                            xtmp[key].append(poptmp[key][new])
+                        if xsampling[item] == 0:
+                            xtmp[item].append(poptmp[item][new])
 
-                            if xdistinct[key]:
-                                poptmp[key].pop(new)
+                            if xdistinct[item]:
+                                poptmp[item].pop(new)
                         else:
-                            xtmp[key].append(uniform(xbounds[key][0], xbounds[key][1]))
+                            xtmp[item].append(
+                                uniform(xbounds[item][0], xbounds[item][1])
+                            )
 
-                        if xsort[key]:
-                            xtmp[key].sort()
+                        if xsort[item]:
+                            xtmp[item].sort()
                     else:
-                        if xsampling[key] == 0 and xdistinct[key]:
-                            poptmp[key].append(xtmp[key][old])
+                        if xsampling[item] == 0 and xdistinct[item]:
+                            poptmp[item].append(xtmp[item][old])
 
-                        xtmp[key].pop(old)
+                        xtmp[item].pop(old)
 
                 gamma = 1.0
-                ftmp = list(func(xtmp))
+
+                args = ""
+
+                for item in items:
+                    args += f"{item} = {xtmp[item]}, "
+
+                ftmp = eval(f"list(func({args}))")
 
                 for k in range(len(ftmp)):
                     if ftmp[k] < fcurr[k]:
@@ -646,8 +642,8 @@ class Anneal:
                 gamma = (1.0 - self._alpha) * gamma + self._alpha * pmax
 
                 if gamma == 1.0 or uniform(0.0, 1.0) < gamma:
-                    if xsampling[key] == 0 and new is not None:
-                        lstep[key] = new
+                    if xsampling[item] == 0 and new is not None:
+                        lstep[item] = new
 
                     fcurr = ftmp.copy()
                     xcurr = deepcopy(xtmp)
@@ -674,15 +670,14 @@ class Anneal:
                 if narchivereject >= self._maxarchivereject:
                     if self._verbose:
                         print(
-                            "    Insertion in the archive consecutively rejected %d times!"
-                            % self._maxarchivereject
+                            f"    Insertion in the archive consecutively rejected {self._maxarchivereject} times!"
                         )
-                        print("    Quiting at iteration %d..." % j)
+                        print(f"    Stoping at iteration {j}...")
                     else:
                         print(
                             "Too many attempts to insert a solution in the archive failed!"
                         )
-                        print("Stopping at temperature: %.6f" % temp)
+                        print(f"Stopping at temperature: {temp:.6f}")
 
                     print("------")
                     print("\n--- THE END ---")
@@ -693,17 +688,13 @@ class Anneal:
 
             if self._verbose:
                 if naccept > 0:
-                    print("    Number of accepted moves: %d." % naccept)
-                    print(
-                        "    Fraction of accepted moves: %.6f."
-                        % (naccept / self._niter)
-                    )
+                    print(f"    Number of accepted moves: {naccept}.")
+                    print(f"    Fraction of accepted moves: {naccept/self._niter:.6f}.")
 
                     if nupdated > 0:
-                        print("    Number of archive updates: %d." % nupdated)
+                        print(f"    Number of archive updates: {nupdated}.")
                         print(
-                            "    Fraction of archive updates in accepted moves: %.6f."
-                            % (nupdated / naccept)
+                            f"    Fraction of archive updates in accepted moves: {nupdated/naccept:.6f}."
                         )
                     else:
                         print("    No archive update.")
@@ -717,12 +708,12 @@ class Anneal:
 
         if not self._verbose:
             print("Maximum number of temperatures reached!")
-            print("Stopping at temperature:  %.6f" % temp)
+            print(f"Stopping at temperature:  {temp:.6f}.")
             print("------")
 
         print("\n--- THE END ---")
 
-    def prunedominated(self, xset: dict = {}, delduplicated: bool = False) -> dict:
+    def prune_dominated(self, xset: dict = {}, del_duplicated: bool = False) -> dict:
         """
         Returns a subset of the full or reduced archive containing only non-dominated
         solutions.
@@ -732,7 +723,7 @@ class Anneal:
         xset : dict, optional
             Full or reduced solution archive. The default is {}, meaning the
             full solution archive.
-        delduplicated : bool, optional
+        del_duplicated : bool, optional
             Delete a solution if the objective values are strictly equal to the
             values of a previous solution. The default is False.
 
@@ -783,7 +774,7 @@ class Anneal:
                     else:
                         ne += 1
 
-                if delduplicated and ne == len(xset["Values"][i]):
+                if del_duplicated and ne == len(xset["Values"][i]):
                     included[j] = False
                 elif nl > 0 and ng == 0:
                     included[j] = False
@@ -799,7 +790,7 @@ class Anneal:
 
         return tmpdict
 
-    def savex(self, xset: dict = {}, archivefile: str = "") -> None:
+    def savex(self, xset: dict = {}, archive_file: str = "") -> None:
         """
         Saves the archive into a text file in JSON format.
 
@@ -808,7 +799,7 @@ class Anneal:
         xset : dict, optional
             Full or reduced solution archive. The default is {}, meaning the full
             solution archive.
-        archivefile : string, optional
+        archive_file : string, optional
             Name of the archive file. The default is '', which means the main
             archive file.
 
@@ -823,23 +814,23 @@ class Anneal:
         else:
             raise MOSAError("The solution archive must be provided as a dictionary!")
 
-        if isinstance(archivefile, str):
-            archivefile = archivefile.strip()
+        if isinstance(archive_file, str):
+            archive_file = archive_file.strip()
 
-            if len(archivefile) == 0:
-                archivefile = self._archivefile
+            if len(archive_file) == 0:
+                archive_file = self._archive_file
         else:
             raise MOSAError("The name of the archive file must be a string!")
 
-        json.dump(xset, open(archivefile, "w"), indent=4)
+        json.dump(xset, open(archive_file, "w"), indent=4)
 
-    def loadx(self, archivefile: str = "") -> None:
+    def loadx(self, archive_file: str = "") -> None:
         """
         Loads solutions from a JSON file into the archive.
 
         Parameters
         ----------
-        archivefile : string, optional
+        archive_file : string, optional
             Name of the archive file. The default is '', which means the main
             archive file will be used.
 
@@ -848,22 +839,22 @@ class Anneal:
         None.
         """
 
-        if isinstance(archivefile, str):
-            archivefile = archivefile.strip()
+        if isinstance(archive_file, str):
+            archive_file = archive_file.strip()
 
-            if len(archivefile) == 0:
-                archivefile = self._archivefile
+            if len(archive_file) == 0:
+                archive_file = self._archive_file
         else:
             raise MOSAError("Name of the archive file must be a string!")
 
         try:
-            tmpdict = json.load(open(archivefile, "r"))
+            tmpdict = json.load(open(archive_file, "r"))
         except FileNotFoundError:
-            print("WARNING: File %s not found!" % archivefile)
+            print(f"WARNING: File {archive_file} not found!")
 
             return
         except:
-            print("WARNING: Something wrong with file %s!" % archivefile)
+            print(f"WARNING: Something wrong with file {archive_file}!")
 
             return
 
@@ -990,13 +981,13 @@ class Anneal:
 
         return tmpdict
 
-    def mergex(self, xsetlist: list) -> dict:
+    def mergex(self, xset_list: list) -> dict:
         """
         Merges a list of solution archives into a single solution archive.
 
         Parameters
         ----------
-        xsetlist : list
+        xset_list : list
             Solution archives to be merged.
 
         Returns
@@ -1007,40 +998,40 @@ class Anneal:
 
         tmpdict: dict = {}
 
-        if len(xsetlist) <= 1:
+        if len(xset_list) <= 1:
             raise MOSAError("Nothing to be done!")
 
-        if not bool(xsetlist[0]):
+        if not bool(xset_list[0]):
             raise MOSAError("First solution archive is empty!")
         else:
             if not (
-                "Solution" in xsetlist[0].keys() and "Values" in xsetlist[0].keys()
+                "Solution" in xset_list[0].keys() and "Values" in xset_list[0].keys()
             ):
                 raise MOSAError(
                     "'Solution' and 'Values' must be present in the dictionary!"
                 )
             else:
                 if not (
-                    isinstance(xsetlist[0]["Solution"], list)
-                    and isinstance(xsetlist[0]["Values"], list)
+                    isinstance(xset_list[0]["Solution"], list)
+                    and isinstance(xset_list[0]["Values"], list)
                 ):
                     raise MOSAError("'Solution' and 'Values' must be Python lists!")
 
-                tmpdict = deepcopy(xsetlist[0])
+                tmpdict = deepcopy(xset_list[0])
 
-        for i in range(1, len(xsetlist)):
+        for i in range(1, len(xset_list)):
             if (
-                bool(xsetlist[i])
-                and "Solution" in xsetlist[i].keys()
-                and "Values" in xsetlist[i].keys()
-                and isinstance(xsetlist[i]["Solution"], list)
-                and isinstance(xsetlist[i]["Values"], list)
+                bool(xset_list[i])
+                and "Solution" in xset_list[i].keys()
+                and "Values" in xset_list[i].keys()
+                and isinstance(xset_list[i]["Solution"], list)
+                and isinstance(xset_list[i]["Values"], list)
             ):
-                for j in range(len(xsetlist[i]["Values"])):
-                    tmpdict["Solution"].append(xsetlist[i]["Solution"][j])
-                    tmpdict["Values"].append(xsetlist[i]["Values"][j])
+                for j in range(len(xset_list[i]["Values"])):
+                    tmpdict["Solution"].append(xset_list[i]["Solution"][j])
+                    tmpdict["Values"].append(xset_list[i]["Values"][j])
             else:
-                raise MOSAError("Format of solution archive %d is wrong! % i")
+                raise MOSAError("Format of solution archive is wrong!")
 
         return tmpdict
 
@@ -1118,7 +1109,7 @@ class Anneal:
             print("%d) %s" % (i + 1, xset["Values"][i]))
 
     # TODO: Show up to three objective functions in a single plot
-    def plotfront(
+    def plot_front(
         self, xset: dict = {}, index1: int = 0, index2: int = 1, file: str | None = None
     ) -> None:
         """
@@ -1175,8 +1166,8 @@ class Anneal:
                 f[0].append(xset["Values"][i][index1])
                 f[1].append(xset["Values"][i][index2])
 
-            plt.xlabel("f%d" % index1)
-            plt.ylabel("f%d" % index2)
+            plt.xlabel(f"f{index1}")
+            plt.ylabel(f"f{index2}")
             plt.grid()
             plt.scatter(f[0], f[1])
 
@@ -1188,7 +1179,7 @@ class Anneal:
             raise MOSAError("Index out of range!")
 
     # TODO: Use numpy functions and compute also the standard deviation
-    def printstats(self, xset: dict = {}) -> None:
+    def print_stats(self, xset: dict = {}) -> None:
         """
         Prints the minimum, maximum and average values of the objectives.
 
@@ -1242,48 +1233,48 @@ class Anneal:
                         print("    Maximum: %f" % fmax[j])
                         print("    Average: %f" % (favg[j] / (i + 1)))
 
-    def setpopulation(self, **keys) -> None:
+    def set_population(self, **items) -> None:
         """
         Sets the population.
 
         Parameters
         ----------
-        **keys : Keyword arguments
-            A series of key-value pairs where each key contains the data that can
-            be used to achieve an optimized solution to the problem.
+        **items : Keyword arguments
+            A series of key-value pairs where each key corresponds to an item in
+            the solution and contains the data that can be used to achieve an
+            optimized solution to the problem.
 
         Returns
         -------
         None.
         """
 
-        if len(keys) > 0:
-            for key, value in keys.items():
+        if len(items) > 0:
+            for key, value in items.items():
                 self._population[key] = value
         else:
             raise MOSAError("No keyword was provided!")
 
-    def setkeyparams(self, key: str, **params) -> None:
+    def set_item_params(self, item: str, **params) -> None:
         """
-        Sets the optimization parameters for the specified key in the solution
-        to the problem.
+        Sets the optimization parameters for the specified solution item.
 
         Parameters
         ----------
-        key : str
-            A key in the solution to the problem.
+        item : str
+            An item in the solution to the problem.
         **params : Keyword arguments
             Names of the optimization parameters with respective values. They can
             be any of the alternatives below:
-                - number_of_solution_elements
-                - maximum_number_of_solution_elements
-                - no_repeated_elements
+                - number_of_elements
+                - maximum_number_of_elements
+                - distinct_elements
                 - mc_step_size
                 - change_value_move
                 - insert_or_delete_move
                 - swap_move
-                - sort_solution_elements
-                - solution_key_selection_weights
+                - sort_elements
+                - item_selection_weights
 
         Returns
         -------
@@ -1294,43 +1285,44 @@ class Anneal:
 
         if len(params) > 0:
             allowed = {
-                "number_of_solution_elements": "self._xnel",
-                "maximum_number_of_solution_elements": "self._maxnel",
-                "no_repeated_elements": "self._xdistinct",
+                "number_of_elements": "self._xnel",
+                "maximum_number_of_elements": "self._maxnel",
+                "distinct_elements": "self._xdistinct",
                 "mc_step_size": "self._xstep",
                 "change_value_move": "self._changemove",
                 "insert_or_delete_move": "self._insordelmove",
                 "swap_move": "self._swapmove",
-                "sort_solution_elements": "self._xsort",
-                "solution_key_selection_weights": "self._xselweight",
+                "sort_elements": "self._xsort",
+                "item_selection_weights": "self._xselweight",
             }
 
             for param, value in params.items():
                 if param in allowed:
-                    exec(f"{allowed[param]}[key]=value")
+                    exec(f"{allowed[param]}[item]=value")
         else:
             raise MOSAError("No keyword was provided!")
 
-    def setoptparam(self, param: str, **keys) -> None:
+    def set_opt_param(self, param: str, **items) -> None:
         """
-        Sets the values of the specified optimization parameter.
+        Sets the values of the optimization parameter for the specified solution
+        items.
 
         Parameters
         ----------
         param : str
             Name of the optimization parameter. It must be one of the alternatives below:
-                - number_of_solution_elements
-                - maximum_number_of_solution_elements
-                - no_repeated_elements
+                - number_of_elements
+                - maximum_number_of_elements
+                - distinct_elements
                 - mc_step_size
                 - change_value_move
                 - insert_or_delete_move
                 - swap_move
-                - sort_solution_elements
-                - solution_key_selection_weights
-        **keys : Keyword arguments
-            A series of key-value pairs where each key corresponds to a key in the
-            solution to the problem.
+                - sort_elements
+                - item_selection_weights
+        **items : Keyword arguments
+            A series of key-value pairs where each key corresponds to an item in
+            the solution to the problem.
 
         Returns
         -------
@@ -1340,21 +1332,21 @@ class Anneal:
         params: tuple
         execstr: str
 
-        if len(keys) > 0:
+        if len(items) > 0:
             params = {
-                "number_of_solution_elements": "self._xnel",
-                "maximum_number_of_solution_elements": "self._maxnel",
-                "no_repeated_elements": "self._xdistinct",
+                "number_of_elements": "self._xnel",
+                "maximum_number_of_elements": "self._maxnel",
+                "distinct_elements": "self._xdistinct",
                 "mc_step_size": "self._xstep",
                 "change_value_move": "self._changemove",
                 "insert_or_delete_move": "self._insordelmove",
                 "swap_move": "self._swapmove",
-                "sort_solution_elements": "self._xsort",
-                "solution_key_selection_weights": "self._xselweight",
+                "sort_elements": "self._xsort",
+                "item_selection_weights": "self._xselweight",
             }
 
             if param in params:
-                execstr = "for key,value in keys.items():\n"
+                execstr = "for key,value in items.items():\n"
                 execstr += f"    {params[param]}[key]=value"
                 exec(execstr)
             else:
@@ -1623,12 +1615,12 @@ class Anneal:
 
     @property
     def archive_file(self) -> str:
-        return self._archivefile
+        return self._archive_file
 
     @archive_file.setter
     def archive_file(self, val: str) -> None:
         if isinstance(val, str) and len(val.strip()) > 0:
-            self._archivefile = val.strip()
+            self._archive_file = val.strip()
         else:
             raise MOSAError("A file name must be provided!")
 
@@ -1657,59 +1649,56 @@ class Anneal:
             raise MOSAError("Alpha must be a number between zero and one!")
 
     @property
-    def number_of_solution_elements(self) -> dict:
+    def number_of_elements(self) -> dict:
         return self._xnel
 
-    @number_of_solution_elements.setter
-    def number_of_solution_elements(self, val: dict) -> None:
+    @number_of_elements.setter
+    def number_of_elements(self, val: dict) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, int) and value > 0:
                     self._xnel[key] = value
                 else:
                     raise MOSAError(
-                        "Key '%s' must contain an integer greater than zero!" % key
+                        f"Item '{key}' must be an integer greater than zero!"
                     )
         else:
-            raise MOSAError(
-                "Number of solution elements must be provided in a dictionary!"
-            )
+            raise MOSAError("Number of elements must be provided as a dictionary!")
 
     @property
-    def maximum_number_of_solution_elements(self) -> dict:
+    def maximum_number_of_elements(self) -> dict:
         return self._maxnel
 
-    @maximum_number_of_solution_elements.setter
-    def maximum_number_of_solution_elements(self, val: dict) -> None:
+    @maximum_number_of_elements.setter
+    def maximum_number_of_elements(self, val: dict) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, int) and value >= 2:
                     self._maxnel[key] = value
                 else:
                     raise MOSAError(
-                        "Key '%s' must contain an integer greater than or equal to 2!"
-                        % key
+                        f"Item '{key}' must be an integer greater than or equal to 2!"
                     )
         else:
             raise MOSAError(
-                "Maximum number of solution elements must be provided in a dictionary!"
+                "Maximum number of elements must be provided as a dictionary!"
             )
 
     @property
-    def no_repeated_elements(self) -> dict:
+    def distinct_elements(self) -> dict:
         return self._xdistinct
 
-    @no_repeated_elements.setter
-    def no_repeated_elements(self, val: dict) -> None:
+    @distinct_elements.setter
+    def distinct_elements(self, val: dict) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, bool):
                     self._xdistinct[key] = value
                 else:
-                    raise MOSAError("Key '%s' must contain a boolean!" % key)
+                    raise MOSAError(f"Item '{key}' must be a boolean!")
         else:
             raise MOSAError(
-                "Whether or not to repeat elements in the solution must be provided as a dictionary!"
+                "Whether or not to repeat elements in the solution item must be provided as a dictionary!"
             )
 
     @property
@@ -1723,9 +1712,9 @@ class Anneal:
                 if isinstance(value, (int, float)):
                     self._xstep[key] = value
                 else:
-                    raise MOSAError("Key '%s' must contain a number!" % key)
+                    raise MOSAError(f"Item '{key}' must be a number!")
         else:
-            raise MOSAError("Monte Carlo step size must be provided in a dictionary!")
+            raise MOSAError("Monte Carlo step sizes must be provided as a dictionary!")
 
     @property
     def change_value_move(self) -> dict:
@@ -1738,9 +1727,9 @@ class Anneal:
                 if isinstance(value, (float, int)) and value >= 0.0:
                     self._changemove[key] = value
                 else:
-                    raise MOSAError("Key '%s' must contain a positive number!" % key)
+                    raise MOSAError(f"Item '{key}' must be a positive number!")
         else:
-            raise MOSAError("Weight of trial move must be provided in a dictionary!")
+            raise MOSAError("Weights of trial moves must be provided as a dictionary!")
 
     @property
     def insert_or_delete_move(self) -> dict:
@@ -1753,9 +1742,9 @@ class Anneal:
                 if isinstance(value, (float, int)) and value >= 0.0:
                     self._insordelmove[key] = value
                 else:
-                    raise MOSAError("Key '%s' must be a positive number!" % key)
+                    raise MOSAError(f"Item '{key}' must be a positive number!")
         else:
-            raise MOSAError("Weight of trial move must be provided in a dictionary!")
+            raise MOSAError("Weights of trial moves must be provided as a dictionary!")
 
     @property
     def swap_move(self) -> dict:
@@ -1768,41 +1757,39 @@ class Anneal:
                 if isinstance(value, (float, int)) and value >= 0.0:
                     self._swapmove[key] = value
                 else:
-                    raise MOSAError("Key '%s' must be a positive number!" % key)
+                    raise MOSAError(f"Item '{key}' must be a positive number!")
         else:
-            raise MOSAError("Weight of trial move must be provided in a dictionary!")
+            raise MOSAError("Weights of trial moves must be provided as a dictionary!")
 
     @property
-    def sort_solution_elements(self) -> dict:
+    def sort_elements(self) -> dict:
         return self._xsort
 
-    @sort_solution_elements.setter
-    def sort_solution_elements(self, val: dict) -> None:
+    @sort_elements.setter
+    def sort_elements(self, val: dict) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, bool):
                     self._xsort[key] = value
                 else:
-                    raise MOSAError("Key '%s' must contain a boolean!" % key)
+                    raise MOSAError(f"Item '{key}' must be a boolean!")
         else:
-            raise MOSAError("Sort solution elements must be provided as a dictionary!")
+            raise MOSAError("Sort item elements must be provided as a dictionary!")
 
     @property
-    def solution_key_selection_weights(self) -> dict:
+    def item_selection_weights(self) -> dict:
         return self._xselweight
 
-    @solution_key_selection_weights.setter
-    def solution_key_selection_weights(self, val: dict) -> None:
+    @item_selection_weights.setter
+    def item_selection_weights(self, val: dict) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, (int, float)):
                     self._xselweight[key] = value
                 else:
-                    raise MOSAError("Key '%s' must contain a number!" % key)
+                    raise MOSAError(f"Item '{key}' must be a number!")
         else:
-            raise MOSAError(
-                "Solution key selection weights must be provided as a dictionary!"
-            )
+            raise MOSAError("Item selection weights must be provided as a dictionary!")
 
     @property
     def track_optimization_progress(self) -> bool:

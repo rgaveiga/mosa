@@ -1,6 +1,6 @@
 {
     "Solution": {
-        "Cities": [
+        "Stops": [
             "Cherry City",
             "Tangerine City",
             "Banana City",
@@ -21,6 +21,6 @@
         ]
     },
     "Values": [82.91878251421768],
-    "Population": {"Cities": []},
-    "SampleSpace": {"Cities": 0},
+    "Population": {"Stops": []},
+    "SampleSpace": {"Stops": 0},
 }

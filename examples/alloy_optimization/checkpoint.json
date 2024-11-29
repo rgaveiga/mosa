@@ -1,49 +1,34 @@
 {
-    "Solution": {
-        "Component": [
-            "V",
-            "R"
-        ],
-        "Concentration": 0.041845218151213094
-    },
-    "Values": [
-        -27.51910335786581,
-        67.39549081830889
-    ],
+    "Solution": {"Component": ["V", "Y"], "Concentration": 0.0029675796753349318},
+    "Values": [-27.59014130094553, 69.4667224558694],
     "Population": {
         "Component": [
-            "S",
-            "M",
-            "J",
+            "H",
+            "K",
+            "O",
+            "T",
+            "X",
             "Q",
-            "C",
-            "P",
-            "Z",
+            "N",
+            "R",
+            "S",
+            "B",
             "W",
             "L",
-            "T",
-            "A",
-            "Y",
-            "O",
-            "H",
-            "B",
-            "F",
-            "X",
             "I",
-            "K",
-            "G",
+            "J",
             "E",
+            "G",
+            "C",
+            "A",
+            "F",
+            "D",
             "U",
-            "N",
-            "D"
+            "M",
+            "P",
+            "Z",
         ],
-        "Concentration": [
-            0.0,
-            0.1
-        ]
+        "Concentration": [0.0, 0.1],
     },
-    "SampleSpace": {
-        "Component": 0,
-        "Concentration": 1
-    }
+    "SampleSpace": {"Component": 0, "Concentration": 1},
 }
