@@ -93,12 +93,12 @@ class Anneal:
     -------
     evolve(func)
         Performs the optimization.
-    prunedominated(xset,delduplicated)
+    prune_dominated(xset,del_duplicated)
         Returns a subset of the full or reduced archive containing only non-dominated
         solutions.
-    savex(xset,archivefile)
+    savex(xset,archive_file)
         Saves the archive into a text file in JSON format.
-    loadx(archivefile)
+    loadx(archive_file)
         Loads solutions from a JSON file into the archive.
     trimx(xset,thresholds)
         Extracts from the archive the solutions where the objective values are
@@ -106,7 +106,7 @@ class Anneal:
     reducex(xset,index,nel)
         Reduces and sorts in ascending order the archive according to the selected
         objective function.
-    mergex(xsetlist)
+    mergex(xset_list)
         Merges a list of solution archives into a single solution archive.
     copyx(xset)
         Returns a copy of the solution archive.
@@ -116,11 +116,11 @@ class Anneal:
         Plots 2D scatter plots of selected pairs of objective values.
     printstats(xset)
         Prints the minimum, maximum and average values of the objectives.
-    setpopulation(**items)
+    set_population(**items)
         Sets the population.
-    setitemparams(item,**params)
+    set_item_params(item,**params)
         Sets the optimization parameters for the specified solution item.
-    setoptparam(param,**items)
+    set_opt_param(param,**items)
         Sets the values of the optimization parameter for the specified solution
         items.
     """
@@ -157,7 +157,7 @@ class Anneal:
         self._temp: list = []
         self._weight: list = []
         self._niter: int = 1000
-        self._archivefile: str = "archive.json"
+        self._archive_file: str = "archive.json"
         self._archivesize: int = 1000
         self._maxarchivereject: int = 1000
         self._alpha: float = 0.0
@@ -222,13 +222,13 @@ class Anneal:
             if not bool(self._archive):
                 try:
                     print(
-                        f"Trying to load the archive from file {self._archivefile}..."
+                        f"Trying to load the archive from file {self._archive_file}..."
                     )
 
-                    self._archive = json.load(open(self._archivefile, "r"))
+                    self._archive = json.load(open(self._archive_file, "r"))
                 except FileNotFoundError:
                     print(
-                        f"File {self._archivefile} not found! Initializing an empty archive..."
+                        f"File {self._archive_file} not found! Initializing an empty archive..."
                     )
 
                     self._archive = {"Solution": [], "Values": []}
@@ -713,7 +713,7 @@ class Anneal:
 
         print("\n--- THE END ---")
 
-    def prunedominated(self, xset: dict = {}, delduplicated: bool = False) -> dict:
+    def prune_dominated(self, xset: dict = {}, del_duplicated: bool = False) -> dict:
         """
         Returns a subset of the full or reduced archive containing only non-dominated
         solutions.
@@ -723,7 +723,7 @@ class Anneal:
         xset : dict, optional
             Full or reduced solution archive. The default is {}, meaning the
             full solution archive.
-        delduplicated : bool, optional
+        del_duplicated : bool, optional
             Delete a solution if the objective values are strictly equal to the
             values of a previous solution. The default is False.
 
@@ -774,7 +774,7 @@ class Anneal:
                     else:
                         ne += 1
 
-                if delduplicated and ne == len(xset["Values"][i]):
+                if del_duplicated and ne == len(xset["Values"][i]):
                     included[j] = False
                 elif nl > 0 and ng == 0:
                     included[j] = False
@@ -790,7 +790,7 @@ class Anneal:
 
         return tmpdict
 
-    def savex(self, xset: dict = {}, archivefile: str = "") -> None:
+    def savex(self, xset: dict = {}, archive_file: str = "") -> None:
         """
         Saves the archive into a text file in JSON format.
 
@@ -799,7 +799,7 @@ class Anneal:
         xset : dict, optional
             Full or reduced solution archive. The default is {}, meaning the full
             solution archive.
-        archivefile : string, optional
+        archive_file : string, optional
             Name of the archive file. The default is '', which means the main
             archive file.
 
@@ -814,23 +814,23 @@ class Anneal:
         else:
             raise MOSAError("The solution archive must be provided as a dictionary!")
 
-        if isinstance(archivefile, str):
-            archivefile = archivefile.strip()
+        if isinstance(archive_file, str):
+            archive_file = archive_file.strip()
 
-            if len(archivefile) == 0:
-                archivefile = self._archivefile
+            if len(archive_file) == 0:
+                archive_file = self._archive_file
         else:
             raise MOSAError("The name of the archive file must be a string!")
 
-        json.dump(xset, open(archivefile, "w"), indent=4)
+        json.dump(xset, open(archive_file, "w"), indent=4)
 
-    def loadx(self, archivefile: str = "") -> None:
+    def loadx(self, archive_file: str = "") -> None:
         """
         Loads solutions from a JSON file into the archive.
 
         Parameters
         ----------
-        archivefile : string, optional
+        archive_file : string, optional
             Name of the archive file. The default is '', which means the main
             archive file will be used.
 
@@ -839,22 +839,22 @@ class Anneal:
         None.
         """
 
-        if isinstance(archivefile, str):
-            archivefile = archivefile.strip()
+        if isinstance(archive_file, str):
+            archive_file = archive_file.strip()
 
-            if len(archivefile) == 0:
-                archivefile = self._archivefile
+            if len(archive_file) == 0:
+                archive_file = self._archive_file
         else:
             raise MOSAError("Name of the archive file must be a string!")
 
         try:
-            tmpdict = json.load(open(archivefile, "r"))
+            tmpdict = json.load(open(archive_file, "r"))
         except FileNotFoundError:
-            print(f"WARNING: File {archivefile} not found!")
+            print(f"WARNING: File {archive_file} not found!")
 
             return
         except:
-            print(f"WARNING: Something wrong with file {archivefile}!")
+            print(f"WARNING: Something wrong with file {archive_file}!")
 
             return
 
@@ -981,13 +981,13 @@ class Anneal:
 
         return tmpdict
 
-    def mergex(self, xsetlist: list) -> dict:
+    def mergex(self, xset_list: list) -> dict:
         """
         Merges a list of solution archives into a single solution archive.
 
         Parameters
         ----------
-        xsetlist : list
+        xset_list : list
             Solution archives to be merged.
 
         Returns
@@ -998,38 +998,38 @@ class Anneal:
 
         tmpdict: dict = {}
 
-        if len(xsetlist) <= 1:
+        if len(xset_list) <= 1:
             raise MOSAError("Nothing to be done!")
 
-        if not bool(xsetlist[0]):
+        if not bool(xset_list[0]):
             raise MOSAError("First solution archive is empty!")
         else:
             if not (
-                "Solution" in xsetlist[0].keys() and "Values" in xsetlist[0].keys()
+                "Solution" in xset_list[0].keys() and "Values" in xset_list[0].keys()
             ):
                 raise MOSAError(
                     "'Solution' and 'Values' must be present in the dictionary!"
                 )
             else:
                 if not (
-                    isinstance(xsetlist[0]["Solution"], list)
-                    and isinstance(xsetlist[0]["Values"], list)
+                    isinstance(xset_list[0]["Solution"], list)
+                    and isinstance(xset_list[0]["Values"], list)
                 ):
                     raise MOSAError("'Solution' and 'Values' must be Python lists!")
 
-                tmpdict = deepcopy(xsetlist[0])
+                tmpdict = deepcopy(xset_list[0])
 
-        for i in range(1, len(xsetlist)):
+        for i in range(1, len(xset_list)):
             if (
-                bool(xsetlist[i])
-                and "Solution" in xsetlist[i].keys()
-                and "Values" in xsetlist[i].keys()
-                and isinstance(xsetlist[i]["Solution"], list)
-                and isinstance(xsetlist[i]["Values"], list)
+                bool(xset_list[i])
+                and "Solution" in xset_list[i].keys()
+                and "Values" in xset_list[i].keys()
+                and isinstance(xset_list[i]["Solution"], list)
+                and isinstance(xset_list[i]["Values"], list)
             ):
-                for j in range(len(xsetlist[i]["Values"])):
-                    tmpdict["Solution"].append(xsetlist[i]["Solution"][j])
-                    tmpdict["Values"].append(xsetlist[i]["Values"][j])
+                for j in range(len(xset_list[i]["Values"])):
+                    tmpdict["Solution"].append(xset_list[i]["Solution"][j])
+                    tmpdict["Values"].append(xset_list[i]["Values"][j])
             else:
                 raise MOSAError("Format of solution archive is wrong!")
 
@@ -1233,7 +1233,7 @@ class Anneal:
                         print("    Maximum: %f" % fmax[j])
                         print("    Average: %f" % (favg[j] / (i + 1)))
 
-    def setpopulation(self, **items) -> None:
+    def set_population(self, **items) -> None:
         """
         Sets the population.
 
@@ -1255,7 +1255,7 @@ class Anneal:
         else:
             raise MOSAError("No keyword was provided!")
 
-    def setitemparams(self, item: str, **params) -> None:
+    def set_item_params(self, item: str, **params) -> None:
         """
         Sets the optimization parameters for the specified solution item.
 
@@ -1302,7 +1302,7 @@ class Anneal:
         else:
             raise MOSAError("No keyword was provided!")
 
-    def setoptparam(self, param: str, **items) -> None:
+    def set_opt_param(self, param: str, **items) -> None:
         """
         Sets the values of the optimization parameter for the specified solution
         items.
@@ -1615,12 +1615,12 @@ class Anneal:
 
     @property
     def archive_file(self) -> str:
-        return self._archivefile
+        return self._archive_file
 
     @archive_file.setter
     def archive_file(self, val: str) -> None:
         if isinstance(val, str) and len(val.strip()) > 0:
-            self._archivefile = val.strip()
+            self._archive_file = val.strip()
         else:
             raise MOSAError("A file name must be provided!")
 
