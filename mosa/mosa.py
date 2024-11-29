@@ -74,7 +74,7 @@ class Anneal:
         Weight (non-normalized probability) to select a trial move where elements
         will be swaped in the solution. The default is {}, which means this trial
         move is not allowed, i.e., weight equal to zero.
-    sort_solution_elements : dict, optional
+    sort_elements : dict, optional
         Elements in a solution item will be sorted in ascending order. The default
         is {}, which means no sorting at all.
     item_selection_weights : dict, optional
@@ -1273,7 +1273,7 @@ class Anneal:
                 - change_value_move
                 - insert_or_delete_move
                 - swap_move
-                - sort_solution_elements
+                - sort_elements
                 - item_selection_weights
 
         Returns
@@ -1292,7 +1292,7 @@ class Anneal:
                 "change_value_move": "self._changemove",
                 "insert_or_delete_move": "self._insordelmove",
                 "swap_move": "self._swapmove",
-                "sort_solution_elements": "self._xsort",
+                "sort_elements": "self._xsort",
                 "item_selection_weights": "self._xselweight",
             }
 
@@ -1318,7 +1318,7 @@ class Anneal:
                 - change_value_move
                 - insert_or_delete_move
                 - swap_move
-                - sort_solution_elements
+                - sort_elements
                 - item_selection_weights
         **items : Keyword arguments
             A series of key-value pairs where each key corresponds to an item in
@@ -1341,7 +1341,7 @@ class Anneal:
                 "change_value_move": "self._changemove",
                 "insert_or_delete_move": "self._insordelmove",
                 "swap_move": "self._swapmove",
-                "sort_solution_elements": "self._xsort",
+                "sort_elements": "self._xsort",
                 "item_selection_weights": "self._xselweight",
             }
 
@@ -1762,11 +1762,11 @@ class Anneal:
             raise MOSAError("Weights of trial moves must be provided as a dictionary!")
 
     @property
-    def sort_solution_elements(self) -> dict:
+    def sort_elements(self) -> dict:
         return self._xsort
 
-    @sort_solution_elements.setter
-    def sort_solution_elements(self, val: dict) -> None:
+    @sort_elements.setter
+    def sort_elements(self, val: dict) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, bool):
