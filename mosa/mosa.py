@@ -50,13 +50,13 @@ class Anneal:
         Number of elements for each solution item. The default is {}, which
         means one element for all solution items.
     maximum_number_of_elements : dict, optional
-        Maximum number of elements for each solution item, if the number of elements 
+        Maximum number of elements for each solution item, if the number of elements
         is variable. The default is {}, which means an unlimited number of elements.
     distinct_elements : dict, optional
-        Determines that an element cannot be repeated in a solution item. The 
+        Determines that an element cannot be repeated in a solution item. The
         default is {}, which means that repetitions are allowed.
     mc_step_size : dict, optional
-        Monte Carlo step size for each solution item. The default is {}, which 
+        Monte Carlo step size for each solution item. The default is {}, which
         means 0.1 for continuous search space and half the number of elements
         in a population item for discrete search space.
     change_value_move : dict, optional
@@ -121,7 +121,7 @@ class Anneal:
     setitemparams(item,**params)
         Sets the optimization parameters for the specified solution item.
     setoptparam(param,**items)
-        Sets the values of the optimization parameter for the specified solution 
+        Sets the values of the optimization parameter for the specified solution
         items.
     """
 
@@ -221,11 +221,15 @@ class Anneal:
 
             if not bool(self._archive):
                 try:
-                    print(f"Trying to load the archive from file {self._archivefile}...")
+                    print(
+                        f"Trying to load the archive from file {self._archivefile}..."
+                    )
 
                     self._archive = json.load(open(self._archivefile, "r"))
                 except FileNotFoundError:
-                    print(f"File {self._archivefile} not found! Initializing an empty archive...")
+                    print(
+                        f"File {self._archivefile} not found! Initializing an empty archive..."
+                    )
 
                     self._archive = {"Solution": [], "Values": []}
 
@@ -241,9 +245,7 @@ class Anneal:
             if set(population.keys()) == set(xcurr.keys()):
                 from_checkpoint = True
             else:
-                raise MOSAError(
-                    "Solution and population must have the same items!"
-                )
+                raise MOSAError("Solution and population must have the same items!")
         else:
             if bool(self._population):
                 xcurr = {}
@@ -277,9 +279,14 @@ class Anneal:
                 xbounds[item] = list(population[item])
 
                 if xbounds[item][1] < xbounds[item][0]:
-                    xbounds[item][0], xbounds[item][1] = xbounds[item][1], xbounds[item][0]
+                    xbounds[item][0], xbounds[item][1] = (
+                        xbounds[item][1],
+                        xbounds[item][0],
+                    )
                 elif xbounds[item][1] == xbounds[item][0]:
-                    raise MOSAError(f"Second element in item {item} must be larger than the first one!")
+                    raise MOSAError(
+                        f"Second element in item {item} must be larger than the first one!"
+                    )
 
                 print(f"        Boundaries: ({xbounds[item][0]},{xbounds[item][1]})")
             elif isinstance(population[item], list):
@@ -319,7 +326,9 @@ class Anneal:
                 changemove[item] = 1.0
 
             if changemove[item] > 0.0:
-                print(f"        Weight of 'change value' trial move: {changemove[item]}")
+                print(
+                    f"        Weight of 'change value' trial move: {changemove[item]}"
+                )
 
             if item in self._swapmove.keys() and self._swapmove[item] > 0.0:
                 swapmove[item] = float(self._swapmove[item])
@@ -331,7 +340,9 @@ class Anneal:
             if item in self._insordelmove.keys() and self._insordelmove[item] > 0.0:
                 insordelmove[item] = float(self._insordelmove[item])
 
-                print(f"        Weight of 'insert or delete' trial move: {insordelmove[item]}")
+                print(
+                    f"        Weight of 'insert or delete' trial move: {insordelmove[item]}"
+                )
 
                 if item in self._maxnel.keys() and self._maxnel[item] >= xnel[item]:
                     maxnel[item] = int(self._maxnel[item])
@@ -422,7 +433,9 @@ class Anneal:
                             if xdistinct[item]:
                                 population[item].pop(m)
                         else:
-                            xcurr[item].append(uniform(xbounds[item][0], xbounds[item][1]))
+                            xcurr[item].append(
+                                uniform(xbounds[item][0], xbounds[item][1])
+                            )
 
                     if xsort[item]:
                         xcurr[item].sort()
@@ -430,9 +443,9 @@ class Anneal:
             if callable(func):
                 for item in items:
                     args += f"{item} = {xcurr[item]}, "
-                                    
-                fcurr = eval(f"list(func({args}))")               
-                
+
+                fcurr = eval(f"list(func({args}))")
+
                 updated = self.__updatearchive(xcurr, fcurr)
 
                 if self._trackoptprogress:
@@ -473,7 +486,9 @@ class Anneal:
                     if r < sellength[item]:
                         break
 
-                r = uniform(0.0, (changemove[item] + swapmove[item] + insordelmove[item]))
+                r = uniform(
+                    0.0, (changemove[item] + swapmove[item] + insordelmove[item])
+                )
 
                 if r < changemove[item] or r >= (changemove[item] + swapmove[item]):
                     if xnel[item] > 1:
@@ -515,7 +530,9 @@ class Anneal:
                         r = changemove[item]
                     else:
                         if self._verbose:
-                            print(f"WARNING!!!!!! It was not possible to find an element in item '{item}' in the population to update the solution at iteration {j}!")
+                            print(
+                                f"WARNING!!!!!! It was not possible to find an element in item '{item}' in the population to update the solution at iteration {j}!"
+                            )
 
                         continue
 
@@ -568,7 +585,9 @@ class Anneal:
                             break
                     else:
                         if self._verbose:
-                            print(f"WARNING!!!!!! Failed {int(len(xtmp[item])/2)} times to find different elements in item '{item}' for swapping at iteration {j}!")
+                            print(
+                                f"WARNING!!!!!! Failed {int(len(xtmp[item])/2)} times to find different elements in item '{item}' for swapping at iteration {j}!"
+                            )
 
                         continue
                 else:
@@ -588,7 +607,9 @@ class Anneal:
                             if xdistinct[item]:
                                 poptmp[item].pop(new)
                         else:
-                            xtmp[item].append(uniform(xbounds[item][0], xbounds[item][1]))
+                            xtmp[item].append(
+                                uniform(xbounds[item][0], xbounds[item][1])
+                            )
 
                         if xsort[item]:
                             xtmp[item].sort()
@@ -599,12 +620,12 @@ class Anneal:
                         xtmp[item].pop(old)
 
                 gamma = 1.0
-                
+
                 args = ""
-                
+
                 for item in items:
                     args += f"{item} = {xtmp[item]}, "
-                
+
                 ftmp = eval(f"list(func({args}))")
 
                 for k in range(len(ftmp)):
@@ -648,7 +669,9 @@ class Anneal:
 
                 if narchivereject >= self._maxarchivereject:
                     if self._verbose:
-                        print(f"    Insertion in the archive consecutively rejected {self._maxarchivereject} times!")
+                        print(
+                            f"    Insertion in the archive consecutively rejected {self._maxarchivereject} times!"
+                        )
                         print(f"    Stoping at iteration {j}...")
                     else:
                         print(
@@ -670,7 +693,9 @@ class Anneal:
 
                     if nupdated > 0:
                         print(f"    Number of archive updates: {nupdated}.")
-                        print(f"    Fraction of archive updates in accepted moves: {nupdated/naccept:.6f}.")
+                        print(
+                            f"    Fraction of archive updates in accepted moves: {nupdated/naccept:.6f}."
+                        )
                     else:
                         print("    No archive update.")
                 else:
@@ -1215,8 +1240,8 @@ class Anneal:
         Parameters
         ----------
         **items : Keyword arguments
-            A series of key-value pairs where each key corresponds to an item in 
-            the solution and contains the data that can be used to achieve an 
+            A series of key-value pairs where each key corresponds to an item in
+            the solution and contains the data that can be used to achieve an
             optimized solution to the problem.
 
         Returns
@@ -1279,7 +1304,7 @@ class Anneal:
 
     def setoptparam(self, param: str, **items) -> None:
         """
-        Sets the values of the optimization parameter for the specified solution 
+        Sets the values of the optimization parameter for the specified solution
         items.
 
         Parameters
@@ -1296,7 +1321,7 @@ class Anneal:
                 - sort_solution_elements
                 - item_selection_weights
         **items : Keyword arguments
-            A series of key-value pairs where each key corresponds to an item in 
+            A series of key-value pairs where each key corresponds to an item in
             the solution to the problem.
 
         Returns
@@ -1634,7 +1659,9 @@ class Anneal:
                 if isinstance(value, int) and value > 0:
                     self._xnel[key] = value
                 else:
-                    raise MOSAError(f"Item '{key}' must be an integer greater than zero!")
+                    raise MOSAError(
+                        f"Item '{key}' must be an integer greater than zero!"
+                    )
         else:
             raise MOSAError("Number of elements must be provided as a dictionary!")
 
@@ -1649,9 +1676,13 @@ class Anneal:
                 if isinstance(value, int) and value >= 2:
                     self._maxnel[key] = value
                 else:
-                    raise MOSAError(f"Item '{key}' must be an integer greater than or equal to 2!")
+                    raise MOSAError(
+                        f"Item '{key}' must be an integer greater than or equal to 2!"
+                    )
         else:
-            raise MOSAError("Maximum number of elements must be provided as a dictionary!")
+            raise MOSAError(
+                "Maximum number of elements must be provided as a dictionary!"
+            )
 
     @property
     def distinct_elements(self) -> dict:
@@ -1758,9 +1789,7 @@ class Anneal:
                 else:
                     raise MOSAError(f"Item '{key}' must be a number!")
         else:
-            raise MOSAError(
-                "Item selection weights must be provided as a dictionary!"
-            )
+            raise MOSAError("Item selection weights must be provided as a dictionary!")
 
     @property
     def track_optimization_progress(self) -> bool:
