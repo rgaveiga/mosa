@@ -112,9 +112,9 @@ class Anneal:
         Returns a copy of the solution archive.
     printx(xset)
         Prints the solutions in the archive in a more human readable format.
-    plotfront(xset,index1,index2,file)
+    plot_front(xset,index1,index2,file)
         Plots 2D scatter plots of selected pairs of objective values.
-    printstats(xset)
+    print_stats(xset)
         Prints the minimum, maximum and average values of the objectives.
     set_population(**items)
         Sets the population.
@@ -1109,7 +1109,7 @@ class Anneal:
             print("%d) %s" % (i + 1, xset["Values"][i]))
 
     # TODO: Show up to three objective functions in a single plot
-    def plotfront(
+    def plot_front(
         self, xset: dict = {}, index1: int = 0, index2: int = 1, file: str | None = None
     ) -> None:
         """
@@ -1179,7 +1179,7 @@ class Anneal:
             raise MOSAError("Index out of range!")
 
     # TODO: Use numpy functions and compute also the standard deviation
-    def printstats(self, xset: dict = {}) -> None:
+    def print_stats(self, xset: dict = {}) -> None:
         """
         Prints the minimum, maximum and average values of the objectives.
 
