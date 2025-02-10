@@ -18,9 +18,13 @@
                 "Pear City",
                 "Lemon City",
                 "Star Fruit City",
-                "Orange City",
+                "Orange City"
             ]
         }
     ],
-    "Values": [[82.91878251421768]],
+    "Values": [
+        [
+            82.91878251421768
+        ]
+    ]
 }

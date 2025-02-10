@@ -17,10 +17,16 @@
             "Pear City",
             "Lemon City",
             "Star Fruit City",
-            "Orange City",
+            "Orange City"
         ]
     },
-    "Values": [82.91878251421768],
-    "Population": {"Stops": []},
-    "SampleSpace": {"Stops": 0},
+    "Values": [
+        82.91878251421768
+    ],
+    "Population": {
+        "Stops": []
+    },
+    "SampleSpace": {
+        "Stops": 0
+    }
 }
