@@ -19,7 +19,7 @@ class Anneal:
     Attributes
     ----------
     population : dict
-        Population where each item represents the data that can be used to achieve
+        Population where each group represents the data that can be used to achieve
         an optimized solution to the problem.
     archive : dict
         Solution archive. It should not be changed manually.
@@ -47,39 +47,40 @@ class Anneal:
     alpha : float, optional
         Alpha parameter. The default is 0.0.
     number_of_elements : dict, optional
-        Number of elements for each solution item. The default is {}, which
-        means one element for all solution items.
+        Number of elements for each group in the solution. The default is {}, which
+        means one element for all groups in the solutions.
     maximum_number_of_elements : dict, optional
-        Maximum number of elements for each solution item, if the number of elements
+        Maximum number of elements for each group in the solution, if the number of elements
         is variable. The default is {}, which means an unlimited number of elements.
     distinct_elements : dict, optional
-        Determines that an element cannot be repeated in a solution item. The
+        Determines that an element cannot be repeated in a group in the solution. The
         default is {}, which means that repetitions are allowed.
     mc_step_size : dict, optional
-        Monte Carlo step size for each solution item. The default is {}, which
-        means 0.1 for continuous search space and half the number of elements
-        in a population item for discrete search space.
+        Monte Carlo step size for each group in the solution. The default is {},
+        which means 0.1 for continuous search space and half the number of elements
+        in a population group for discrete search space.
     change_value_move : dict, optional
         Weight (non-normalized probability) to select a trial move where the value
-        of a randomly selected element in a solution item will be modified. For
+        of a randomly selected element in a group in the solution will be modified. For
         discrete search space, it implies the exchange of values between the
         solution and the population. For continuous search space, the value of
         the solution element is randomly incremented/decremented. The default
         is {}, which means the weight to select this trial move is equal to 1.0.
     insert_or_delete_move : dict, optional
         Weight (non-normalized probability) to select a trial move where an element
-        will be inserted into or deleted from a solution item. The default is {},
-        which means this trial move is not allowed, i.e., weight equal to zero.
+        will be inserted into or deleted from a group in the solution. The default
+        is {}, which means this trial move is not allowed, i.e., weight equal to
+        zero.
     swap_move : dict, optional
         Weight (non-normalized probability) to select a trial move where elements
         will be swaped in the solution. The default is {}, which means this trial
         move is not allowed, i.e., weight equal to zero.
     sort_elements : dict, optional
-        Elements in a solution item will be sorted in ascending order. The default
-        is {}, which means no sorting at all.
-    item_selection_weights : dict, optional
-        Selection weight for each solution item in a Monte Carlo iteration. The
-        default value is {}, which means that all items have the same selection
+        Elements in a group in the solution will be sorted in ascending order.
+        The default is {}, which means no sorting at all.
+    group_selection_weights : dict, optional
+        Selection weight for each group in the solution in a Monte Carlo iteration. The
+        default value is {}, which means that all groups have the same selection
         weight, i.e., the same probability of being selected.
     track_optimization_progress : bool, optional
         Tracks the optimization progress by saving the accepted objetive values
@@ -116,13 +117,13 @@ class Anneal:
         Plots 2D scatter plots of selected pairs of objective values.
     print_stats(xset)
         Prints the minimum, maximum and average values of the objectives.
-    set_population(**items)
+    set_population(**groups)
         Sets the population.
-    set_item_params(item,**params)
-        Sets the optimization parameters for the specified solution item.
-    set_opt_param(param,**items)
+    set_group_params(group,**params)
+        Sets the optimization parameters for the specified group in the solution.
+    set_opt_param(param,**groups)
         Sets the values of the optimization parameter for the specified solution
-        items.
+        groups.
     """
 
     def __init__(self) -> None:
@@ -209,7 +210,7 @@ class Anneal:
         xsort: dict = {}
         totlength: float = 0.0
         sellength: dict = {}
-        items: list = []
+        groups: list = []
         args: str = ""
         MAX_FAILED: int = 10
         MIN_STEP_LENGTH: int = 10
@@ -245,7 +246,7 @@ class Anneal:
             if set(population.keys()) == set(xcurr.keys()):
                 from_checkpoint = True
             else:
-                raise MOSAError("Solution and population must have the same items!")
+                raise MOSAError("Solution and population must have the same groups!")
         else:
             if bool(self._population):
                 xcurr = {}
@@ -254,156 +255,162 @@ class Anneal:
             else:
                 raise MOSAError("A population must be provided!")
 
-        items = list(population.keys())
+        groups = list(population.keys())
 
         print("------\n")
-        print("Items in the solution:\n======================\n")
+        print("Groups in the solution:\n======================\n")
 
-        for item in items:
-            print(f"    {item}:")
+        for group in groups:
+            print(f"    {group}:")
 
-            if item in self._xnel.keys() and self._xnel[item] > 0:
-                xnel[item] = self._xnel[item]
+            if group in self._xnel.keys() and self._xnel[group] > 0:
+                xnel[group] = self._xnel[group]
             else:
-                xnel[item] = 1
+                xnel[group] = 1
 
-            print(f"        Number of elements: {xnel[item]}")
+            print(f"        Number of elements: {xnel[group]}")
 
-            if isinstance(population[item], tuple):
+            if isinstance(population[group], tuple):
                 print("        Sample space: continuous")
 
-                if len(population[item]) <= 1:
-                    raise MOSAError(f"Two numbers are expected in item {item}!")
+                if len(population[group]) <= 1:
+                    raise MOSAError(f"Two numbers are expected in group {group}!")
 
-                xsampling[item] = 1
-                xbounds[item] = list(population[item])
+                xsampling[group] = 1
+                xbounds[group] = list(population[group])
 
-                if xbounds[item][1] < xbounds[item][0]:
-                    xbounds[item][0], xbounds[item][1] = (
-                        xbounds[item][1],
-                        xbounds[item][0],
+                if xbounds[group][1] < xbounds[group][0]:
+                    xbounds[group][0], xbounds[group][1] = (
+                        xbounds[group][1],
+                        xbounds[group][0],
                     )
-                elif xbounds[item][1] == xbounds[item][0]:
+                elif xbounds[group][1] == xbounds[group][0]:
                     raise MOSAError(
-                        f"Second element in item {item} must be larger than the first one!"
+                        f"Second element in group {group} must be larger than the first one!"
                     )
 
-                print(f"        Boundaries: ({xbounds[item][0]},{xbounds[item][1]})")
-            elif isinstance(population[item], list):
+                print(f"        Boundaries: ({xbounds[group][0]},{xbounds[group][1]})")
+            elif isinstance(population[group], list):
                 print("        Sample space: discrete")
-                print(f"        Size of population item: {len(population[item])}")
+                print(f"        Size of population group: {len(population[group])}")
 
-                if len(population[item]) <= 1 and not from_checkpoint:
+                if len(population[group]) <= 1 and not from_checkpoint:
                     raise MOSAError(
-                        "Number of elements in the population item must be greater than one!"
+                        "Number of elements in the population group must be greater than one!"
                     )
 
-                xsampling[item] = 0
+                xsampling[group] = 0
 
-                if item in self._xdistinct.keys():
-                    xdistinct[item] = bool(self._xdistinct[item])
+                if group in self._xdistinct.keys():
+                    xdistinct[group] = bool(self._xdistinct[group])
                 else:
-                    xdistinct[item] = False
+                    xdistinct[group] = False
 
-                print(f"        Distinct elements: {xdistinct[item]}")
+                print(f"        Distinct elements: {xdistinct[group]}")
             else:
-                raise MOSAError(f"Wrong format of item {item}!")
+                raise MOSAError(f"Wrong format of group {group}!")
 
-            if item in self._xselweight.keys():
-                totlength += self._xselweight[item]
+            if group in self._xselweight.keys():
+                totlength += self._xselweight[group]
 
-                print(f"        Selection weight: {self._xselweight[item]}")
+                print(f"        Selection weight: {self._xselweight[group]}")
             else:
                 totlength += 1.0
 
                 print("        Selection weight: 1.0")
 
-            sellength[item] = totlength
+            sellength[group] = totlength
 
-            if item in self._changemove.keys() and self._changemove[item] >= 0.0:
-                changemove[item] = float(self._changemove[item])
+            if group in self._changemove.keys() and self._changemove[group] >= 0.0:
+                changemove[group] = float(self._changemove[group])
             else:
-                changemove[item] = 1.0
+                changemove[group] = 1.0
 
-            if changemove[item] > 0.0:
+            if changemove[group] > 0.0:
                 print(
-                    f"        Weight of 'change value' trial move: {changemove[item]}"
+                    f"        Weight of 'change value' trial move: {changemove[group]}"
                 )
 
-            if item in self._swapmove.keys() and self._swapmove[item] > 0.0:
-                swapmove[item] = float(self._swapmove[item])
+            if group in self._swapmove.keys() and self._swapmove[group] > 0.0:
+                swapmove[group] = float(self._swapmove[group])
 
-                print(f"        Weight of 'swap' trial move: {swapmove[item]}")
+                print(f"        Weight of 'swap' trial move: {swapmove[group]}")
             else:
-                swapmove[item] = 0.0
+                swapmove[group] = 0.0
 
-            if item in self._insordelmove.keys() and self._insordelmove[item] > 0.0:
-                insordelmove[item] = float(self._insordelmove[item])
+            if group in self._insordelmove.keys() and self._insordelmove[group] > 0.0:
+                insordelmove[group] = float(self._insordelmove[group])
 
                 print(
-                    f"        Weight of 'insert or delete' trial move: {insordelmove[item]}"
+                    f"        Weight of 'insert or delete' trial move: {insordelmove[group]}"
                 )
 
-                if item in self._maxnel.keys() and self._maxnel[item] >= xnel[item]:
-                    maxnel[item] = int(self._maxnel[item])
+                if group in self._maxnel.keys() and self._maxnel[group] >= xnel[group]:
+                    maxnel[group] = int(self._maxnel[group])
 
-                    if maxnel[item] <= 1:
-                        maxnel[item] = 2
+                    if maxnel[group] <= 1:
+                        maxnel[group] = 2
                 else:
-                    maxnel[item] = inf
+                    maxnel[group] = inf
 
-                print(f"        Maximum number of elements: {maxnel[item]}")
+                print(f"        Maximum number of elements: {maxnel[group]}")
             else:
-                insordelmove[item] = 0.0
+                insordelmove[group] = 0.0
 
-            if swapmove[item] == 0.0 and item in self._xsort.keys():
-                xsort[item] = bool(self._xsort[item])
+            if swapmove[group] == 0.0 and group in self._xsort.keys():
+                xsort[group] = bool(self._xsort[group])
             else:
-                xsort[item] = False
+                xsort[group] = False
 
-            print(f"        Sort values: {xsort[item]}")
+            print(f"        Sort values: {xsort[group]}")
 
-            if item in self._xstep.keys():
-                if xsampling[item] == 1:
-                    xstep[item] = float(self._xstep[item])
+            if group in self._xstep.keys():
+                if xsampling[group] == 1:
+                    xstep[group] = float(self._xstep[group])
 
-                    if xstep[item] <= 0.0:
-                        xstep[item] = 0.1
+                    if xstep[group] <= 0.0:
+                        xstep[group] = 0.1
                 else:
-                    xstep[item] = int(self._xstep[item])
+                    xstep[group] = int(self._xstep[group])
             else:
-                if xsampling[item] == 1:
-                    xstep[item] = 0.1
+                if xsampling[group] == 1:
+                    xstep[group] = 0.1
                 else:
-                    if changemove[item] > 0.0:
-                        xstep[item] = int(len(population[item]) / 2)
+                    if changemove[group] > 0.0:
+                        xstep[group] = int(len(population[group]) / 2)
                     else:
-                        xstep[item] = 0
+                        xstep[group] = 0
 
-            if xsampling[item] == 1:
-                print(f"        Maximum step size: {xstep[item]}")
-            elif xsampling[item] == 0 and (changemove[item] + insordelmove[item]) > 0.0:
-                if xstep[item] > len(population[item]) / 2 or xstep[item] <= 0:
-                    xstep[item] = int(len(population[item]) / 2)
+            if xsampling[group] == 1:
+                print(f"        Maximum step size: {xstep[group]}")
+            elif (
+                xsampling[group] == 0
+                and (changemove[group] + insordelmove[group]) > 0.0
+            ):
+                if xstep[group] > len(population[group]) / 2 or xstep[group] <= 0:
+                    xstep[group] = int(len(population[group]) / 2)
 
-                if xstep[item] >= MIN_STEP_LENGTH:
-                    print(f"        Maximum step size: {xstep[item]}")
+                if xstep[group] >= MIN_STEP_LENGTH:
+                    print(f"        Maximum step size: {xstep[group]}")
                 else:
                     print("        Elements selected at random from the population")
 
-            if xsampling[item] == 0 and (changemove[item] + insordelmove[item]) > 0.0:
-                if len(population[item]) == 1:
-                    lstep[item] = 0
+            if (
+                xsampling[group] == 0
+                and (changemove[group] + insordelmove[group]) > 0.0
+            ):
+                if len(population[group]) == 1:
+                    lstep[group] = 0
                 else:
-                    lstep[item] = choice(len(population[item]))
+                    lstep[group] = choice(len(population[group]))
 
-            if xnel[item] == 1 and insordelmove[item] == 0.0:
-                changemove[item] = 1.0
-                swapmove[item] = 0.0
+            if xnel[group] == 1 and insordelmove[group] == 0.0:
+                changemove[group] = 1.0
+                swapmove[group] = 0.0
 
-            if len(population[item]) == 0 and insordelmove[item] == 0:
-                changemove[item] = 0.0
-                swapmove[item] = 1.0
+            if len(population[group]) == 0 and insordelmove[group] == 0:
+                changemove[group] = 0.0
+                swapmove[group] = 1.0
 
         print("------")
 
@@ -412,37 +419,37 @@ class Anneal:
         else:
             print("Initializing with a random solution from scratch...")
 
-            for item in items:
-                if xnel[item] == 1:
-                    if xsampling[item] == 0:
-                        m = choice(len(population[item]))
-                        xcurr[item] = population[item][m]
+            for group in groups:
+                if xnel[group] == 1:
+                    if xsampling[group] == 0:
+                        m = choice(len(population[group]))
+                        xcurr[group] = population[group][m]
 
-                        if xdistinct[item]:
-                            population[item].pop(m)
+                        if xdistinct[group]:
+                            population[group].pop(m)
                     else:
-                        xcurr[item] = uniform(xbounds[item][0], xbounds[item][1])
+                        xcurr[group] = uniform(xbounds[group][0], xbounds[group][1])
                 else:
-                    xcurr[item] = []
+                    xcurr[group] = []
 
-                    for j in range(xnel[item]):
-                        if xsampling[item] == 0:
-                            m = choice(len(population[item]))
-                            xcurr[item].append(population[item][m])
+                    for j in range(xnel[group]):
+                        if xsampling[group] == 0:
+                            m = choice(len(population[group]))
+                            xcurr[group].append(population[group][m])
 
-                            if xdistinct[item]:
-                                population[item].pop(m)
+                            if xdistinct[group]:
+                                population[group].pop(m)
                         else:
-                            xcurr[item].append(
-                                uniform(xbounds[item][0], xbounds[item][1])
+                            xcurr[group].append(
+                                uniform(xbounds[group][0], xbounds[group][1])
                             )
 
-                    if xsort[item]:
-                        xcurr[item].sort()
+                    if xsort[group]:
+                        xcurr[group].sort()
 
             if callable(func):
-                for item in items:
-                    args += f"{item} = {xcurr[item]}, "
+                for group in groups:
+                    args += f"{group} = {xcurr[group]}, "
 
                 fcurr = eval(f"list(func({args}))")
 
@@ -482,149 +489,153 @@ class Anneal:
 
                 r = uniform(0.0, totlength)
 
-                for item in items:
-                    if r < sellength[item]:
+                for group in groups:
+                    if r < sellength[group]:
                         break
 
                 r = uniform(
-                    0.0, (changemove[item] + swapmove[item] + insordelmove[item])
+                    0.0, (changemove[group] + swapmove[group] + insordelmove[group])
                 )
 
-                if r < changemove[item] or r >= (changemove[item] + swapmove[item]):
-                    if xnel[item] > 1:
-                        old = choice(len(xtmp[item]))
+                if r < changemove[group] or r >= (changemove[group] + swapmove[group]):
+                    if xnel[group] > 1:
+                        old = choice(len(xtmp[group]))
 
-                    if xsampling[item] == 0 and len(poptmp[item]) > 0:
+                    if xsampling[group] == 0 and len(poptmp[group]) > 0:
                         for _ in range(MAX_FAILED):
-                            if len(poptmp[item]) == 1:
+                            if len(poptmp[group]) == 1:
                                 new = 0
-                            elif xstep[item] >= MIN_STEP_LENGTH:
+                            elif xstep[group] >= MIN_STEP_LENGTH:
                                 selstep = int(
-                                    round(triangular(-xstep[item], 0, xstep[item]), 0)
+                                    round(triangular(-xstep[group], 0, xstep[group]), 0)
                                 )
-                                new = lstep[item] + selstep
+                                new = lstep[group] + selstep
 
-                                if new >= len(poptmp[item]):
-                                    new -= len(poptmp[item])
+                                if new >= len(poptmp[group]):
+                                    new -= len(poptmp[group])
                                 elif new < 0:
-                                    new += len(poptmp[item])
+                                    new += len(poptmp[group])
                             else:
-                                new = choice(len(poptmp[item]))
+                                new = choice(len(poptmp[group]))
 
-                            if r >= changemove[item] or xdistinct[item]:
+                            if r >= changemove[group] or xdistinct[group]:
                                 break
                             else:
-                                if xnel[item] == 1:
-                                    if not xtmp[item] == poptmp[item][new]:
+                                if xnel[group] == 1:
+                                    if not xtmp[group] == poptmp[group][new]:
                                         break
                                 else:
-                                    if not xtmp[item][old] == poptmp[item][new]:
+                                    if not xtmp[group][old] == poptmp[group][new]:
                                         break
                         else:
                             new = None
 
-                if xsampling[item] == 0 and r < changemove[item] and new is None:
-                    if insordelmove[item] > 0.0:
-                        r = changemove[item] + swapmove[item]
-                    elif swapmove[item] > 0.0 and xnel[item] > 1:
-                        r = changemove[item]
+                if xsampling[group] == 0 and r < changemove[group] and new is None:
+                    if insordelmove[group] > 0.0:
+                        r = changemove[group] + swapmove[group]
+                    elif swapmove[group] > 0.0 and xnel[group] > 1:
+                        r = changemove[group]
                     else:
                         if self._verbose:
                             print(
-                                f"WARNING!!!!!! It was not possible to find an element in item '{item}' in the population to update the solution at iteration {j}!"
+                                f"WARNING!!!!!! It was not possible to find an element in group '{group}' in the population to update the solution at iteration {j}!"
                             )
 
                         continue
 
-                if r < changemove[item]:
-                    if xsampling[item] == 0:
-                        if xdistinct[item]:
-                            if xnel[item] == 1:
-                                xtmp[item], poptmp[item][new] = (
-                                    poptmp[item][new],
-                                    xtmp[item],
+                if r < changemove[group]:
+                    if xsampling[group] == 0:
+                        if xdistinct[group]:
+                            if xnel[group] == 1:
+                                xtmp[group], poptmp[group][new] = (
+                                    poptmp[group][new],
+                                    xtmp[group],
                                 )
                             else:
-                                xtmp[item][old], poptmp[item][new] = (
-                                    poptmp[item][new],
-                                    xtmp[item][old],
+                                xtmp[group][old], poptmp[group][new] = (
+                                    poptmp[group][new],
+                                    xtmp[group][old],
                                 )
                         else:
-                            if xnel[item] == 1:
-                                xtmp[item] = poptmp[item][new]
+                            if xnel[group] == 1:
+                                xtmp[group] = poptmp[group][new]
                             else:
-                                xtmp[item][old] = poptmp[item][new]
+                                xtmp[group][old] = poptmp[group][new]
                     else:
-                        if xnel[item] == 1:
-                            xtmp[item] += uniform(-xstep[item], xstep[item])
+                        if xnel[group] == 1:
+                            xtmp[group] += uniform(-xstep[group], xstep[group])
 
-                            if xtmp[item] > xbounds[item][1]:
-                                xtmp[item] -= xbounds[item][1] - xbounds[item][0]
-                            elif xtmp[item] < xbounds[item][0]:
-                                xtmp[item] += xbounds[item][1] - xbounds[item][0]
+                            if xtmp[group] > xbounds[group][1]:
+                                xtmp[group] -= xbounds[group][1] - xbounds[group][0]
+                            elif xtmp[group] < xbounds[group][0]:
+                                xtmp[group] += xbounds[group][1] - xbounds[group][0]
                         else:
-                            xtmp[item][old] += uniform(-xstep[item], xstep[item])
+                            xtmp[group][old] += uniform(-xstep[group], xstep[group])
 
-                            if xtmp[item][old] > xbounds[item][1]:
-                                xtmp[item][old] -= xbounds[item][1] - xbounds[item][0]
-                            elif xtmp[item][old] < xbounds[item][0]:
-                                xtmp[item][old] += xbounds[item][1] - xbounds[item][0]
+                            if xtmp[group][old] > xbounds[group][1]:
+                                xtmp[group][old] -= (
+                                    xbounds[group][1] - xbounds[group][0]
+                                )
+                            elif xtmp[group][old] < xbounds[group][0]:
+                                xtmp[group][old] += (
+                                    xbounds[group][1] - xbounds[group][0]
+                                )
 
-                    if xsort[item] and xnel[item] > 1:
-                        xtmp[item].sort()
-                elif r < (changemove[item] + swapmove[item]):
-                    for _ in range(int(len(xtmp[item]) / 2)):
-                        chosen = choice(len(xtmp[item]), 2, False)
+                    if xsort[group] and xnel[group] > 1:
+                        xtmp[group].sort()
+                elif r < (changemove[group] + swapmove[group]):
+                    for _ in range(int(len(xtmp[group]) / 2)):
+                        chosen = choice(len(xtmp[group]), 2, False)
 
-                        if not xtmp[item][chosen[0]] == xtmp[item][chosen[1]]:
-                            xtmp[item][chosen[0]], xtmp[item][chosen[1]] = (
-                                xtmp[item][chosen[1]],
-                                xtmp[item][chosen[0]],
+                        if not xtmp[group][chosen[0]] == xtmp[group][chosen[1]]:
+                            xtmp[group][chosen[0]], xtmp[group][chosen[1]] = (
+                                xtmp[group][chosen[1]],
+                                xtmp[group][chosen[0]],
                             )
 
                             break
                     else:
                         if self._verbose:
                             print(
-                                f"WARNING!!!!!! Failed {int(len(xtmp[item])/2)} times to find different elements in item '{item}' for swapping at iteration {j}!"
+                                f"WARNING!!!!!! Failed {int(len(xtmp[group])/2)} times to find different elements in group '{group}' for swapping at iteration {j}!"
                             )
 
                         continue
                 else:
-                    if len(xtmp[item]) == 1:
+                    if len(xtmp[group]) == 1:
                         r = 0.0
-                    elif (xsampling[item] == 0 and len(poptmp[item]) == 0) or len(
-                        xtmp[item]
-                    ) >= maxnel[item]:
+                    elif (xsampling[group] == 0 and len(poptmp[group]) == 0) or len(
+                        xtmp[group]
+                    ) >= maxnel[group]:
                         r = 1.0
                     else:
                         r = uniform(0.0, 1.0)
 
                     if r < 0.5:
-                        if xsampling[item] == 0:
-                            xtmp[item].append(poptmp[item][new])
+                        if xsampling[group] == 0:
+                            xtmp[group].append(poptmp[group][new])
 
-                            if xdistinct[item]:
-                                poptmp[item].pop(new)
+                            if xdistinct[group]:
+                                poptmp[group].pop(new)
                         else:
-                            xtmp[item].append(
-                                uniform(xbounds[item][0], xbounds[item][1])
+                            xtmp[group].append(
+                                uniform(xbounds[group][0], xbounds[group][1])
                             )
 
-                        if xsort[item]:
-                            xtmp[item].sort()
+                        if xsort[group]:
+                            xtmp[group].sort()
                     else:
-                        if xsampling[item] == 0 and xdistinct[item]:
-                            poptmp[item].append(xtmp[item][old])
+                        if xsampling[group] == 0 and xdistinct[group]:
+                            poptmp[group].append(xtmp[group][old])
 
-                        xtmp[item].pop(old)
+                        xtmp[group].pop(old)
 
                 gamma = 1.0
 
                 args = ""
 
-                for item in items:
-                    args += f"{item} = {xtmp[item]}, "
+                for group in groups:
+                    args += f"{group} = {xtmp[group]}, "
 
                 ftmp = eval(f"list(func({args}))")
 
@@ -642,8 +653,8 @@ class Anneal:
                 gamma = (1.0 - self._alpha) * gamma + self._alpha * pmax
 
                 if gamma == 1.0 or uniform(0.0, 1.0) < gamma:
-                    if xsampling[item] == 0 and new is not None:
-                        lstep[item] = new
+                    if xsampling[group] == 0 and new is not None:
+                        lstep[group] = new
 
                     fcurr = ftmp.copy()
                     xcurr = deepcopy(xtmp)
@@ -1233,14 +1244,14 @@ class Anneal:
                         print("    Maximum: %f" % fmax[j])
                         print("    Average: %f" % (favg[j] / (i + 1)))
 
-    def set_population(self, **items) -> None:
+    def set_population(self, **groups) -> None:
         """
         Sets the population.
 
         Parameters
         ----------
-        **items : Keyword arguments
-            A series of key-value pairs where each key corresponds to an item in
+        **groups : Keyword arguments
+            A series of key-value pairs where each key corresponds to a group in
             the solution and contains the data that can be used to achieve an
             optimized solution to the problem.
 
@@ -1249,20 +1260,20 @@ class Anneal:
         None.
         """
 
-        if len(items) > 0:
-            for key, value in items.items():
+        if len(groups) > 0:
+            for key, value in groups.items():
                 self._population[key] = value
         else:
             raise MOSAError("No keyword was provided!")
 
-    def set_item_params(self, item: str, **params) -> None:
+    def set_group_params(self, group: str, **params) -> None:
         """
-        Sets the optimization parameters for the specified solution item.
+        Sets the optimization parameters for the specified group in the solution.
 
         Parameters
         ----------
-        item : str
-            An item in the solution to the problem.
+        group : str
+            A group in the solution to the problem.
         **params : Keyword arguments
             Names of the optimization parameters with respective values. They can
             be any of the alternatives below:
@@ -1274,7 +1285,7 @@ class Anneal:
                 - insert_or_delete_move
                 - swap_move
                 - sort_elements
-                - item_selection_weights
+                - group_selection_weights
 
         Returns
         -------
@@ -1293,19 +1304,19 @@ class Anneal:
                 "insert_or_delete_move": "self._insordelmove",
                 "swap_move": "self._swapmove",
                 "sort_elements": "self._xsort",
-                "item_selection_weights": "self._xselweight",
+                "group_selection_weights": "self._xselweight",
             }
 
             for param, value in params.items():
                 if param in allowed:
-                    exec(f"{allowed[param]}[item]=value")
+                    exec(f"{allowed[param]}[group]=value")
         else:
             raise MOSAError("No keyword was provided!")
 
-    def set_opt_param(self, param: str, **items) -> None:
+    def set_opt_param(self, param: str, **groups) -> None:
         """
         Sets the values of the optimization parameter for the specified solution
-        items.
+        groups.
 
         Parameters
         ----------
@@ -1319,9 +1330,9 @@ class Anneal:
                 - insert_or_delete_move
                 - swap_move
                 - sort_elements
-                - item_selection_weights
-        **items : Keyword arguments
-            A series of key-value pairs where each key corresponds to an item in
+                - group_selection_weights
+        **groups : Keyword arguments
+            A series of key-value pairs where each key corresponds to a group in
             the solution to the problem.
 
         Returns
@@ -1332,7 +1343,7 @@ class Anneal:
         params: tuple
         execstr: str
 
-        if len(items) > 0:
+        if len(groups) > 0:
             params = {
                 "number_of_elements": "self._xnel",
                 "maximum_number_of_elements": "self._maxnel",
@@ -1342,11 +1353,11 @@ class Anneal:
                 "insert_or_delete_move": "self._insordelmove",
                 "swap_move": "self._swapmove",
                 "sort_elements": "self._xsort",
-                "item_selection_weights": "self._xselweight",
+                "group_selection_weights": "self._xselweight",
             }
 
             if param in params:
-                execstr = "for key,value in items.items():\n"
+                execstr = "for key,value in groups.items():\n"
                 execstr += f"    {params[param]}[key]=value"
                 exec(execstr)
             else:
@@ -1660,7 +1671,7 @@ class Anneal:
                     self._xnel[key] = value
                 else:
                     raise MOSAError(
-                        f"Item '{key}' must be an integer greater than zero!"
+                        f"Group '{key}' must be an integer greater than zero!"
                     )
         else:
             raise MOSAError("Number of elements must be provided as a dictionary!")
@@ -1677,7 +1688,7 @@ class Anneal:
                     self._maxnel[key] = value
                 else:
                     raise MOSAError(
-                        f"Item '{key}' must be an integer greater than or equal to 2!"
+                        f"Group '{key}' must be an integer greater than or equal to 2!"
                     )
         else:
             raise MOSAError(
@@ -1695,10 +1706,10 @@ class Anneal:
                 if isinstance(value, bool):
                     self._xdistinct[key] = value
                 else:
-                    raise MOSAError(f"Item '{key}' must be a boolean!")
+                    raise MOSAError(f"Group '{key}' must be a boolean!")
         else:
             raise MOSAError(
-                "Whether or not to repeat elements in the solution item must be provided as a dictionary!"
+                "Whether or not to repeat elements in the group in the solution must be provided as a dictionary!"
             )
 
     @property
@@ -1712,7 +1723,7 @@ class Anneal:
                 if isinstance(value, (int, float)):
                     self._xstep[key] = value
                 else:
-                    raise MOSAError(f"Item '{key}' must be a number!")
+                    raise MOSAError(f"Group '{key}' must be a number!")
         else:
             raise MOSAError("Monte Carlo step sizes must be provided as a dictionary!")
 
@@ -1727,7 +1738,7 @@ class Anneal:
                 if isinstance(value, (float, int)) and value >= 0.0:
                     self._changemove[key] = value
                 else:
-                    raise MOSAError(f"Item '{key}' must be a positive number!")
+                    raise MOSAError(f"Group '{key}' must be a positive number!")
         else:
             raise MOSAError("Weights of trial moves must be provided as a dictionary!")
 
@@ -1742,7 +1753,7 @@ class Anneal:
                 if isinstance(value, (float, int)) and value >= 0.0:
                     self._insordelmove[key] = value
                 else:
-                    raise MOSAError(f"Item '{key}' must be a positive number!")
+                    raise MOSAError(f"Group '{key}' must be a positive number!")
         else:
             raise MOSAError("Weights of trial moves must be provided as a dictionary!")
 
@@ -1757,7 +1768,7 @@ class Anneal:
                 if isinstance(value, (float, int)) and value >= 0.0:
                     self._swapmove[key] = value
                 else:
-                    raise MOSAError(f"Item '{key}' must be a positive number!")
+                    raise MOSAError(f"Group '{key}' must be a positive number!")
         else:
             raise MOSAError("Weights of trial moves must be provided as a dictionary!")
 
@@ -1772,24 +1783,24 @@ class Anneal:
                 if isinstance(value, bool):
                     self._xsort[key] = value
                 else:
-                    raise MOSAError(f"Item '{key}' must be a boolean!")
+                    raise MOSAError(f"Group '{key}' must be a boolean!")
         else:
-            raise MOSAError("Sort item elements must be provided as a dictionary!")
+            raise MOSAError("Sort group elements must be provided as a dictionary!")
 
     @property
-    def item_selection_weights(self) -> dict:
+    def group_selection_weights(self) -> dict:
         return self._xselweight
 
-    @item_selection_weights.setter
-    def item_selection_weights(self, val: dict) -> None:
+    @group_selection_weights.setter
+    def group_selection_weights(self, val: dict) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, (int, float)):
                     self._xselweight[key] = value
                 else:
-                    raise MOSAError(f"Item '{key}' must be a number!")
+                    raise MOSAError(f"Group '{key}' must be a number!")
         else:
-            raise MOSAError("Item selection weights must be provided as a dictionary!")
+            raise MOSAError("Group selection weights must be provided as a dictionary!")
 
     @property
     def track_optimization_progress(self) -> bool:
