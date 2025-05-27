@@ -1,3 +1,5 @@
+"""This module defines the `Anneal` class, which implements the MOSA algorithm."""
+
 from __future__ import print_function
 from __future__ import division
 import json
@@ -7,139 +9,16 @@ from math import exp, inf
 
 
 class Anneal:
-    """
-    This class implements the Multi-Objective Simulated Annealing (MOSA) algorithm.
-    Simulated Annealing (SA) has been initially proposed in `Optimization by Simulated
-    Annealing <https://doi.org/10.1126/science.220.4598.671>`_ as an optimization
-    heuristic. MOSA extends the original, single-objective SA to approximate the
-    Pareto front in multi-objective optimization problems. A comprehensive discussion
-    on MOSA and its algorithm variants can be found in `Multi-objective Simulated
-    Annealing: Principles and Algorithm Variants <https://doi.org/10.1155/2019/8134674>`_.
-
-    Attributes
-    ----------
-    population : dict
-        Population where each group represents the data that can be used to achieve
-        an optimized solution to the problem.
-    archive : dict
-        Solution archive. It should not be changed manually.
-    restart : bool, optional
-        Restarts from a previous run if a checkpoint file is available. The
-        default is True.
-    objective_weights : list, optional
-        Weights for the objectives. The default is [], which means the same
-        weight (1.0) for all objectives.
-    initial_temperature : float, optional
-        Initial temperature. The default is 1.0.
-    temperature_decrease_factor : float, optional
-        Decrease factor of the temperature. The default is 0.9.
-    number_of_temperatures : int, optional
-        Number of temperatures. The default is 10.
-    number_of_iterations : int, optional
-        Number of Monte Carlo iterations per temperature. The default is 1000.
-    archive_size : int, optional
-        Maximum number of solutions in the archive. The default is 1000.
-    archive_file : str, optional
-        Name of the archive file. The default is 'archive.json'.
-    maximum_archive_rejections : int, optional
-        Maximum number of consecutive rejections of insertion of a solution
-        in the archive. The default is 1000.
-    alpha : float, optional
-        Alpha parameter. The default is 0.0.
-    number_of_elements : dict, optional
-        Number of elements for each group in the solution. The default is {}, which
-        means one element for all groups in the solutions.
-    maximum_number_of_elements : dict, optional
-        Maximum number of elements for each group in the solution, if the number of elements
-        is variable. The default is {}, which means an unlimited number of elements.
-    distinct_elements : dict, optional
-        Determines that an element cannot be repeated in a group in the solution. The
-        default is {}, which means that repetitions are allowed.
-    mc_step_size : dict, optional
-        Monte Carlo step size for each group in the solution. The default is {},
-        which means 0.1 for continuous search space and half the number of elements
-        in a population group for discrete search space.
-    change_value_move : dict, optional
-        Weight (non-normalized probability) to select a trial move where the value
-        of a randomly selected element in a group in the solution will be modified. For
-        discrete search space, it implies the exchange of values between the
-        solution and the population. For continuous search space, the value of
-        the solution element is randomly incremented/decremented. The default
-        is {}, which means the weight to select this trial move is equal to 1.0.
-    insert_or_delete_move : dict, optional
-        Weight (non-normalized probability) to select a trial move where an element
-        will be inserted into or deleted from a group in the solution. The default
-        is {}, which means this trial move is not allowed, i.e., weight equal to
-        zero.
-    swap_move : dict, optional
-        Weight (non-normalized probability) to select a trial move where elements
-        will be swaped in the solution. The default is {}, which means this trial
-        move is not allowed, i.e., weight equal to zero.
-    sort_elements : dict, optional
-        Elements in a group in the solution will be sorted in ascending order.
-        The default is {}, which means no sorting at all.
-    group_selection_weights : dict, optional
-        Selection weight for each group in the solution in a Monte Carlo iteration. The
-        default value is {}, which means that all groups have the same selection
-        weight, i.e., the same probability of being selected.
-    track_optimization_progress : bool, optional
-        Tracks the optimization progress by saving the accepted objetive values
-        into a Python list. The default is False.
-    accepted_objective_values : list, readonly
-        Accepted objective values over Monte Carlo iterations.
-    verbose : bool, optional
-        Displays verbose output. The default is False.
-
-    Methods
-    -------
-    evolve(func)
-        Performs the optimization.
-    prune_dominated(xset,del_duplicated)
-        Returns a subset of the full or reduced archive containing only non-dominated
-        solutions.
-    savex(xset,archive_file)
-        Saves the archive into a text file in JSON format.
-    loadx(archive_file)
-        Loads solutions from a JSON file into the archive.
-    trimx(xset,thresholds)
-        Extracts from the archive the solutions where the objective values are
-        less than or equal to the thresholds.
-    reducex(xset,index,nel)
-        Reduces and sorts in ascending order the archive according to the selected
-        objective function.
-    mergex(xset_list)
-        Merges a list of solution archives into a single solution archive.
-    copyx(xset)
-        Returns a copy of the solution archive.
-    printx(xset)
-        Prints the solutions in the archive in a more human readable format.
-    plot_front(xset,index1,index2,file)
-        Plots 2D scatter plots of selected pairs of objective values.
-    print_stats(xset)
-        Prints the minimum, maximum and average values of the objectives.
-    set_population(**groups)
-        Sets the population.
-    set_group_params(group,**params)
-        Sets the optimization parameters for the specified group in the solution.
-    set_opt_param(param,**groups)
-        Sets the values of the optimization parameter for the specified solution
-        groups.
-    """
+    """This class implements the MOSA algorithm."""
 
     def __init__(self) -> None:
-        """
+        """@private
         Initializes object attributes.
-
-        Returns
-        -------
-        None.
         """
 
         print("--------------------------------------------------")
         print("    MULTI-OBJECTIVE SIMULATED ANNEALING (MOSA)    ")
         print("--------------------------------------------------")
-        print("       Developed by Prof. Roberto Gomes, PhD      ")
-        print("   Universidade Federal do ABC (UFABC), Brazil\n    ")
 
         self._initemp: float = 1.0
         self._decrease: float = 0.9
@@ -167,18 +46,140 @@ class Anneal:
         self._f: list = []
         self._verbose: bool = False
 
-    def evolve(self, func: object) -> None:
+    def set_population(self, **groups) -> None:
         """
-        Performs the optimization.
+        Sets the population.
 
         Parameters
         ----------
-        func : Python object
-            Function that returns the value(s) of the objective(s).
+        `**groups`: series of key-value pairs where each key corresponds to a
+        group in the solution and contains the data that can be used to achieve
+        an optimized solution to the problem.
+        """
 
-        Returns
-        -------
-        None.
+        if len(groups) > 0:
+            for key, value in groups.items():
+                self._population[key] = value
+        else:
+            raise MOSAError("No keyword was provided!")
+
+    def set_group_params(self, group: str, **params) -> None:
+        """
+        Sets the optimization parameters for the specified group in the solution.
+
+        Parameters
+        ----------
+        `group`: group in the solution.
+
+        `**params`: names of the optimization parameters with respective values.
+
+        They can be any of the alternatives below:
+
+        - `number_of_elements`
+
+        - `maximum_number_of_elements`
+
+        - `distinct_elements`
+
+        - `mc_step_size`
+
+        - `change_value_move`
+
+        - `insert_or_delete_move`
+
+        - `swap_move`
+
+        - `sort_elements`
+
+        - `group_selection_weights`
+        """
+
+        allowed: dict
+
+        if len(params) > 0:
+            allowed = {
+                "number_of_elements": "self._xnel",
+                "maximum_number_of_elements": "self._maxnel",
+                "distinct_elements": "self._xdistinct",
+                "mc_step_size": "self._xstep",
+                "change_value_move": "self._changemove",
+                "insert_or_delete_move": "self._insordelmove",
+                "swap_move": "self._swapmove",
+                "sort_elements": "self._xsort",
+                "group_selection_weights": "self._xselweight",
+            }
+
+            for param, value in params.items():
+                if param in allowed:
+                    exec(f"{allowed[param]}[group]=value")
+        else:
+            raise MOSAError("No keyword was provided!")
+
+    def set_opt_param(self, param: str, **groups) -> None:
+        """
+        Sets the values of the optimization parameter for the specified solution
+        groups.
+
+        Parameters
+        ----------
+        `param`: name of the optimization parameter.
+
+        It must be one of the alternatives below:
+
+        - `number_of_elements`
+
+        - `maximum_number_of_elements`
+
+        - `distinct_elements`
+
+        - `mc_step_size`
+
+        - `change_value_move`
+
+        - `insert_or_delete_move`
+
+        - `swap_move`
+
+        - `sort_elements`
+
+        - `group_selection_weights`
+
+        `**groups`: series of key-value pairs where each key corresponds to a
+        group in the solution to the problem.
+        """
+
+        params: tuple
+        execstr: str
+
+        if len(groups) > 0:
+            params = {
+                "number_of_elements": "self._xnel",
+                "maximum_number_of_elements": "self._maxnel",
+                "distinct_elements": "self._xdistinct",
+                "mc_step_size": "self._xstep",
+                "change_value_move": "self._changemove",
+                "insert_or_delete_move": "self._insordelmove",
+                "swap_move": "self._swapmove",
+                "sort_elements": "self._xsort",
+                "group_selection_weights": "self._xselweight",
+            }
+
+            if param in params:
+                execstr = "for key,value in groups.items():\n"
+                execstr += f"    {params[param]}[key]=value"
+                exec(execstr)
+            else:
+                raise MOSAError("Optimization parameter does not exist!")
+        else:
+            raise MOSAError("No keyword was provided!")
+
+    def evolve(self, func: object) -> None:
+        """
+        Performs the optimization of the objective function.
+
+        Parameters
+        ----------
+        `func`: objective function.
         """
 
         print("--- BEGIN: Evolving a solution ---\n")
@@ -726,22 +727,23 @@ class Anneal:
 
     def prune_dominated(self, xset: dict = {}, del_duplicated: bool = False) -> dict:
         """
-        Returns a subset of the full or reduced archive containing only non-dominated
-        solutions.
+        Returns a subset of the full or reduced solution archive containing only
+        non-dominated solutions.
 
         Parameters
         ----------
-        xset : dict, optional
-            Full or reduced solution archive. The default is {}, meaning the
-            full solution archive.
-        del_duplicated : bool, optional
-            Delete a solution if the objective values are strictly equal to the
-            values of a previous solution. The default is False.
+        `xset`: full or reduced solution archive.
+
+        The default is {}, meaning the full solution archive.
+
+        `del_duplicated`: delete a solution if the objective values are strictly
+        equal to the values of a previous solution.
+
+        The default is `False`.
 
         Returns
         -------
-        dict
-            Solution archive with non-dominated solutions.
+        Solution archive with non-dominated solutions.
         """
 
         tmpdict: dict = {}
@@ -803,20 +805,17 @@ class Anneal:
 
     def savex(self, xset: dict = {}, archive_file: str = "") -> None:
         """
-        Saves the archive into a text file in JSON format.
+        Saves the solution archive into a text file in JSON format.
 
         Parameters
         ----------
-        xset : dict, optional
-            Full or reduced solution archive. The default is {}, meaning the full
-            solution archive.
-        archive_file : string, optional
-            Name of the archive file. The default is '', which means the main
-            archive file.
+        `xset`: full or reduced solution archive.
 
-        Returns
-        -------
-        None.
+        The default is {}, meaning the full solution archive.
+
+        `archive_file`: name of the archive file.
+
+        The default is an empty string, which means the main archive file.
         """
 
         if isinstance(xset, dict):
@@ -837,17 +836,14 @@ class Anneal:
 
     def loadx(self, archive_file: str = "") -> None:
         """
-        Loads solutions from a JSON file into the archive.
+        Loads solutions from a JSON file into the solution archive.
 
         Parameters
         ----------
-        archive_file : string, optional
-            Name of the archive file. The default is '', which means the main
-            archive file will be used.
+        `archive_file`: name of the archive file.
 
-        Returns
-        -------
-        None.
+        The default is an empty string, which means the main archive file will
+        be used.
         """
 
         if isinstance(archive_file, str):
@@ -873,21 +869,22 @@ class Anneal:
 
     def trimx(self, xset: dict = {}, thresholds: tuple | list = []) -> dict:
         """
-        Extracts from the archive the solutions where the objective values are
-        less than or equal to the thresholds.
+        Extracts solutions where the objective values are less than or equal to
+        the thresholds.
 
         Parameters
         ----------
-        xset : dict, optional
-            Full or reduced solution archive. The default is {}, meaning the full
-            solution archive.
-        thresholds : tuple | list, optional
-            Maximum values of the objective functions. The default is an empty list.
+        `xset`: full or reduced solution archive.
+
+        The default is {}, meaning the full solution archive.
+
+        `thresholds`: maximum values of the objective functions.
+
+        The default is an empty list.
 
         Returns
         -------
-        dict
-            Solution archive with only the selected solutions.
+        Solution archive with only the selected solutions.
         """
 
         tmpdict: dict = {}
@@ -936,18 +933,20 @@ class Anneal:
 
         Parameters
         ----------
-        xset : dict, optional
-            Full or reduced solution archive. The default is {}, meaning the full
-            solution archive.
-        index : int, optional
-            Index of the objective function. The default is 0.
-        nel : int, optional
-            Number of solutions stored in the reduced archive. The default is 5.
+        `xset`: full or reduced solution archive. The default is {}, meaning the
+        full solution archive.
+
+        `index`: index of the objective function.
+
+        The default is 0.
+
+        `nel`: number of solutions stored in the reduced solution archive.
+
+        The default is 5.
 
         Returns
         -------
-        dict
-            Reduced solution archive.
+        Reduced solution archive.
         """
 
         tmpdict: dict = {}
@@ -998,13 +997,11 @@ class Anneal:
 
         Parameters
         ----------
-        xset_list : list
-            Solution archives to be merged.
+        `xset_list`: solution archives to be merged.
 
         Returns
         -------
-        dict
-            Merged solution archives.
+        Merged solution archives.
         """
 
         tmpdict: dict = {}
@@ -1052,14 +1049,13 @@ class Anneal:
 
         Parameters
         ----------
-        xset : dict, optional
-            Full or reduced solution archive. The default is {}, meaning the full
-            solution archive.
+        `xset`: full or reduced solution archive.
+
+        The default is {}, meaning the full solution archive.
 
         Returns
         -------
-        dict
-            Copy of the solution archive.
+        Copy of the solution archive.
         """
 
         if not bool(xset):
@@ -1081,17 +1077,13 @@ class Anneal:
     # TODO: Show Solutions and Values together
     def printx(self, xset: dict = {}) -> None:
         """
-        Prints the solutions in the archive in a more human readable format.
+        Prints the solutions in the solution archive in human readable format.
 
         Parameters
         ----------
-        xset : dict, optional
-            Full or reduced solution archive. The default is {}, meaning the full
-            solution archive.
+        `xset`: full or reduced solution archive.
 
-        Returns
-        -------
-        None.
+        The default is {}, meaning the full solution archive.
         """
 
         if not bool(xset):
@@ -1128,22 +1120,21 @@ class Anneal:
 
         Parameters
         ----------
-        xset : dict, optional
-            Full or reduced solution archive. The default is {}, meaning the full
-            solution archive.
-        index1 : int, optional
-            Index of the objective function displayed along x-axis. The default
-            is 0.
-        index2 : int, optional
-            Index of the objective function displayed along y-axis. The default
-            is 1.
-        file : string, optional
-            Name of the image file where the plot will be saved. The default is
-            None, which means that no figure will be created.
+        `xset`: full or reduced solution archive.
 
-        Returns
-        -------
-        None.
+        The default is {}, meaning the full solution archive.
+
+        `index1`: index of the objective function displayed along x-axis.
+
+        The default is 0.
+
+        `index2`: index of the objective function displayed along y-axis.
+
+        The default is 1.
+
+        `file`: name of the image file where the plot will be saved.
+
+        The default is `None`, which means that no figure will be created.
         """
 
         try:
@@ -1196,13 +1187,9 @@ class Anneal:
 
         Parameters
         ----------
-        xset : dict, optional
-            Full or reduced solution archive. The default is {}, meaning the full
-            solution archive.
+        `xset`: full or reduced solution archive.
 
-        Returns
-        -------
-        None.
+        The default is {}, meaning the full solution archive.
         """
 
         if not bool(xset):
@@ -1244,127 +1231,6 @@ class Anneal:
                         print("    Maximum: %f" % fmax[j])
                         print("    Average: %f" % (favg[j] / (i + 1)))
 
-    def set_population(self, **groups) -> None:
-        """
-        Sets the population.
-
-        Parameters
-        ----------
-        **groups : Keyword arguments
-            A series of key-value pairs where each key corresponds to a group in
-            the solution and contains the data that can be used to achieve an
-            optimized solution to the problem.
-
-        Returns
-        -------
-        None.
-        """
-
-        if len(groups) > 0:
-            for key, value in groups.items():
-                self._population[key] = value
-        else:
-            raise MOSAError("No keyword was provided!")
-
-    def set_group_params(self, group: str, **params) -> None:
-        """
-        Sets the optimization parameters for the specified group in the solution.
-
-        Parameters
-        ----------
-        group : str
-            A group in the solution to the problem.
-        **params : Keyword arguments
-            Names of the optimization parameters with respective values. They can
-            be any of the alternatives below:
-                - number_of_elements
-                - maximum_number_of_elements
-                - distinct_elements
-                - mc_step_size
-                - change_value_move
-                - insert_or_delete_move
-                - swap_move
-                - sort_elements
-                - group_selection_weights
-
-        Returns
-        -------
-        None.
-        """
-
-        allowed: dict
-
-        if len(params) > 0:
-            allowed = {
-                "number_of_elements": "self._xnel",
-                "maximum_number_of_elements": "self._maxnel",
-                "distinct_elements": "self._xdistinct",
-                "mc_step_size": "self._xstep",
-                "change_value_move": "self._changemove",
-                "insert_or_delete_move": "self._insordelmove",
-                "swap_move": "self._swapmove",
-                "sort_elements": "self._xsort",
-                "group_selection_weights": "self._xselweight",
-            }
-
-            for param, value in params.items():
-                if param in allowed:
-                    exec(f"{allowed[param]}[group]=value")
-        else:
-            raise MOSAError("No keyword was provided!")
-
-    def set_opt_param(self, param: str, **groups) -> None:
-        """
-        Sets the values of the optimization parameter for the specified solution
-        groups.
-
-        Parameters
-        ----------
-        param : str
-            Name of the optimization parameter. It must be one of the alternatives below:
-                - number_of_elements
-                - maximum_number_of_elements
-                - distinct_elements
-                - mc_step_size
-                - change_value_move
-                - insert_or_delete_move
-                - swap_move
-                - sort_elements
-                - group_selection_weights
-        **groups : Keyword arguments
-            A series of key-value pairs where each key corresponds to a group in
-            the solution to the problem.
-
-        Returns
-        -------
-        None.
-        """
-
-        params: tuple
-        execstr: str
-
-        if len(groups) > 0:
-            params = {
-                "number_of_elements": "self._xnel",
-                "maximum_number_of_elements": "self._maxnel",
-                "distinct_elements": "self._xdistinct",
-                "mc_step_size": "self._xstep",
-                "change_value_move": "self._changemove",
-                "insert_or_delete_move": "self._insordelmove",
-                "swap_move": "self._swapmove",
-                "sort_elements": "self._xsort",
-                "group_selection_weights": "self._xselweight",
-            }
-
-            if param in params:
-                execstr = "for key,value in groups.items():\n"
-                execstr += f"    {params[param]}[key]=value"
-                exec(execstr)
-            else:
-                raise MOSAError("Optimization parameter does not exist!")
-        else:
-            raise MOSAError("No keyword was provided!")
-
     def __updatearchive(self, x: dict, f: list) -> int:
         """
         Checks if this solution is better than solutions already in the archive.
@@ -1373,15 +1239,13 @@ class Anneal:
 
         Parameters
         ----------
-        x : dict
-            Solution.
-        f : list
-            Objective values.
+        `x`: solution.
+
+        `f`: objective values.
 
         Returns
         -------
-        int
-            1, if the archive is updated, or 0, if not.
+        1, if the archive is updated, or 0, if not.
         """
 
         updated: int = 0
@@ -1439,8 +1303,7 @@ class Anneal:
 
         Returns
         -------
-        tuple
-            Solution, objective values, and population compatible with the solution.
+        Solution, objective values, and population compatible with the solution.
         """
 
         tmpdict: dict = {}
@@ -1481,16 +1344,11 @@ class Anneal:
 
         Parameters
         ----------
-        x : dict
-            Solution.
-        f : list
-            Objective values.
-        population : dict
-            Population compatilbe with the solution.
+        `x`: solution.
 
-        Returns
-        -------
-        None.
+        `f`: objective values.
+
+        `population`: population compatible with the solution.
         """
 
         tmpdict: dict = {
@@ -1510,6 +1368,11 @@ class Anneal:
 
     @property
     def population(self) -> dict:
+        """
+        Population where each group represents the data that can be used to achieve
+        an optimized solution to the problem.
+        """
+
         return self._population
 
     @population.setter
@@ -1521,6 +1384,13 @@ class Anneal:
 
     @property
     def archive(self) -> dict:
+        """
+        Solution archive.
+
+        > [!WARNING]
+        > The archive should not be changed manually.
+        """
+
         return self._archive
 
     @archive.setter
@@ -1543,6 +1413,12 @@ class Anneal:
 
     @property
     def restart(self) -> bool:
+        """
+        Restarts from a previous run if a checkpoint file is available.
+
+        The default is `True`.
+        """
+
         return self._restart
 
     @restart.setter
@@ -1554,6 +1430,12 @@ class Anneal:
 
     @property
     def objective_weights(self) -> list:
+        """
+        Weights for the objectives.
+
+        The default is [], which means the same weight (1.0) for all objectives.
+        """
+
         return self._weight
 
     @objective_weights.setter
@@ -1565,6 +1447,12 @@ class Anneal:
 
     @property
     def initial_temperature(self) -> float:
+        """
+        Initial temperature.
+
+        The default is 1.0.
+        """
+
         return self._initemp
 
     @initial_temperature.setter
@@ -1576,6 +1464,12 @@ class Anneal:
 
     @property
     def temperature_decrease_factor(self) -> float:
+        """
+        Decrease factor of the temperature.
+
+        The default is 0.9.
+        """
+
         return self._decrease
 
     @temperature_decrease_factor.setter
@@ -1589,6 +1483,12 @@ class Anneal:
 
     @property
     def number_of_temperatures(self) -> int:
+        """
+        Number of temperatures.
+
+        The default is 10.
+        """
+
         return self._ntemp
 
     @number_of_temperatures.setter
@@ -1602,6 +1502,12 @@ class Anneal:
 
     @property
     def number_of_iterations(self) -> int:
+        """
+        Number of Monte Carlo iterations per temperature.
+
+        The default is 1,000.
+        """
+
         return self._niter
 
     @number_of_iterations.setter
@@ -1615,6 +1521,12 @@ class Anneal:
 
     @property
     def archive_size(self) -> int:
+        """
+        Maximum number of solutions in the archive.
+
+        The default is 1,000.
+        """
+
         return self._archivesize
 
     @archive_size.setter
@@ -1626,6 +1538,12 @@ class Anneal:
 
     @property
     def archive_file(self) -> str:
+        """
+        Name of the archive file.
+
+        The default is 'archive.json'.
+        """
+
         return self._archive_file
 
     @archive_file.setter
@@ -1637,6 +1555,13 @@ class Anneal:
 
     @property
     def maximum_archive_rejections(self) -> int:
+        """
+        Maximum number of consecutive rejections of insertion of a solution
+        in the archive.
+
+        The default is 1,000.
+        """
+
         return self._maxarchivereject
 
     @maximum_archive_rejections.setter
@@ -1650,6 +1575,12 @@ class Anneal:
 
     @property
     def alpha(self) -> float:
+        """
+        Alpha parameter.
+
+        The default is 0.0.
+        """
+
         return self._alpha
 
     @alpha.setter
@@ -1661,6 +1592,12 @@ class Anneal:
 
     @property
     def number_of_elements(self) -> dict:
+        """
+        Number of elements for each group in the solution.
+
+        The default is {}, which means one element for all groups in the solutions.
+        """
+
         return self._xnel
 
     @number_of_elements.setter
@@ -1678,6 +1615,13 @@ class Anneal:
 
     @property
     def maximum_number_of_elements(self) -> dict:
+        """
+        Maximum number of elements for each group in the solution, if the number of elements
+        is variable.
+
+        The default is {}, which means an unlimited number of elements.
+        """
+
         return self._maxnel
 
     @maximum_number_of_elements.setter
@@ -1697,6 +1641,12 @@ class Anneal:
 
     @property
     def distinct_elements(self) -> dict:
+        """
+        Determines that an element cannot be repeated in a group in the solution.
+
+        The default is {}, which means that repetitions are allowed.
+        """
+
         return self._xdistinct
 
     @distinct_elements.setter
@@ -1714,6 +1664,13 @@ class Anneal:
 
     @property
     def mc_step_size(self) -> dict:
+        """
+        Monte Carlo step size for each group in the solution.
+
+        The default is {}, which means 0.1 for continuous search space and half
+        the number of elements in a population group for discrete search space.
+        """
+
         return self._xstep
 
     @mc_step_size.setter
@@ -1729,6 +1686,21 @@ class Anneal:
 
     @property
     def change_value_move(self) -> dict:
+        """
+        Weight (non-normalized probability) to select a trial move where the value
+        of a randomly selected element in a group in the solution will be modified
+        as follows:
+
+        - Discrete search space: values between the solution and the population
+        are exchanged.
+
+        - Continuous search space: the value of the solution element is randomly
+        incremented/decremented.
+
+        The default is {}, which means the weight to select this trial move is
+        equal to 1.0.
+        """
+
         return self._changemove
 
     @change_value_move.setter
@@ -1744,6 +1716,14 @@ class Anneal:
 
     @property
     def insert_or_delete_move(self) -> dict:
+        """
+        Weight (non-normalized probability) to select a trial move where an element
+        will be inserted into or deleted from a group in the solution.
+
+        The default is {}, which means this trial move is not allowed, i.e., the
+        weight is equal to zero.
+        """
+
         return self._insordelmove
 
     @insert_or_delete_move.setter
@@ -1759,6 +1739,14 @@ class Anneal:
 
     @property
     def swap_move(self) -> dict:
+        """
+        Weight (non-normalized probability) to select a trial move where elements
+        will be swaped in the solution.
+
+        The default is {}, which means this trial move is not allowed, i.e., the
+        weight is equal to zero.
+        """
+
         return self._swapmove
 
     @swap_move.setter
@@ -1774,6 +1762,12 @@ class Anneal:
 
     @property
     def sort_elements(self) -> dict:
+        """
+        Elements in a group in the solution will be sorted in ascending order.
+
+        The default is {}, which means no sorting at all.
+        """
+
         return self._xsort
 
     @sort_elements.setter
@@ -1789,6 +1783,13 @@ class Anneal:
 
     @property
     def group_selection_weights(self) -> dict:
+        """
+        Selection weight for each group in the solution in a Monte Carlo iteration.
+
+        The default value is {}, which means that all groups have the same selection
+        weight, i.e., the same probability of being selected.
+        """
+
         return self._xselweight
 
     @group_selection_weights.setter
@@ -1804,6 +1805,13 @@ class Anneal:
 
     @property
     def track_optimization_progress(self) -> bool:
+        """
+        Tracks the optimization progress by saving the accepted objetive values
+        into a Python list.
+
+        The default is `False`.
+        """
+
         return self._trackoptprogress
 
     @track_optimization_progress.setter
@@ -1815,10 +1823,18 @@ class Anneal:
 
     @property
     def accepted_objective_values(self) -> list:
+        """Accepted objective values over Monte Carlo iterations."""
+
         return self._f
 
     @property
     def verbose(self) -> bool:
+        """
+        Displays verbose output.
+
+        The default is `False`.
+        """
+
         return self._verbose
 
     @verbose.setter
@@ -1830,33 +1846,16 @@ class Anneal:
 
 
 class MOSAError(Exception):
-    """
-    This class implements exceptions raised by the MOSA algorithm.
+    """@private
+    This class defines exceptions raised by the MOSA algorithm.
     """
 
     def __init__(self, message: str = "") -> None:
-        """
-        Class constructor.
+        """Class constructor."""
 
-        Parameters
-        ----------
-        message : str, optional
-            Error message. The default is "".
-
-        Returns
-        -------
-        None.
-        """
-
-        self.message = message
+        self._message = message
 
     def __str__(self) -> str:
-        """
-        Returns the error message.
+        """Returns the error message."""
 
-        Returns
-        -------
-        str
-            Error message.
-        """
-        return self.message
+        return self._message
