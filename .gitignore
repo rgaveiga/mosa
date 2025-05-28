@@ -1,7 +1,7 @@
 mosa/__pycache__
 run_check
-docs
 tests
 tests/__pycache__
 dist
 *.old
+runpdoc.bat

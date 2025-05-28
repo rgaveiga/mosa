@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mosa"
-version = "0.7.5"
+version = "0.8.0"
 description = "Multi-Objective Simulated Annealing (MOSA) implementation in pure Python."
 authors = ["Roberto Gomes, PhD <roberto.veiga@ufabc.edu.br>"]
 license = "GPL 3.0"
