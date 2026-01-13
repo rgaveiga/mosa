@@ -1,5 +1,5 @@
 {
-    "Solution": {
+    "x": {
         "Stops": [
             "Cherry City",
             "Tangerine City",
@@ -20,7 +20,7 @@
             "Orange City"
         ]
     },
-    "Values": [
+    "f": [
         82.91878251421768
     ],
     "Population": {

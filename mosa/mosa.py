@@ -5,8 +5,9 @@ from __future__ import division
 import json
 from copy import deepcopy
 import numpy as np
-from numpy.random import choice, triangular, uniform, shuffle
+from numpy.random import choice, triangular, uniform
 from math import exp, inf
+from . import __version__
 
 
 class Anneal:
@@ -18,7 +19,7 @@ class Anneal:
         """
 
         print("--------------------------------------------------")
-        print("    MULTI-OBJECTIVE SIMULATED ANNEALING (MOSA)    ")
+        print(f" MULTI-OBJECTIVE SIMULATED ANNEALING (MOSA) {__version__}  ")
         print("--------------------------------------------------")
 
         self._initemp: float = 1.0
@@ -52,7 +53,7 @@ class Anneal:
         Sets the population.
 
         ### Parameters
-        
+
         `**groups`: series of key-value pairs where each key corresponds to a
         group in the solution and contains the data that can be used to achieve
         an optimized solution to the problem.
@@ -69,7 +70,7 @@ class Anneal:
         Sets the optimization parameters for the specified group in the solution.
 
         ### Parameters
-        
+
         `group`: group in the solution.
 
         `**params`: names of the optimization parameters with respective values.
@@ -122,7 +123,7 @@ class Anneal:
         groups.
 
         ### Parameters
-        
+
         `param`: name of the optimization parameter.
 
         It must be one of the alternatives below:
@@ -179,7 +180,7 @@ class Anneal:
         Performs the optimization of the objective function.
 
         ### Parameters
-        
+
         `func`: objective function.
         """
 
@@ -222,7 +223,7 @@ class Anneal:
         if self._restart:
             xcurr, fcurr, population = self.__getcheckpoint()
 
-            if not bool(self._archive):
+            if not self._archive:
                 try:
                     print(
                         f"Trying to load the archive from file {self._archive_file}..."
@@ -244,13 +245,13 @@ class Anneal:
 
             print("Done!")
 
-        if bool(population) and bool(xcurr) and len(fcurr) > 0:
+        if population and xcurr and len(fcurr) > 0:
             if set(population.keys()) == set(xcurr.keys()):
                 from_checkpoint = True
             else:
                 raise MOSAError("Solution and population must have the same groups!")
         else:
-            if bool(self._population):
+            if self._population:
                 xcurr = {}
                 fcurr = []
                 population = deepcopy(self._population)
@@ -726,81 +727,50 @@ class Anneal:
 
         print("\n--- THE END ---")
 
-    def prune_dominated(self, xset: dict = {}, del_duplicated: bool = False) -> dict:
+    def prune_dominated(self, xset: dict = {}) -> dict:
         """
         Returns a subset of the full or reduced solution archive containing only
         non-dominated solutions.
 
         ### Parameters
-        
+
         `xset`: full or reduced solution archive.
 
         The default is {}, meaning the full solution archive.
 
-        `del_duplicated`: delete a solution if the objective values are strictly
-        equal to the values of a previous solution.
-
-        The default is `False`.
-
         ### Returns
-        
+
         Solution archive with non-dominated solutions.
         """
 
-        tmpdict: dict = {}
-        tmpdict["x"]: list = []
-        tmpdict["f"]: list = []
-        nl: int
-        ng: int
-        ne: int
+        xset = self.__checkarchive(xset)
 
-        if not bool(xset):
-            xset = self._archive
-        else:
-            if not ("x" in xset.keys() and "f" in xset.keys()):
-                raise MOSAError(
-                    "'x' and 'f' must be present in the dictionary!"
-                )
-            else:
-                if not (
-                    isinstance(xset["x"], list)
-                    and isinstance(xset["f"], list)
-                ):
-                    raise MOSAError("'x' and 'f' must be Python lists!")
+        if len(xset["x"]) == 1:
+            return xset
 
-        included: list = [True for i in range(len(xset["f"]))]
+        tmpdict: dict[str, list] = {"x": [], "f": []}
 
-        for i in range(len(xset["f"]) - 1):
-            if not included[i]:
-                continue
+        x = xset["x"]
+        f = xset["f"]
+        f_arr = np.array(f)
 
-            for j in range(i + 1, len(xset["f"])):
-                if not included[j]:
-                    continue
+        dominated = []
 
-                nl = ng = ne = 0
+        for i in range(len(f_arr) - 1):
+            fj = f_arr[i + 1 :]
+            d_arr = np.all(f_arr[i] >= fj, axis=-1)
 
-                for k in range(len(xset["f"][i])):
-                    if xset["f"][i][k] < xset["f"][j][k]:
-                        nl += 1
-                    elif xset["f"][i][k] > xset["f"][j][k]:
-                        ng += 1
-                    else:
-                        ne += 1
+            if d_arr.sum() > 0:
+                dominated.append(i)
 
-                if del_duplicated and ne == len(xset["f"][i]):
-                    included[j] = False
-                elif nl > 0 and ng == 0:
-                    included[j] = False
-                elif ng > 0 and nl == 0:
-                    included[i] = False
+        fj = f_arr[:-1]
+        d_arr = np.all(f_arr[-1] >= fj, axis=-1)
 
-                    break
+        if d_arr.sum() > 0:
+            dominated.append(len(f_arr) - 1)
 
-        for i in range(len(xset["f"])):
-            if included[i]:
-                tmpdict["x"].append(xset["x"][i])
-                tmpdict["f"].append(xset["f"][i])
+        tmpdict["x"] = [v for i, v in enumerate(x) if i not in dominated]
+        tmpdict["f"] = [v for i, v in enumerate(f) if i not in dominated]
 
         return tmpdict
 
@@ -809,7 +779,7 @@ class Anneal:
         Saves the solution archive into a text file in JSON format.
 
         ### Parameters
-        
+
         `xset`: full or reduced solution archive.
 
         The default is {}, meaning the full solution archive.
@@ -819,11 +789,7 @@ class Anneal:
         The default is an empty string, which means the main archive file.
         """
 
-        if isinstance(xset, dict):
-            if not bool(xset):
-                xset = self._archive
-        else:
-            raise MOSAError("The solution archive must be provided as a dictionary!")
+        xset = self.__checkarchive(xset)
 
         if isinstance(archive_file, str):
             archive_file = archive_file.strip()
@@ -840,7 +806,7 @@ class Anneal:
         Loads solutions from a JSON file into the solution archive.
 
         ### Parameters
-        
+
         `archive_file`: name of the archive file.
 
         The default is an empty string, which means the main archive file will
@@ -858,23 +824,28 @@ class Anneal:
         try:
             tmpdict = json.load(open(archive_file, "r"))
         except FileNotFoundError:
-            print(f"WARNING: File {archive_file} not found!")
+            print(f"File {archive_file} not found!")
 
             return
+
+        try:
+            tmpdict = self.__checkarchive(tmpdict)
         except:
-            print(f"WARNING: Something wrong with file {archive_file}!")
+            print(f"Something wrong with file {archive_file}!")
 
             return
 
         self._archive = tmpdict
 
-    def trimx(self, xset: dict = {}, thresholds: tuple | list = []) -> dict:
+    def trimx(
+        self, xset: dict = {}, thresholds: tuple | np.ndarray | list = []
+    ) -> dict:
         """
         Extracts solutions where the objective values are less than or equal to
         the thresholds.
 
         ### Parameters
-        
+
         `xset`: full or reduced solution archive.
 
         The default is {}, meaning the full solution archive.
@@ -884,46 +855,30 @@ class Anneal:
         The default is an empty list.
 
         ### Returns
-        
+
         Solution archive with only the selected solutions.
         """
 
-        tmpdict: dict = {}
-        tmpdict["x"]: list = []
-        tmpdict["f"]: list = []
-        included: bool
+        xset = self.__checkarchive(xset)
 
-        if not bool(xset):
-            xset = self._archive
+        tmpdict: dict[str, list] = {"x": [], "f": []}
+
+        x = xset["x"]
+        f = xset["f"]
+        f_arr = np.array(f)
+
+        for i in range(len(thresholds)):
+            if thresholds[i] is None:
+                thresholds[i] = np.inf
+
+        thresholds = np.asarray(thresholds)
+        included = np.flatnonzero(np.all(f_arr <= thresholds, axis=-1))
+
+        if len(included) > 0:
+            tmpdict["x"] = [v for i, v in enumerate(x) if i in included]
+            tmpdict["f"] = [v for i, v in enumerate(f) if i in included]
         else:
-            if not ("x" in xset.keys() and "f" in xset.keys()):
-                raise MOSAError(
-                    "'x' and 'f' must be present in the dictionary!"
-                )
-            else:
-                if not (
-                    isinstance(xset["x"], list)
-                    and isinstance(xset["f"], list)
-                ):
-                    raise MOSAError("'x' and 'f' must be Python lists!")
-
-        indexlist = list(range(len(xset["f"])))
-
-        if len(thresholds) == len(xset["f"][0]):
-            for i in indexlist:
-                for j in range(len(xset["f"][i])):
-                    if thresholds[j] is None or xset["f"][i][j] <= thresholds[j]:
-                        included = True
-                    else:
-                        included = False
-
-                        break
-
-                if included:
-                    tmpdict["x"].append(xset["x"][i])
-                    tmpdict["f"].append(xset["f"][i])
-        else:
-            raise MOSAError("The threshold list cannot be empty!")
+            raise RuntimeError("No solution remained in the reduced archive!")
 
         return tmpdict
 
@@ -933,9 +888,10 @@ class Anneal:
         objective function.
 
         ### Parameters
-        
-        `xset`: full or reduced solution archive. The default is {}, meaning the
-        full solution archive.
+
+        `xset`: full or reduced solution archive.
+
+        The default is {}, meaning the full solution archive.
 
         `index`: index of the objective function.
 
@@ -946,32 +902,21 @@ class Anneal:
         The default is 5.
 
         ### Returns
-        
+
         Reduced solution archive.
         """
 
-        tmpdict: dict = {}
-        tmpdict["x"]: list = []
-        tmpdict["f"]: list = []
+        xset = self.__checkarchive(xset)
 
-        if not bool(xset):
-            xset = self._archive
-        else:
-            if not ("x" in xset.keys() and "f" in xset.keys()):
-                raise MOSAError(
-                    "'x' and 'f' must be present in the dictionary!"
-                )
-            else:
-                if not (
-                    isinstance(xset["x"], list)
-                    and isinstance(xset["f"], list)
-                ):
-                    raise MOSAError("'x' and 'f' must be Python lists!")
+        tmpdict: dict[str, list] = {"x": [], "f": []}
 
-        if nel > len(xset["f"]):
-            nel = len(xset["f"])
+        x = xset["x"]
+        f = xset["f"]
 
-        indexlist = list(range(len(xset["f"])))
+        if nel > len(f):
+            nel = len(f)
+
+        indexlist = list(range(len(f)))
 
         for i in range(nel):
             k = 0
@@ -979,68 +924,42 @@ class Anneal:
             for j in indexlist:
                 if k == 0:
                     toadd = j
-                    bestval = xset["f"][j][index]
+                    bestval = f[j][index]
                     k += 1
                 else:
-                    if xset["f"][j][index] < bestval:
+                    if f[j][index] < bestval:
                         toadd = j
-                        bestval = xset["f"][j][index]
+                        bestval = f[j][index]
 
-            tmpdict["x"].append(xset["x"][toadd])
-            tmpdict["f"].append(xset["f"][toadd])
+            tmpdict["x"].append(x[toadd])
+            tmpdict["f"].append(f[toadd])
             indexlist.remove(toadd)
 
         return tmpdict
 
-    def mergex(self, xset_list: list) -> dict:
+    def mergex(self, xset_list: list | tuple) -> dict:
         """
-        Merges a list of solution archives into a single solution archive.
+        Merges two or more solution archives into a single solution archive.
 
         ### Parameters
-        
+
         `xset_list`: solution archives to be merged.
 
         ### Returns
-        
+
         Merged solution archives.
         """
 
-        tmpdict: dict = {}
+        tmpdict: dict[str, list] = {"x": [], "f": []}
 
-        if len(xset_list) <= 1:
+        if len(xset_list) < 2:
             raise MOSAError("Nothing to be done!")
 
-        if not bool(xset_list[0]):
-            raise MOSAError("First solution archive is empty!")
-        else:
-            if not (
-                "x" in xset_list[0].keys() and "f" in xset_list[0].keys()
-            ):
-                raise MOSAError(
-                    "'x' and 'f' must be present in the dictionary!"
-                )
-            else:
-                if not (
-                    isinstance(xset_list[0]["x"], list)
-                    and isinstance(xset_list[0]["f"], list)
-                ):
-                    raise MOSAError("'x' and 'f' must be Python lists!")
+        for xset in xset_list:
+            xset = self.__checkarchive(xset)
 
-                tmpdict = deepcopy(xset_list[0])
-
-        for i in range(1, len(xset_list)):
-            if (
-                bool(xset_list[i])
-                and "x" in xset_list[i].keys()
-                and "f" in xset_list[i].keys()
-                and isinstance(xset_list[i]["x"], list)
-                and isinstance(xset_list[i]["f"], list)
-            ):
-                for j in range(len(xset_list[i]["f"])):
-                    tmpdict["x"].append(xset_list[i]["x"][j])
-                    tmpdict["f"].append(xset_list[i]["f"][j])
-            else:
-                raise MOSAError("Format of solution archive is wrong!")
+            tmpdict["x"] += xset["x"]
+            tmpdict["f"] += xset["f"]
 
         return tmpdict
 
@@ -1049,63 +968,54 @@ class Anneal:
         Returns a copy of the solution archive.
 
         ### Parameters
-        
+
         `xset`: full or reduced solution archive.
 
         The default is {}, meaning the full solution archive.
 
         ### Returns
-        
+
         Copy of the solution archive.
         """
 
-        if not bool(xset):
-            xset = self._archive
-        else:
-            if not ("x" in xset.keys() and "f" in xset.keys()):
-                raise MOSAError(
-                    "'x' and 'f' must be present in the dictionary!"
-                )
-            else:
-                if not (
-                    isinstance(xset["x"], list)
-                    and isinstance(xset["f"], list)
-                ):
-                    raise MOSAError("'x' and 'f' must be Python lists!")
+        xset = self.__checkarchive(xset)
 
         return deepcopy(xset)
-    
 
     def printx(self, xset: dict = {}):
         """
         Prints the solutions in the solution archive in human readable format.
 
         ### Parameters
-        
+
         `xset`: full or reduced solution archive.
 
         The default is {}, meaning the full solution archive.
         """
 
-        if not bool(xset):
-            xset = self._archive
-        else:
-            if not ("x" in xset.keys() and "f" in xset.keys()):
-                raise MOSAError(
-                    "'x' and 'f' must be present in the dictionary!"
-                )
-            else:
-                if not (
-                    isinstance(xset["x"], list)
-                    and isinstance(xset["f"], list)
-                ):
-                    raise MOSAError("'x' and 'f' must be Python lists!")
+        xset = self.__checkarchive(xset)
 
         for i in range(len(xset["x"])):
-            s = str(xset['x'][i]).translate(str.maketrans('', '', '{}\'"'))
-            
-            print(f"{i+1}) {s} ===> {xset['f'][i]}")
-            
+            s = str(xset["x"][i]).translate(str.maketrans("", "", "{}'\""))
+
+            print(f"{i}) {s} ===> {xset['f'][i]}")
+
+    def sizex(self, xset: dict = {}) -> int:
+        """
+        Returns the number of solutions stored in the archive.
+
+        ### Parameters
+
+        `xset`: full or reduced solution archive.
+
+        ### Returns
+
+        Number of solutions stored in the archive.
+        """
+
+        xset = self.__checkarchive(xset)
+
+        return len(xset["x"])
 
     # TODO: Show up to three objective functions in a single plot
     def plot_front(
@@ -1115,7 +1025,7 @@ class Anneal:
         Plots 2D scatter plots of selected pairs of objective values.
 
         ### Parameters
-        
+
         `xset`: full or reduced solution archive.
 
         The default is {}, meaning the full solution archive.
@@ -1138,21 +1048,9 @@ class Anneal:
         except:
             raise MOSAError("Matplotlib is not available in your system!")
 
-        f: list = [[], []]
+        xset = self.__checkarchive(xset)
 
-        if not bool(xset):
-            xset = self._archive
-        else:
-            if not ("x" in xset.keys() and "f" in xset.keys()):
-                raise MOSAError(
-                    "'x' and 'f' must be present in the dictionary!"
-                )
-            else:
-                if not (
-                    isinstance(xset["x"], list)
-                    and isinstance(xset["f"], list)
-                ):
-                    raise MOSAError("'x' and 'f' must be Python lists!")
+        f: list = [[], []]
 
         if (
             index1 >= 0
@@ -1175,110 +1073,91 @@ class Anneal:
             plt.show()
         else:
             raise MOSAError("Index out of range!")
-            
 
-    def getstats(self, xset: dict = {}) -> dict:
+    def get_stats(self, xset: dict = {}) -> dict:
         """
-        Retrieves the minimum, maximum, average and standard deviation values of 
+        Retrieves the minimum, maximum, average and standard deviation values of
         the objectives.
 
         ### Parameters
-        
+
         `xset`: full or reduced solution archive.
 
         The default is {}, meaning the full solution archive.
-        
+
         ### Returns
-        
+
         Minimum, maximum, average and standard deviation values of the objectives.
         """
 
-        if not bool(xset):
-            xset = self._archive
-        else:
-            if not ("f" in xset.keys()):
-                raise MOSAError(
-                    "'f' must be present in the dictionary!"
-                )
-            else:
-                if not isinstance(xset["f"], list):
-                    raise MOSAError("'f' must be a Python list!")
-            
-        f = np.asarray(xset["f"])
-        nf = f.shape[1]
+        xset = self.__checkarchive(xset)
+
+        f_arr = np.array(xset["f"])
+        nf = f_arr.shape[1]
         fmin: np.ndarray = np.zeros(nf)
         fmax: np.ndarray = np.zeros(nf)
         favg: np.ndarray = np.zeros(nf)
-        fstd: np.ndarray = np.zeros(nf)       
+        fstd: np.ndarray = np.zeros(nf)
 
         for i in range(nf):
-            fmin[i] = f[:,i].min()
-            fmax[i] = f[:,i].max()
-            favg[i] = f[:,i].mean()
-            fstd[i] = f[:,i].std()
-            
-        return {"Min": list(fmin), "Max": list(fmax), "Avg": list(favg), "Std": list(fstd)}
+            fmin[i] = f_arr[:, i].min()
+            fmax[i] = f_arr[:, i].max()
+            favg[i] = f_arr[:, i].mean()
+            fstd[i] = f_arr[:, i].std()
 
+        return {
+            "Min": list(fmin),
+            "Max": list(fmax),
+            "Avg": list(favg),
+            "Std": list(fstd),
+        }
 
     def __updatearchive(self, x: dict, f: list) -> int:
         """
-        Checks if this solution is better than solutions already in the archive.
-        If so, the archive is updated, this solution is appended and a worse solution
-        is removed.
+        Appends a solution to the archive if it is not dominated by other existing
+        solutions.
 
         ### Parameters
-        
+
         `x`: solution.
 
         `f`: objective values.
 
         ### Returns
-        
+
         1, if the archive is updated, or 0, if not.
         """
 
         updated: int = 0
-        indexlist = list(range(len(self._archive["f"])))
-
-        for i in indexlist:
-            if f == self._archive["f"][i]:
-                return updated
 
         if len(self._archive["x"]) == 0:
             updated = 1
         else:
-            shuffle(indexlist)
+            archive_arr = np.array(self._archive["f"])
+            f_arr = np.array(f)
+            c_arr = np.all(archive_arr <= f_arr, axis=-1)
 
-            for i in indexlist:
-                nl = ng = 0
-
-                for j in range(len(self._archive["f"][i])):
-                    if f[j] < self._archive["f"][i][j]:
-                        nl += 1
-                    elif f[j] > self._archive["f"][i][j]:
-                        ng += 1
-
+            if c_arr.sum() > 0:
+                updated = 0
+            else:
                 if len(self._archive["x"]) < self._archivesize:
-                    if nl > 0:
-                        updated = 1
+                    updated = 1
+                else:
+                    d_arr = np.flatnonzero(np.all(archive_arr >= f_arr, axis=-1))
 
-                        if ng == 0:
-                            self._archive["x"].pop(i)
-                            self._archive["f"].pop(i)
-
-                            break
+                    if d_arr.shape[0] > 0:
+                        self._archive["x"] = [
+                            v
+                            for i, v in enumerate(self._archive["x"])
+                            if i not in d_arr
+                        ]
+                        self._archive["f"] = [
+                            v
+                            for i, v in enumerate(self._archive["f"])
+                            if i not in d_arr
+                        ]
                     else:
                         updated = 0
-
-                        break
-                else:
-                    if nl > 0 and ng == 0:
-                        self._archive["x"].pop(i)
-                        self._archive["f"].pop(i)
-
-                        updated = 1
-
-                        break
 
         if updated == 1:
             self._archive["x"].append(x)
@@ -1291,7 +1170,7 @@ class Anneal:
         Initializes with a solution from a previous run.
 
         ### Returns
-        
+
         Solution, objective values, and population compatible with the solution.
         """
 
@@ -1305,16 +1184,12 @@ class Anneal:
         try:
             tmpdict = json.load(open("checkpoint.json", "r"))
 
-            if (
-                "x" in tmpdict.keys()
-                and "f" in tmpdict.keys()
-                and "Population" in tmpdict.keys()
-            ):
+            if "x" in tmpdict and "f" in tmpdict and "Population" in tmpdict:
                 x = tmpdict["x"]
                 f = tmpdict["f"]
                 population = tmpdict["Population"]
 
-                if "SampleSpace" in tmpdict.keys():
+                if "SampleSpace" in tmpdict:
                     ss = tmpdict["SampleSpace"]
 
                     for key in ss.keys():
@@ -1332,7 +1207,7 @@ class Anneal:
         Saves the solution passed as argument as JSON into a text file.
 
         ### Parameters
-        
+
         `x`: solution.
 
         `f`: objective values.
@@ -1355,6 +1230,36 @@ class Anneal:
 
         json.dump(tmpdict, open("checkpoint.json", "w"), indent=4)
 
+    def __checkarchive(self, xset) -> dict:
+        """
+        Performs checks on the archive.
+
+        ### Parameters
+
+        `xset`: full or reduced solution archive.
+
+        ### Returns
+
+        Solution archive.
+        """
+
+        if not xset:
+            return self._archive
+
+        if not ("x" in xset and "f" in xset):
+            raise MOSAError("'x' and 'f' must be present in the archive!")
+
+        if not (isinstance(xset["x"], list) and isinstance(xset["f"], list)):
+            raise MOSAError("'x' and 'f' must be Python lists!")
+
+        if len(xset["x"]) == 0:
+            raise MOSAError("Archive is empty!")
+
+        if len(xset["x"]) != len(xset["f"]):
+            raise MOSAError("'x' and 'f' must have the same number of elements!")
+
+        return xset
+
     @property
     def population(self) -> dict:
         """
@@ -1366,7 +1271,7 @@ class Anneal:
 
     @population.setter
     def population(self, val: dict):
-        if isinstance(val, dict) and bool(val):
+        if isinstance(val, dict) and val:
             self._population = val
         else:
             raise MOSAError("Population must be a non-empty dictionary!")
@@ -1384,16 +1289,11 @@ class Anneal:
 
     @archive.setter
     def archive(self, val: dict):
-        if isinstance(val, dict) and bool(val):
+        if isinstance(val, dict) and val:
             if not ("x" in val.keys() and "f" in val.keys()):
-                raise MOSAError(
-                    "'x' and 'f' must be present in the dictionary!"
-                )
+                raise MOSAError("'x' and 'f' must be present in the archive!")
             else:
-                if not (
-                    isinstance(val["x"], list)
-                    and isinstance(val["f"], list)
-                ):
+                if not (isinstance(val["x"], list) and isinstance(val["f"], list)):
                     raise MOSAError("'x' and 'f' must be Python lists!")
         else:
             raise MOSAError("The archive must be a non-empty dictionary!")

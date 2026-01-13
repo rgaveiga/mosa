@@ -125,8 +125,6 @@ can be solved with MOSA can be found in the Jupyter notebooks in the
 [examples](https://github.com/rgaveiga/mosa/tree/main/examples) directory.
 """
 
+__version__ = "0.8.5"
+
 from .mosa import Anneal
-
-VERSION = "0.8.0"
-
-__version__ = VERSION
