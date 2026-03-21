@@ -937,6 +937,86 @@ class Anneal:
 
         return tmpdict
 
+    def bestx(
+        self, xset: dict = {}, weights: tuple | np.ndarray | list = []
+    ) -> dict:
+        """
+        Selects the best solution in the archive by applying the TOPSIS method
+        to the objective values.
+
+        ### Parameters
+
+        `xset`: full or reduced solution archive.
+
+        The default is {}, meaning the full solution archive.
+
+        `weights`: weights of the objective functions.
+
+        The default is an empty list, which means the same weight (1.0) for all
+        objective functions.
+
+        ### Returns
+
+        Solution archive containing only the best solution.
+        """
+
+        xset = self.__checkarchive(xset)
+
+        if len(xset["x"]) == 1:
+            return xset
+
+        tmpdict: dict[str, list] = {"x": [], "f": []}
+
+        x = xset["x"]
+        f = xset["f"]
+        f_arr = np.asarray(f, dtype=float)
+
+        if f_arr.ndim != 2:
+            raise MOSAError(
+                "The objective values in the solution archive must define a 2D array!"
+            )
+
+        if len(weights) == 0:
+            weights = np.ones(f_arr.shape[1], dtype=float)
+        else:
+            if len(weights) != f_arr.shape[1]:
+                raise MOSAError(
+                    "The number of weights must be equal to the number of objective functions!"
+                )
+
+            weights = np.asarray(weights, dtype=float)
+
+            if np.any(weights < 0.0):
+                raise MOSAError("The weights must be non-negative!")
+
+            if weights.sum() == 0.0:
+                raise MOSAError("The sum of the weights must be greater than zero!")
+
+        weights = weights / weights.sum()
+
+        col_norms = np.linalg.norm(f_arr, axis=0)
+        col_norms[col_norms == 0.0] = 1.0
+
+        weighted = (f_arr / col_norms) * weights
+
+        ideal_positive = weighted.min(axis=0)
+        ideal_negative = weighted.max(axis=0)
+
+        dist_positive = np.sqrt(((weighted - ideal_positive) ** 2).sum(axis=1))
+        dist_negative = np.sqrt(((weighted - ideal_negative) ** 2).sum(axis=1))
+
+        denominator = dist_positive + dist_negative
+
+        with np.errstate(invalid="ignore", divide="ignore"):
+            closeness = np.where(denominator == 0.0, 0.0, dist_negative / denominator)
+
+        ibest = int(np.argmax(closeness))
+
+        tmpdict["x"].append(x[ibest])
+        tmpdict["f"].append(f[ibest])
+
+        return tmpdict
+
     def mergex(self, xset_list: list | tuple) -> dict:
         """
         Merges two or more solution archives into a single solution archive.
