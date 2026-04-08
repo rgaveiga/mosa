@@ -6,3 +6,4 @@ tests/__pycache__
 dist
 *.old
 runpdoc.bat
+report.txt
