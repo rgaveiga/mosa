@@ -4,16 +4,45 @@ from __future__ import print_function
 from __future__ import division
 import json
 from copy import deepcopy
+from typing import Any, Callable, Sequence, TypeAlias, TypedDict
 import numpy as np
 from numpy.random import choice, triangular, uniform
 from math import exp, inf
 from . import __version__
 
+Number: TypeAlias = int | float
+"""@private"""
+
+ObjectiveValues: TypeAlias = list[Number]
+"""@private"""
+
+ObjectiveWeightValues: TypeAlias = list[Number]
+"""@private"""
+
+Solution: TypeAlias = dict[str, Any]
+"""@private"""
+
+PopulationGroup: TypeAlias = list[Any] | tuple[Number, ...]
+"""@private"""
+
+Population: TypeAlias = dict[str, PopulationGroup]
+"""@private"""
+
+ObjectiveFunction: TypeAlias = Callable[..., Sequence[Number]]
+"""@private"""
+
+
+class Archive(TypedDict):
+    """@private"""
+
+    x: list[Solution]
+    f: list[ObjectiveValues]
+
 
 class Anneal:
     """This class implements the MOSA algorithm."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """@private
         Initializes object attributes.
         """
@@ -25,19 +54,21 @@ class Anneal:
         self._initemp: float = 1.0
         self._decrease: float = 0.9
         self._ntemp: int = 10
-        self._population: dict = {}
-        self._changemove: dict = {}
-        self._swapmove: dict = {}
-        self._insordelmove: dict = {}
-        self._xnel: dict = {}
-        self._maxnel: dict = {}
-        self._xdistinct: dict = {}
-        self._xstep: dict = {}
-        self._xsort: dict = {}
-        self._xselweight: dict = {}
-        self._archive: dict = {}
-        self._temp: list = []
-        self._weight: list = []
+        self._population: Population = {}
+        self._changemove: dict[str, Number] = {}
+        self._swapmove: dict[str, Number] = {}
+        self._insordelmove: dict[str, Number] = {}
+        self._xnel: dict[str, int] = {}
+        self._maxnel: dict[str, int] = {}
+        self._xdistinct: dict[str, bool] = {}
+        self._xstep: dict[str, Number] = {}
+        self._xsort: dict[str, bool] = {}
+        self._xselweight: dict[str, Number] = {}
+        self._archive_x: list[Solution] = []
+        self._archive_f_arr: np.ndarray = np.empty((0, 0), dtype=float)
+        self._archive_f_capacity: int = 0
+        self._temp: list[float] = []
+        self._weight: ObjectiveWeightValues = []
         self._niter: int = 1000
         self._archive_file: str = "archive.json"
         self._archivesize: int = 1000
@@ -45,10 +76,10 @@ class Anneal:
         self._alpha: float = 0.0
         self._restart: bool = True
         self._trackoptprogress: bool = False
-        self._f: list = []
+        self._f: list[Number | ObjectiveValues] = []
         self._verbose: bool = False
 
-    def set_population(self, **groups):
+    def set_population(self, **groups: PopulationGroup) -> None:
         """
         Sets the population.
 
@@ -65,7 +96,7 @@ class Anneal:
         else:
             raise MOSAError("No keyword was provided!")
 
-    def set_group_params(self, group: str, **params):
+    def set_group_params(self, group: str, **params: Any) -> None:
         """
         Sets the optimization parameters for the specified group in the solution.
 
@@ -96,7 +127,7 @@ class Anneal:
         - `group_selection_weights`
         """
 
-        allowed: dict
+        allowed: dict[str, str]
 
         if len(params) > 0:
             allowed = {
@@ -117,7 +148,7 @@ class Anneal:
         else:
             raise MOSAError("No keyword was provided!")
 
-    def set_opt_param(self, param: str, **groups):
+    def set_opt_param(self, param: str, **groups: Any) -> None:
         """
         Sets the values of the optimization parameter for the specified solution
         groups.
@@ -150,7 +181,7 @@ class Anneal:
         group in the solution to the problem.
         """
 
-        params: tuple
+        params: dict[str, str]
         execstr: str
 
         if len(groups) > 0:
@@ -175,7 +206,7 @@ class Anneal:
         else:
             raise MOSAError("No keyword was provided!")
 
-    def evolve(self, func: object):
+    def evolve(self, func: ObjectiveFunction) -> None:
         """
         Performs the optimization of the objective function.
 
@@ -193,28 +224,27 @@ class Anneal:
         nupdated: int = 0
         naccept: int = 0
         narchivereject: int = 0
-        fcurr: list = []
-        ftmp: list = []
-        weight: list = []
-        lstep: dict = {}
-        population: dict = {}
-        poptmp: dict = {}
-        xcurr: dict = {}
-        xtmp: dict = {}
-        xstep: dict = {}
-        xsampling: dict = {}
-        xbounds: dict = {}
-        changemove: dict = {}
-        swapmove: dict = {}
-        insordelmove: dict = {}
-        xdistinct: dict = {}
-        xnel: dict = {}
-        maxnel: dict = {}
-        xsort: dict = {}
+        fcurr: ObjectiveValues = []
+        ftmp: ObjectiveValues = []
+        weight: ObjectiveWeightValues = []
+        lstep: dict[str, int] = {}
+        population: Population = {}
+        poptmp: Population = {}
+        xcurr: Solution = {}
+        xtmp: Solution = {}
+        xstep: dict[str, Number] = {}
+        xsampling: dict[str, int] = {}
+        xbounds: dict[str, list[Number]] = {}
+        changemove: dict[str, float] = {}
+        swapmove: dict[str, float] = {}
+        insordelmove: dict[str, float] = {}
+        xdistinct: dict[str, bool] = {}
+        xnel: dict[str, int] = {}
+        maxnel: dict[str, Number] = {}
+        xsort: dict[str, bool] = {}
         totlength: float = 0.0
-        sellength: dict = {}
-        groups: list = []
-        args: str = ""
+        sellength: dict[str, float] = {}
+        groups: list[str] = []
         MAX_FAILED: int = 10
         MIN_STEP_LENGTH: int = 10
 
@@ -223,25 +253,27 @@ class Anneal:
         if self._restart:
             xcurr, fcurr, population = self.__getcheckpoint()
 
-            if not self._archive:
+            if len(self._archive_x) == 0:
                 try:
                     print(
                         f"Trying to load the archive from file {self._archive_file}..."
                     )
 
-                    self._archive = json.load(open(self._archive_file, "r"))
+                    tmp_archive = json.load(open(self._archive_file, "r"))
+                    tmp_archive = self.__checkarchive(tmp_archive)
+                    self.__set_archive_data(tmp_archive["x"], tmp_archive["f"])
                 except FileNotFoundError:
                     print(
                         f"File {self._archive_file} not found! Initializing an empty archive..."
                     )
 
-                    self._archive = {"x": [], "f": []}
+                    self.__set_archive_data([], [])
 
                 print("Done!")
         else:
             print("Initializing an empty archive...")
 
-            self._archive = {"x": [], "f": []}
+            self.__set_archive_data([], [])
 
             print("Done!")
 
@@ -451,10 +483,7 @@ class Anneal:
                         xcurr[group].sort()
 
             if callable(func):
-                for group in groups:
-                    args += f"{group} = {xcurr[group]}, "
-
-                fcurr = eval(f"list(func({args}))")
+                fcurr = list(func(**xcurr))
 
                 updated = self.__updatearchive(xcurr, fcurr)
 
@@ -487,14 +516,21 @@ class Anneal:
 
             for j in range(self._niter):
                 selstep = chosen = old = new = None
-                xtmp = deepcopy(xcurr)
-                poptmp = deepcopy(population)
 
                 r = uniform(0.0, totlength)
 
                 for group in groups:
                     if r < sellength[group]:
                         break
+
+                xtmp = xcurr.copy()
+                poptmp = population.copy()
+
+                if isinstance(xcurr[group], list):
+                    xtmp[group] = xcurr[group].copy()
+
+                if isinstance(population[group], list):
+                    poptmp[group] = population[group].copy()
 
                 r = uniform(
                     0.0, (changemove[group] + swapmove[group] + insordelmove[group])
@@ -635,12 +671,7 @@ class Anneal:
 
                 gamma = 1.0
 
-                args = ""
-
-                for group in groups:
-                    args += f"{group} = {xtmp[group]}, "
-
-                ftmp = eval(f"list(func({args}))")
+                ftmp = list(func(**xtmp))
 
                 for k in range(len(ftmp)):
                     if ftmp[k] < fcurr[k]:
@@ -660,8 +691,8 @@ class Anneal:
                         lstep[group] = new
 
                     fcurr = ftmp.copy()
-                    xcurr = deepcopy(xtmp)
-                    population = deepcopy(poptmp)
+                    xcurr = xtmp
+                    population = poptmp
                     naccept += 1
                     updated = self.__updatearchive(xcurr, fcurr)
                     nupdated += updated
@@ -670,8 +701,6 @@ class Anneal:
                         narchivereject = 0
                     else:
                         narchivereject += 1
-
-                    self.__savecheckpoint(xcurr, fcurr, population)
                 else:
                     narchivereject += 1
 
@@ -700,6 +729,8 @@ class Anneal:
 
                     return
 
+            self.__savecheckpoint(xcurr, fcurr, population)
+
             if self._verbose:
                 if naccept > 0:
                     print(f"    Number of accepted moves: {naccept}.")
@@ -727,7 +758,7 @@ class Anneal:
 
         print("\n--- THE END ---")
 
-    def prune_dominated(self, xset: dict = {}) -> dict:
+    def prune_dominated(self, xset: Archive | None = None) -> Archive:
         """
         Returns a subset of the full or reduced solution archive containing only
         non-dominated solutions.
@@ -745,7 +776,7 @@ class Anneal:
 
         xset = self.__checkarchive(xset)
 
-        if len(xset["x"]) == 1:
+        if len(xset["x"]) <= 1:
             return xset
 
         tmpdict: dict[str, list] = {"x": [], "f": []}
@@ -754,27 +785,21 @@ class Anneal:
         f = xset["f"]
         f_arr = np.array(f)
 
-        dominated = []
+        dominated = set()
 
-        for i in range(len(f_arr) - 1):
-            fj = f_arr[i + 1 :]
-            d_arr = np.all(f_arr[i] >= fj, axis=-1)
+        for i in range(len(f_arr)):
+            others = np.delete(f_arr, i, axis=0)
+            d_arr = np.all(others <= f_arr[i], axis=-1)
 
             if d_arr.sum() > 0:
-                dominated.append(i)
-
-        fj = f_arr[:-1]
-        d_arr = np.all(f_arr[-1] >= fj, axis=-1)
-
-        if d_arr.sum() > 0:
-            dominated.append(len(f_arr) - 1)
+                dominated.add(i)
 
         tmpdict["x"] = [v for i, v in enumerate(x) if i not in dominated]
         tmpdict["f"] = [v for i, v in enumerate(f) if i not in dominated]
 
         return tmpdict
 
-    def savex(self, xset: dict = {}, archive_file: str = ""):
+    def savex(self, xset: Archive | None = None, archive_file: str = "") -> None:
         """
         Saves the solution archive into a text file in JSON format.
 
@@ -801,7 +826,7 @@ class Anneal:
 
         json.dump(xset, open(archive_file, "w"), indent=4)
 
-    def loadx(self, archive_file: str = ""):
+    def loadx(self, archive_file: str = "") -> None:
         """
         Loads solutions from a JSON file into the solution archive.
 
@@ -835,11 +860,13 @@ class Anneal:
 
             return
 
-        self._archive = tmpdict
+        self.__set_archive_data(tmpdict["x"], tmpdict["f"])
 
     def trimx(
-        self, xset: dict = {}, thresholds: tuple | np.ndarray | list = []
-    ) -> dict:
+        self,
+        xset: Archive | None = None,
+        thresholds: Sequence[Number | None] | np.ndarray | None = None,
+    ) -> Archive:
         """
         Extracts solutions where the objective values are less than or equal to
         the thresholds.
@@ -861,18 +888,20 @@ class Anneal:
 
         xset = self.__checkarchive(xset)
 
-        tmpdict: dict[str, list] = {"x": [], "f": []}
+        tmpdict: Archive = {"x": [], "f": []}
 
         x = xset["x"]
         f = xset["f"]
         f_arr = np.array(f)
 
-        for i in range(len(thresholds)):
-            if thresholds[i] is None:
-                thresholds[i] = np.inf
+        threshold_values = [] if thresholds is None else list(thresholds)
 
-        thresholds = np.asarray(thresholds)
-        included = np.flatnonzero(np.all(f_arr <= thresholds, axis=-1))
+        for i, value in enumerate(threshold_values):
+            if value is None:
+                threshold_values[i] = np.inf
+
+        threshold_array = np.asarray(threshold_values)
+        included = np.flatnonzero(np.all(f_arr <= threshold_array, axis=-1))
 
         if len(included) > 0:
             tmpdict["x"] = [v for i, v in enumerate(x) if i in included]
@@ -882,7 +911,9 @@ class Anneal:
 
         return tmpdict
 
-    def reducex(self, xset: dict = {}, index: int = 0, nel: int = 5) -> dict:
+    def reducex(
+        self, xset: Archive | None = None, index: int = 0, nel: int = 5
+    ) -> Archive:
         """
         Reduces and sorts in ascending order the archive according to the selected
         objective function.
@@ -908,7 +939,7 @@ class Anneal:
 
         xset = self.__checkarchive(xset)
 
-        tmpdict: dict[str, list] = {"x": [], "f": []}
+        tmpdict: Archive = {"x": [], "f": []}
 
         x = xset["x"]
         f = xset["f"]
@@ -916,30 +947,18 @@ class Anneal:
         if nel > len(f):
             nel = len(f)
 
-        indexlist = list(range(len(f)))
+        indexlist = sorted(range(len(f)), key=lambda i: f[i][index])[:nel]
 
-        for i in range(nel):
-            k = 0
-
-            for j in indexlist:
-                if k == 0:
-                    toadd = j
-                    bestval = f[j][index]
-                    k += 1
-                else:
-                    if f[j][index] < bestval:
-                        toadd = j
-                        bestval = f[j][index]
-
-            tmpdict["x"].append(x[toadd])
-            tmpdict["f"].append(f[toadd])
-            indexlist.remove(toadd)
+        tmpdict["x"] = [x[i] for i in indexlist]
+        tmpdict["f"] = [f[i] for i in indexlist]
 
         return tmpdict
 
     def bestx(
-        self, xset: dict = {}, weights: tuple | np.ndarray | list = []
-    ) -> dict:
+        self,
+        xset: Archive | None = None,
+        weights: Sequence[Number] | np.ndarray | None = None,
+    ) -> Archive:
         """
         Selects the best solution in the archive by applying the TOPSIS method
         to the objective values.
@@ -965,7 +984,7 @@ class Anneal:
         if len(xset["x"]) == 1:
             return xset
 
-        tmpdict: dict[str, list] = {"x": [], "f": []}
+        tmpdict: Archive = {"x": [], "f": []}
 
         x = xset["x"]
         f = xset["f"]
@@ -976,7 +995,7 @@ class Anneal:
                 "The objective values in the solution archive must define a 2D array!"
             )
 
-        if len(weights) == 0:
+        if weights is None or len(weights) == 0:
             weights = np.ones(f_arr.shape[1], dtype=float)
         else:
             if len(weights) != f_arr.shape[1]:
@@ -1017,7 +1036,7 @@ class Anneal:
 
         return tmpdict
 
-    def mergex(self, xset_list: list | tuple) -> dict:
+    def mergex(self, xset_list: list[Archive] | tuple[Archive, ...]) -> Archive:
         """
         Merges two or more solution archives into a single solution archive.
 
@@ -1030,7 +1049,7 @@ class Anneal:
         Merged solution archives.
         """
 
-        tmpdict: dict[str, list] = {"x": [], "f": []}
+        tmpdict: Archive = {"x": [], "f": []}
 
         if len(xset_list) < 2:
             raise MOSAError("Nothing to be done!")
@@ -1043,7 +1062,7 @@ class Anneal:
 
         return tmpdict
 
-    def copyx(self, xset: dict = {}) -> dict:
+    def copyx(self, xset: Archive | None = None) -> Archive:
         """
         Returns a copy of the solution archive.
 
@@ -1062,7 +1081,7 @@ class Anneal:
 
         return deepcopy(xset)
 
-    def printx(self, xset: dict = {}):
+    def printx(self, xset: Archive | None = None) -> None:
         """
         Prints the solutions in the solution archive in human readable format.
 
@@ -1080,7 +1099,7 @@ class Anneal:
 
             print(f"{i}) {s} ===> {xset['f'][i]}")
 
-    def sizex(self, xset: dict = {}) -> int:
+    def sizex(self, xset: Archive | None = None) -> int:
         """
         Returns the number of solutions stored in the archive.
 
@@ -1097,12 +1116,16 @@ class Anneal:
 
         return len(xset["x"])
 
-    # TODO: Show up to three objective functions in a single plot
     def plot_front(
-        self, xset: dict = {}, index1: int = 0, index2: int = 1, file: str | None = None
-    ):
+        self,
+        xset: Archive | None = None,
+        index1: int = 0,
+        index2: int = 1,
+        index3: int | None = None,
+        file: str | None = None,
+    ) -> None:
         """
-        Plots 2D scatter plots of selected pairs of objective values.
+        Plots 2D or 3D scatter plots of selected objective values.
 
         ### Parameters
 
@@ -1118,6 +1141,10 @@ class Anneal:
 
         The default is 1.
 
+        `index3`: index of the objective function displayed along z-axis.
+
+        The default is `None`, which means a 2D plot will be created.
+
         `file`: name of the image file where the plot will be saved.
 
         The default is `None`, which means that no figure will be created.
@@ -1130,31 +1157,46 @@ class Anneal:
 
         xset = self.__checkarchive(xset)
 
-        f: list = [[], []]
+        nobj = len(xset["f"][0])
+        indices = [index1, index2]
 
-        if (
-            index1 >= 0
-            and index1 < len(xset["f"][0])
-            and index2 >= 0
-            and index2 < len(xset["f"][0])
-        ):
-            for i in range(len(xset["f"])):
-                f[0].append(xset["f"][i][index1])
-                f[1].append(xset["f"][i][index2])
+        if index3 is not None:
+            indices.append(index3)
 
-            plt.xlabel(f"f{index1}")
-            plt.ylabel(f"f{index2}")
-            plt.grid()
-            plt.scatter(f[0], f[1])
-
-            if file is not None and len(file) > 0:
-                plt.savefig(file)
-
-            plt.show()
-        else:
+        if any(index < 0 or index >= nobj for index in indices):
             raise MOSAError("Index out of range!")
 
-    def get_stats(self, xset: dict = {}) -> dict:
+        if len(set(indices)) != len(indices):
+            raise MOSAError("Objective function indices must be different!")
+
+        f: list[list[Number]] = [[] for _ in indices]
+
+        for objective_values in xset["f"]:
+            for axis, index in enumerate(indices):
+                f[axis].append(objective_values[index])
+
+        fig = plt.figure()
+
+        if index3 is None:
+            ax = fig.add_subplot()
+            ax.set_xlabel(f"f{index1}")
+            ax.set_ylabel(f"f{index2}")
+            ax.grid()
+            ax.scatter(f[0], f[1])
+        else:
+            ax = fig.add_subplot(projection="3d")
+            ax.set_xlabel(f"f{index1}")
+            ax.set_ylabel(f"f{index2}")
+            ax.set_zlabel(f"f{index3}")
+            ax.grid()
+            ax.scatter(f[0], f[1], f[2])
+
+        if file is not None and len(file) > 0:
+            fig.savefig(file)
+
+        plt.show()
+
+    def get_stats(self, xset: Archive | None = None) -> dict[str, list[float]]:
         """
         Retrieves the minimum, maximum, average and standard deviation values of
         the objectives.
@@ -1186,13 +1228,13 @@ class Anneal:
             fstd[i] = f_arr[:, i].std()
 
         return {
-            "Min": list(fmin),
-            "Max": list(fmax),
-            "Avg": list(favg),
-            "Std": list(fstd),
+            "Min": fmin.astype(float).tolist(),
+            "Max": fmax.astype(float).tolist(),
+            "Avg": favg.astype(float).tolist(),
+            "Std": fstd.astype(float).tolist(),
         }
 
-    def __updatearchive(self, x: dict, f: list) -> int:
+    def __updatearchive(self, x: Solution, f: ObjectiveValues) -> int:
         """
         Appends a solution to the archive if it is not dominated by other existing
         solutions.
@@ -1209,43 +1251,48 @@ class Anneal:
         """
 
         updated: int = 0
+        archive_len = len(self._archive_x)
 
-        if len(self._archive["x"]) == 0:
+        if archive_len == 0:
             updated = 1
         else:
-            archive_arr = np.array(self._archive["f"])
-            f_arr = np.array(f)
+            archive_arr = self._archive_f_arr[:archive_len]
+            f_arr = np.asarray(f, dtype=float)
             c_arr = np.all(archive_arr <= f_arr, axis=-1)
 
             if c_arr.sum() > 0:
                 updated = 0
             else:
-                if len(self._archive["x"]) < self._archivesize:
+                if archive_len < self._archivesize:
                     updated = 1
                 else:
                     d_arr = np.flatnonzero(np.all(archive_arr >= f_arr, axis=-1))
 
                     if d_arr.shape[0] > 0:
-                        self._archive["x"] = [
-                            v
-                            for i, v in enumerate(self._archive["x"])
-                            if i not in d_arr
+                        keep_mask = np.ones(len(self._archive_x), dtype=bool)
+                        keep_mask[d_arr] = False
+                        self._archive_x = [
+                            v for i, v in enumerate(self._archive_x) if keep_mask[i]
                         ]
-                        self._archive["f"] = [
-                            v
-                            for i, v in enumerate(self._archive["f"])
-                            if i not in d_arr
-                        ]
+                        kept_count = int(keep_mask.sum())
+
+                        if kept_count > 0:
+                            self._archive_f_arr[:kept_count] = archive_arr[keep_mask]
+
+                        archive_len = kept_count
+                        updated = 1
                     else:
                         updated = 0
 
         if updated == 1:
-            self._archive["x"].append(x)
-            self._archive["f"].append(f)
+            f_arr = np.asarray(f, dtype=float)
+            self.__ensure_archive_capacity(archive_len + 1, len(f_arr))
+            self._archive_x.append(x)
+            self._archive_f_arr[archive_len] = f_arr
 
         return updated
 
-    def __getcheckpoint(self) -> tuple:
+    def __getcheckpoint(self) -> tuple[Solution, ObjectiveValues, Population]:
         """
         Initializes with a solution from a previous run.
 
@@ -1254,10 +1301,10 @@ class Anneal:
         Solution, objective values, and population compatible with the solution.
         """
 
-        tmpdict: dict = {}
-        x: dict = {}
-        f: list = []
-        population: dict = {}
+        tmpdict: dict[str, Any] = {}
+        x: Solution = {}
+        f: ObjectiveValues = []
+        population: Population = {}
 
         print("Looking for a solution in the checkpoint file...")
 
@@ -1282,7 +1329,9 @@ class Anneal:
 
         return x, f, population
 
-    def __savecheckpoint(self, x: dict, f: list, population: dict):
+    def __savecheckpoint(
+        self, x: Solution, f: ObjectiveValues, population: Population
+    ) -> None:
         """
         Saves the solution passed as argument as JSON into a text file.
 
@@ -1295,7 +1344,7 @@ class Anneal:
         `population`: population compatible with the solution.
         """
 
-        tmpdict: dict = {
+        tmpdict: dict[str, Any] = {
             "x": x,
             "f": f,
             "Population": population,
@@ -1310,7 +1359,7 @@ class Anneal:
 
         json.dump(tmpdict, open("checkpoint.json", "w"), indent=4)
 
-    def __checkarchive(self, xset) -> dict:
+    def __checkarchive(self, xset: Archive | None = None) -> Archive:
         """
         Performs checks on the archive.
 
@@ -1324,7 +1373,7 @@ class Anneal:
         """
 
         if not xset:
-            return self._archive
+            return self.__archive_dict()
 
         if not ("x" in xset and "f" in xset):
             raise MOSAError("'x' and 'f' must be present in the archive!")
@@ -1340,8 +1389,55 @@ class Anneal:
 
         return xset
 
+    def __archive_dict(self) -> Archive:
+        """@private"""
+
+        return {
+            "x": self._archive_x.copy(),
+            "f": self._archive_f_arr[: len(self._archive_x)].astype(float).tolist(),
+        }
+
+    def __set_archive_data(
+        self, x_values: list[Solution], f_values: list[ObjectiveValues]
+    ) -> None:
+        """@private"""
+
+        self._archive_x = list(x_values)
+
+        if len(f_values) == 0:
+            self._archive_f_arr = np.empty((0, 0), dtype=float)
+            self._archive_f_capacity = 0
+        else:
+            archive_f_arr = np.asarray(f_values, dtype=float)
+
+            if archive_f_arr.ndim == 1:
+                archive_f_arr = archive_f_arr.reshape(1, -1)
+
+            self._archive_f_arr = archive_f_arr.copy()
+            self._archive_f_capacity = self._archive_f_arr.shape[0]
+
+    def __ensure_archive_capacity(self, rows: int, nf: int) -> None:
+        """@private"""
+
+        if self._archive_f_capacity >= rows and self._archive_f_arr.shape[1] == nf:
+            return
+
+        if self._archive_f_capacity == 0 or self._archive_f_arr.shape[1] != nf:
+            new_capacity = max(rows, 1)
+            new_archive_f_arr = np.empty((new_capacity, nf), dtype=float)
+        else:
+            new_capacity = max(rows, self._archive_f_capacity * 2)
+            new_archive_f_arr = np.empty((new_capacity, nf), dtype=float)
+            active_rows = len(self._archive_x)
+
+            if active_rows > 0:
+                new_archive_f_arr[:active_rows] = self._archive_f_arr[:active_rows]
+
+        self._archive_f_arr = new_archive_f_arr
+        self._archive_f_capacity = new_capacity
+
     @property
-    def population(self) -> dict:
+    def population(self) -> Population:
         """
         Population where each group represents the data that can be used to achieve
         an optimized solution to the problem.
@@ -1350,14 +1446,14 @@ class Anneal:
         return self._population
 
     @population.setter
-    def population(self, val: dict):
+    def population(self, val: Population) -> None:
         if isinstance(val, dict) and val:
             self._population = val
         else:
             raise MOSAError("Population must be a non-empty dictionary!")
 
     @property
-    def archive(self) -> dict:
+    def archive(self) -> Archive:
         """
         Solution archive.
 
@@ -1365,10 +1461,10 @@ class Anneal:
         > The archive should not be changed manually.
         """
 
-        return self._archive
+        return self.__archive_dict()
 
     @archive.setter
-    def archive(self, val: dict):
+    def archive(self, val: Archive) -> None:
         if isinstance(val, dict) and val:
             if not ("x" in val.keys() and "f" in val.keys()):
                 raise MOSAError("'x' and 'f' must be present in the archive!")
@@ -1378,7 +1474,7 @@ class Anneal:
         else:
             raise MOSAError("The archive must be a non-empty dictionary!")
 
-        self._archive = val
+        self.__set_archive_data(val["x"], val["f"])
 
     @property
     def restart(self) -> bool:
@@ -1391,14 +1487,14 @@ class Anneal:
         return self._restart
 
     @restart.setter
-    def restart(self, val: bool):
+    def restart(self, val: bool) -> None:
         if isinstance(val, bool):
             self._restart = val
         else:
             raise MOSAError("Restart must be a boolean!")
 
     @property
-    def objective_weights(self) -> list:
+    def objective_weights(self) -> ObjectiveWeightValues:
         """
         Weights for the objectives.
 
@@ -1408,7 +1504,7 @@ class Anneal:
         return self._weight
 
     @objective_weights.setter
-    def objective_weights(self, val: list):
+    def objective_weights(self, val: ObjectiveWeightValues) -> None:
         if isinstance(val, list):
             self._weight = val
         else:
@@ -1425,7 +1521,7 @@ class Anneal:
         return self._initemp
 
     @initial_temperature.setter
-    def initial_temperature(self, val: int | float):
+    def initial_temperature(self, val: Number) -> None:
         if isinstance(val, (int, float)) and val > 0.0:
             self._initemp = val
         else:
@@ -1442,7 +1538,7 @@ class Anneal:
         return self._decrease
 
     @temperature_decrease_factor.setter
-    def temperature_decrease_factor(self, val: float):
+    def temperature_decrease_factor(self, val: float) -> None:
         if isinstance(val, float) and val > 0.0 and val < 1.0:
             self._decrease = val
         else:
@@ -1461,7 +1557,7 @@ class Anneal:
         return self._ntemp
 
     @number_of_temperatures.setter
-    def number_of_temperatures(self, val: int):
+    def number_of_temperatures(self, val: int) -> None:
         if isinstance(val, int) and val > 0:
             self._ntemp = val
         else:
@@ -1480,7 +1576,7 @@ class Anneal:
         return self._niter
 
     @number_of_iterations.setter
-    def number_of_iterations(self, val: int):
+    def number_of_iterations(self, val: int) -> None:
         if isinstance(val, int) and val > 0:
             self._niter = val
         else:
@@ -1499,7 +1595,7 @@ class Anneal:
         return self._archivesize
 
     @archive_size.setter
-    def archive_size(self, val: int):
+    def archive_size(self, val: int) -> None:
         if isinstance(val, int) and val > 0:
             self._archivesize = val
         else:
@@ -1516,7 +1612,7 @@ class Anneal:
         return self._archive_file
 
     @archive_file.setter
-    def archive_file(self, val: str):
+    def archive_file(self, val: str) -> None:
         if isinstance(val, str) and len(val.strip()) > 0:
             self._archive_file = val.strip()
         else:
@@ -1534,7 +1630,7 @@ class Anneal:
         return self._maxarchivereject
 
     @maximum_archive_rejections.setter
-    def maximum_archive_rejections(self, val: int):
+    def maximum_archive_rejections(self, val: int) -> None:
         if isinstance(val, int) and val > 0:
             self._maxarchivereject = val
         else:
@@ -1553,14 +1649,14 @@ class Anneal:
         return self._alpha
 
     @alpha.setter
-    def alpha(self, val: float):
+    def alpha(self, val: float) -> None:
         if isinstance(val, float) and val >= 0.0 and val <= 1.0:
             self._alpha = val
         else:
             raise MOSAError("Alpha must be a number between zero and one!")
 
     @property
-    def number_of_elements(self) -> dict:
+    def number_of_elements(self) -> dict[str, int]:
         """
         Number of elements for each group in the solution.
 
@@ -1570,7 +1666,7 @@ class Anneal:
         return self._xnel
 
     @number_of_elements.setter
-    def number_of_elements(self, val: dict):
+    def number_of_elements(self, val: dict[str, int]) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, int) and value > 0:
@@ -1583,7 +1679,7 @@ class Anneal:
             raise MOSAError("Number of elements must be provided as a dictionary!")
 
     @property
-    def maximum_number_of_elements(self) -> dict:
+    def maximum_number_of_elements(self) -> dict[str, int]:
         """
         Maximum number of elements for each group in the solution, if the number of elements
         is variable.
@@ -1594,7 +1690,7 @@ class Anneal:
         return self._maxnel
 
     @maximum_number_of_elements.setter
-    def maximum_number_of_elements(self, val: dict):
+    def maximum_number_of_elements(self, val: dict[str, int]) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, int) and value >= 2:
@@ -1609,7 +1705,7 @@ class Anneal:
             )
 
     @property
-    def distinct_elements(self) -> dict:
+    def distinct_elements(self) -> dict[str, bool]:
         """
         Determines that an element cannot be repeated in a group in the solution.
 
@@ -1619,7 +1715,7 @@ class Anneal:
         return self._xdistinct
 
     @distinct_elements.setter
-    def distinct_elements(self, val: dict):
+    def distinct_elements(self, val: dict[str, bool]) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, bool):
@@ -1632,7 +1728,7 @@ class Anneal:
             )
 
     @property
-    def mc_step_size(self) -> dict:
+    def mc_step_size(self) -> dict[str, Number]:
         """
         Monte Carlo step size for each group in the solution.
 
@@ -1643,7 +1739,7 @@ class Anneal:
         return self._xstep
 
     @mc_step_size.setter
-    def mc_step_size(self, val: dict):
+    def mc_step_size(self, val: dict[str, Number]) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, (int, float)):
@@ -1654,7 +1750,7 @@ class Anneal:
             raise MOSAError("Monte Carlo step sizes must be provided as a dictionary!")
 
     @property
-    def change_value_move(self) -> dict:
+    def change_value_move(self) -> dict[str, Number]:
         """
         Weight (non-normalized probability) to select a trial move where the value
         of a randomly selected element in a group in the solution will be modified
@@ -1673,7 +1769,7 @@ class Anneal:
         return self._changemove
 
     @change_value_move.setter
-    def change_value_move(self, val: dict):
+    def change_value_move(self, val: dict[str, Number]) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, (float, int)) and value >= 0.0:
@@ -1684,7 +1780,7 @@ class Anneal:
             raise MOSAError("Weights of trial moves must be provided as a dictionary!")
 
     @property
-    def insert_or_delete_move(self) -> dict:
+    def insert_or_delete_move(self) -> dict[str, Number]:
         """
         Weight (non-normalized probability) to select a trial move where an element
         will be inserted into or deleted from a group in the solution.
@@ -1696,7 +1792,7 @@ class Anneal:
         return self._insordelmove
 
     @insert_or_delete_move.setter
-    def insert_or_delete_move(self, val: dict):
+    def insert_or_delete_move(self, val: dict[str, Number]) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, (float, int)) and value >= 0.0:
@@ -1707,7 +1803,7 @@ class Anneal:
             raise MOSAError("Weights of trial moves must be provided as a dictionary!")
 
     @property
-    def swap_move(self) -> dict:
+    def swap_move(self) -> dict[str, Number]:
         """
         Weight (non-normalized probability) to select a trial move where elements
         will be swaped in the solution.
@@ -1719,7 +1815,7 @@ class Anneal:
         return self._swapmove
 
     @swap_move.setter
-    def swap_move(self, val: dict):
+    def swap_move(self, val: dict[str, Number]) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, (float, int)) and value >= 0.0:
@@ -1730,7 +1826,7 @@ class Anneal:
             raise MOSAError("Weights of trial moves must be provided as a dictionary!")
 
     @property
-    def sort_elements(self) -> dict:
+    def sort_elements(self) -> dict[str, bool]:
         """
         Elements in a group in the solution will be sorted in ascending order.
 
@@ -1740,7 +1836,7 @@ class Anneal:
         return self._xsort
 
     @sort_elements.setter
-    def sort_elements(self, val: dict):
+    def sort_elements(self, val: dict[str, bool]) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, bool):
@@ -1751,7 +1847,7 @@ class Anneal:
             raise MOSAError("Sort group elements must be provided as a dictionary!")
 
     @property
-    def group_selection_weights(self) -> dict:
+    def group_selection_weights(self) -> dict[str, Number]:
         """
         Selection weight for each group in the solution in a Monte Carlo iteration.
 
@@ -1762,7 +1858,7 @@ class Anneal:
         return self._xselweight
 
     @group_selection_weights.setter
-    def group_selection_weights(self, val: dict):
+    def group_selection_weights(self, val: dict[str, Number]) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if isinstance(value, (int, float)):
@@ -1784,14 +1880,14 @@ class Anneal:
         return self._trackoptprogress
 
     @track_optimization_progress.setter
-    def track_optimization_progress(self, val: bool):
+    def track_optimization_progress(self, val: bool) -> None:
         if isinstance(val, bool):
             self._trackoptprogress = val
         else:
             raise MOSAError("Tracking or not optimization progress must be a boolean!")
 
     @property
-    def accepted_objective_values(self) -> list:
+    def accepted_objective_values(self) -> list[Number | ObjectiveValues]:
         """Accepted objective values over Monte Carlo iterations."""
 
         return self._f
@@ -1807,7 +1903,7 @@ class Anneal:
         return self._verbose
 
     @verbose.setter
-    def verbose(self, val: bool):
+    def verbose(self, val: bool) -> None:
         if isinstance(val, bool):
             self._verbose = val
         else:
@@ -1819,7 +1915,7 @@ class MOSAError(Exception):
     This class defines exceptions raised by the MOSA algorithm.
     """
 
-    def __init__(self, message: str = ""):
+    def __init__(self, message: str = "") -> None:
         """Class constructor."""
 
         self._message = message
