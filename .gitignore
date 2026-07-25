@@ -1,9 +1,9 @@
 to_implement/
 mosa/__pycache__
 run_check
-tests
-tests/__pycache__
 dist
 *.old
 runpdoc.bat
 report.txt
+.pytest_cache
+.benchmarks
