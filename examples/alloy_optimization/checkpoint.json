@@ -1,18 +1,9 @@
 {
-    "x": {
-        "Component": [
-            "V",
-            "Y"
-        ],
-        "Concentration": 0.011704012566212188
-    },
-    "f": [
-        -27.57350345737615,
-        71.37501174251922
-    ],
+    "x": {"Component": ["V", "Z"], "Concentration": 0.0036023203095199227},
+    "f": [-27.60012933852872, 69.3707142521852],
     "Population": {
         "Component": [
-            "Z",
+            "R",
             "E",
             "U",
             "C",
@@ -34,16 +25,10 @@
             "N",
             "I",
             "Q",
+            "Y",
             "W",
-            "R"
         ],
-        "Concentration": [
-            0.0,
-            0.1
-        ]
+        "Concentration": [0.0, 0.1],
     },
-    "SampleSpace": {
-        "Component": 0,
-        "Concentration": 1
-    }
+    "SampleSpace": {"Component": 0, "Concentration": 1},
 }

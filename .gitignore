@@ -4,6 +4,6 @@ run_check
 dist
 *.old
 runpdoc.bat
-report.txt
+*.txt
 .pytest_cache
-.benchmarks
+benchmarks
