@@ -33,6 +33,23 @@ pip install mosa
 You can access the API documentation for **MOSA** on the 
 [project's GitHub Pages site](https://rgaveiga.github.io/mosa).
 
+## Performance
+
+MOSA keeps its internal solution archive as an incremental Pareto front and
+uses copy-on-write candidate generation for large discrete populations.
+
+Checkpoint and archive writes occur after every temperature by default. For
+long runs, they can be deferred while retaining a guaranteed final save:
+
+```python
+optimizer.checkpoint_interval = 0
+optimizer.archive_save_interval = 0
+```
+
+Positive interval values specify the number of completed temperatures between
+writes. Use `python benchmarks/benchmark_performance.py` from the repository
+root to run the deterministic performance scenarios.
+
 ## Contribution
 
 Contributions are definitely welcome. However, it should be mentioned that this repository uses 

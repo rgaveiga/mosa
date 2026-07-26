@@ -71,6 +71,8 @@ class Anneal:
         self._weight: ObjectiveWeightValues = []
         self._niter: int = 1000
         self._archive_file: str = "archive.json"
+        self._checkpoint_interval: int = 1
+        self._archive_save_interval: int = 1
         self._archivesize: int = 1000
         self._maxarchivereject: int = 1000
         self._alpha: float = 0.0
@@ -507,7 +509,9 @@ class Anneal:
             print(f"Starting at temperature: {self._temp[0]:.6f}")
             print("Evolving solutions to the problem, please wait...")
 
-        for temp in self._temp:
+        archive_dirty = updated == 1
+
+        for temperature_index, temp in enumerate(self._temp, start=1):
             if self._verbose:
                 print(f"TEMPERATURE: {temp:.6f}")
 
@@ -516,6 +520,7 @@ class Anneal:
 
             for j in range(self._niter):
                 selstep = chosen = old = new = None
+                population_update: tuple[str, int | None, Any] | None = None
 
                 r = uniform(0.0, totlength)
 
@@ -523,26 +528,22 @@ class Anneal:
                     if r < sellength[group]:
                         break
 
-                xtmp = xcurr.copy()
-                poptmp = population.copy()
-
-                if isinstance(xcurr[group], list):
-                    xtmp[group] = xcurr[group].copy()
-
-                if isinstance(population[group], list):
-                    poptmp[group] = population[group].copy()
-
                 r = uniform(
                     0.0, (changemove[group] + swapmove[group] + insordelmove[group])
                 )
+
+                xtmp = xcurr.copy()
+
+                if isinstance(xcurr[group], list):
+                    xtmp[group] = xcurr[group].copy()
 
                 if r < changemove[group] or r >= (changemove[group] + swapmove[group]):
                     if xnel[group] > 1:
                         old = choice(len(xtmp[group]))
 
-                    if xsampling[group] == 0 and len(poptmp[group]) > 0:
+                    if xsampling[group] == 0 and len(population[group]) > 0:
                         for _ in range(MAX_FAILED):
-                            if len(poptmp[group]) == 1:
+                            if len(population[group]) == 1:
                                 new = 0
                             elif xstep[group] >= MIN_STEP_LENGTH:
                                 selstep = int(
@@ -550,21 +551,21 @@ class Anneal:
                                 )
                                 new = lstep[group] + selstep
 
-                                if new >= len(poptmp[group]):
-                                    new -= len(poptmp[group])
+                                if new >= len(population[group]):
+                                    new -= len(population[group])
                                 elif new < 0:
-                                    new += len(poptmp[group])
+                                    new += len(population[group])
                             else:
-                                new = choice(len(poptmp[group]))
+                                new = choice(len(population[group]))
 
                             if r >= changemove[group] or xdistinct[group]:
                                 break
                             else:
                                 if xnel[group] == 1:
-                                    if not xtmp[group] == poptmp[group][new]:
+                                    if not xtmp[group] == population[group][new]:
                                         break
                                 else:
-                                    if not xtmp[group][old] == poptmp[group][new]:
+                                    if not xtmp[group][old] == population[group][new]:
                                         break
                         else:
                             new = None
@@ -586,20 +587,24 @@ class Anneal:
                     if xsampling[group] == 0:
                         if xdistinct[group]:
                             if xnel[group] == 1:
-                                xtmp[group], poptmp[group][new] = (
-                                    poptmp[group][new],
+                                population_update = (
+                                    "replace",
+                                    new,
                                     xtmp[group],
                                 )
+                                xtmp[group] = population[group][new]
                             else:
-                                xtmp[group][old], poptmp[group][new] = (
-                                    poptmp[group][new],
+                                population_update = (
+                                    "replace",
+                                    new,
                                     xtmp[group][old],
                                 )
+                                xtmp[group][old] = population[group][new]
                         else:
                             if xnel[group] == 1:
-                                xtmp[group] = poptmp[group][new]
+                                xtmp[group] = population[group][new]
                             else:
-                                xtmp[group][old] = poptmp[group][new]
+                                xtmp[group][old] = population[group][new]
                     else:
                         if xnel[group] == 1:
                             xtmp[group] += uniform(-xstep[group], xstep[group])
@@ -643,7 +648,7 @@ class Anneal:
                 else:
                     if len(xtmp[group]) == 1:
                         r = 0.0
-                    elif (xsampling[group] == 0 and len(poptmp[group]) == 0) or len(
+                    elif (xsampling[group] == 0 and len(population[group]) == 0) or len(
                         xtmp[group]
                     ) >= maxnel[group]:
                         r = 1.0
@@ -652,10 +657,10 @@ class Anneal:
 
                     if r < 0.5:
                         if xsampling[group] == 0:
-                            xtmp[group].append(poptmp[group][new])
+                            xtmp[group].append(population[group][new])
 
                             if xdistinct[group]:
-                                poptmp[group].pop(new)
+                                population_update = ("remove", new, None)
                         else:
                             xtmp[group].append(
                                 uniform(xbounds[group][0], xbounds[group][1])
@@ -665,7 +670,7 @@ class Anneal:
                             xtmp[group].sort()
                     else:
                         if xsampling[group] == 0 and xdistinct[group]:
-                            poptmp[group].append(xtmp[group][old])
+                            population_update = ("append", None, xtmp[group][old])
 
                         xtmp[group].pop(old)
 
@@ -690,12 +695,25 @@ class Anneal:
                     if xsampling[group] == 0 and new is not None:
                         lstep[group] = new
 
-                    fcurr = ftmp.copy()
+                    fcurr = ftmp
                     xcurr = xtmp
-                    population = poptmp
+
+                    if population_update is not None:
+                        action, index, value = population_update
+
+                        if action == "replace":
+                            assert index is not None
+                            population[group][index] = value
+                        elif action == "remove":
+                            assert index is not None
+                            population[group].pop(index)
+                        else:
+                            population[group].append(value)
+
                     naccept += 1
                     updated = self.__updatearchive(xcurr, fcurr)
                     nupdated += updated
+                    archive_dirty = archive_dirty or updated == 1
 
                     if updated == 1:
                         narchivereject = 0
@@ -725,11 +743,25 @@ class Anneal:
                     print("------")
                     print("\n--- THE END ---")
 
-                    self.savex()
+                    self.__savecheckpoint(xcurr, fcurr, population)
+
+                    if archive_dirty:
+                        self.savex()
 
                     return
 
-            self.__savecheckpoint(xcurr, fcurr, population)
+            final_temperature = temperature_index == len(self._temp)
+            checkpoint_due = final_temperature or (
+                self._checkpoint_interval > 0
+                and temperature_index % self._checkpoint_interval == 0
+            )
+            archive_save_due = final_temperature or (
+                self._archive_save_interval > 0
+                and temperature_index % self._archive_save_interval == 0
+            )
+
+            if checkpoint_due:
+                self.__savecheckpoint(xcurr, fcurr, population)
 
             if self._verbose:
                 if naccept > 0:
@@ -748,8 +780,9 @@ class Anneal:
 
                 print("------")
 
-            if nupdated > 0:
+            if archive_dirty and archive_save_due:
                 self.savex()
+                archive_dirty = False
 
         if not self._verbose:
             print("Maximum number of temperatures reached!")
@@ -783,19 +816,11 @@ class Anneal:
 
         x = xset["x"]
         f = xset["f"]
-        f_arr = np.array(f)
+        f_arr = np.asarray(f, dtype=float)
+        keep_mask = self.__non_dominated_mask(f_arr)
 
-        dominated = set()
-
-        for i in range(len(f_arr)):
-            others = np.delete(f_arr, i, axis=0)
-            d_arr = np.all(others <= f_arr[i], axis=-1)
-
-            if d_arr.sum() > 0:
-                dominated.add(i)
-
-        tmpdict["x"] = [v for i, v in enumerate(x) if i not in dominated]
-        tmpdict["f"] = [v for i, v in enumerate(f) if i not in dominated]
+        tmpdict["x"] = [v for i, v in enumerate(x) if keep_mask[i]]
+        tmpdict["f"] = [v for i, v in enumerate(f) if keep_mask[i]]
 
         return tmpdict
 
@@ -1250,47 +1275,89 @@ class Anneal:
         1, if the archive is updated, or 0, if not.
         """
 
-        updated: int = 0
         archive_len = len(self._archive_x)
+        f_arr = np.asarray(f, dtype=float)
 
         if archive_len == 0:
-            updated = 1
+            updated = True
         else:
             archive_arr = self._archive_f_arr[:archive_len]
-            f_arr = np.asarray(f, dtype=float)
-            c_arr = np.all(archive_arr <= f_arr, axis=-1)
+            archive_dominates, candidate_dominates = self.__dominance_masks(
+                archive_arr, f_arr
+            )
+            dominated_by_archive = np.any(archive_dominates)
 
-            if c_arr.sum() > 0:
-                updated = 0
+            if dominated_by_archive:
+                updated = False
             else:
-                if archive_len < self._archivesize:
-                    updated = 1
+                dominated_rows = np.flatnonzero(candidate_dominates)
+
+                if archive_len < self._archivesize or dominated_rows.size > 0:
+                    updated = True
                 else:
-                    d_arr = np.flatnonzero(np.all(archive_arr >= f_arr, axis=-1))
+                    updated = False
 
-                    if d_arr.shape[0] > 0:
-                        keep_mask = np.ones(len(self._archive_x), dtype=bool)
-                        keep_mask[d_arr] = False
-                        self._archive_x = [
-                            v for i, v in enumerate(self._archive_x) if keep_mask[i]
-                        ]
-                        kept_count = int(keep_mask.sum())
+                if updated and dominated_rows.size > 0:
+                    keep_mask = np.ones(archive_len, dtype=bool)
+                    keep_mask[dominated_rows] = False
+                    self._archive_x = [
+                        value for i, value in enumerate(self._archive_x) if keep_mask[i]
+                    ]
+                    kept_count = int(np.count_nonzero(keep_mask))
 
-                        if kept_count > 0:
-                            self._archive_f_arr[:kept_count] = archive_arr[keep_mask]
+                    if kept_count > 0:
+                        self._archive_f_arr[:kept_count] = archive_arr[keep_mask]
 
-                        archive_len = kept_count
-                        updated = 1
-                    else:
-                        updated = 0
+                    archive_len = kept_count
 
-        if updated == 1:
-            f_arr = np.asarray(f, dtype=float)
+        if updated:
             self.__ensure_archive_capacity(archive_len + 1, len(f_arr))
             self._archive_x.append(x)
             self._archive_f_arr[archive_len] = f_arr
 
-        return updated
+        return int(updated)
+
+    @staticmethod
+    def __dominance_masks(
+        archive_arr: np.ndarray, f_arr: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Compare objectives by column to avoid 2-D reduction temporaries."""
+
+        archive_dominates = archive_arr[:, 0] <= f_arr[0]
+        candidate_dominates = archive_arr[:, 0] >= f_arr[0]
+
+        for objective in range(1, len(f_arr)):
+            archive_dominates &= archive_arr[:, objective] <= f_arr[objective]
+            candidate_dominates &= archive_arr[:, objective] >= f_arr[objective]
+
+        return archive_dominates, candidate_dominates
+
+    @staticmethod
+    def __non_dominated_mask(f_arr: np.ndarray, block_size: int = 256) -> np.ndarray:
+        """Return a mask for Pareto-optimal rows without per-row allocations."""
+
+        row_count = len(f_arr)
+        dominated = np.zeros(row_count, dtype=bool)
+        objective_count = f_arr.shape[1]
+        memory_limited_block_size = max(1, 8_000_000 // max(row_count, 1))
+        block_size = min(block_size, memory_limited_block_size)
+
+        for start in range(0, row_count, block_size):
+            end = min(start + block_size, row_count)
+            candidates = f_arr[start:end]
+            comparisons = f_arr[np.newaxis, :, 0] <= candidates[:, np.newaxis, 0]
+
+            for objective in range(1, objective_count):
+                comparisons &= (
+                    f_arr[np.newaxis, :, objective]
+                    <= candidates[:, np.newaxis, objective]
+                )
+
+            local_rows = np.arange(end - start)
+            comparisons[local_rows, start + local_rows] = False
+            dominated[start:end] = np.any(comparisons, axis=1)
+
+        return ~dominated
 
     def __getcheckpoint(self) -> tuple[Solution, ObjectiveValues, Population]:
         """
@@ -1617,6 +1684,42 @@ class Anneal:
             self._archive_file = val.strip()
         else:
             raise MOSAError("A file name must be provided!")
+
+    @property
+    def checkpoint_interval(self) -> int:
+        """
+        Number of completed temperatures between checkpoint writes.
+
+        The default is 1. Set it to 0 to write only when evolution finishes.
+        A final checkpoint is always written, including on early termination.
+        """
+
+        return self._checkpoint_interval
+
+    @checkpoint_interval.setter
+    def checkpoint_interval(self, val: int) -> None:
+        if isinstance(val, int) and val >= 0:
+            self._checkpoint_interval = val
+        else:
+            raise MOSAError("Checkpoint interval must be a non-negative integer!")
+
+    @property
+    def archive_save_interval(self) -> int:
+        """
+        Number of completed temperatures between automatic archive writes.
+
+        The default is 1. Set it to 0 to write only when evolution finishes.
+        The archive is written only when it has changed since the previous save.
+        """
+
+        return self._archive_save_interval
+
+    @archive_save_interval.setter
+    def archive_save_interval(self, val: int) -> None:
+        if isinstance(val, int) and val >= 0:
+            self._archive_save_interval = val
+        else:
+            raise MOSAError("Archive save interval must be a non-negative integer!")
 
     @property
     def maximum_archive_rejections(self) -> int:

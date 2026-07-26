@@ -6,4 +6,4 @@ dist
 runpdoc.bat
 report.txt
 .pytest_cache
-.benchmarks
+benchmarks
