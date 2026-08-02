@@ -3,9 +3,12 @@
 from __future__ import print_function
 from __future__ import division
 import json
+import os
 from copy import deepcopy
+from dataclasses import dataclass
 from typing import Any, Callable, Sequence, TypeAlias, TypedDict
 import numpy as np
+from numba import njit
 from numpy.random import choice, triangular, uniform
 from math import exp, inf
 from . import __version__
@@ -39,6 +42,211 @@ class Archive(TypedDict):
     f: list[ObjectiveValues]
 
 
+def _semantic_key(value: Any) -> Any | None:
+    """Return a hashable equality key for common categorical values."""
+
+    if isinstance(value, list):
+        items = tuple(_semantic_key(item) for item in value)
+        return None if any(item is None for item in items) else (list, items)
+
+    if isinstance(value, tuple):
+        items = tuple(_semantic_key(item) for item in value)
+        return None if any(item is None for item in items) else (tuple, items)
+
+    if isinstance(value, dict):
+        items = [
+            (_semantic_key(key), _semantic_key(item)) for key, item in value.items()
+        ]
+        if any(key is None or item is None for key, item in items):
+            return None
+        return (dict, frozenset(items))
+
+    try:
+        hash(value)
+    except (TypeError, ValueError):
+        return None
+
+    return (object, value)
+
+
+def _values_equal(left: Any, right: Any) -> bool:
+    """Compare arbitrary category values while requiring scalar truth."""
+
+    try:
+        result = left == right
+        if isinstance(result, np.ndarray):
+            return bool(np.all(result))
+        return bool(result)
+    except (TypeError, ValueError):
+        return left is right
+
+
+def _categorical_equivalence(values: Sequence[Any]) -> np.ndarray:
+    """Assign equality classes without merging population position codes."""
+
+    equivalence = np.empty(len(values), dtype=np.int64)
+    keyed_classes: dict[Any, int] = {}
+    fallback_representatives: list[tuple[Any, int]] = []
+    next_class = 0
+
+    for index, value in enumerate(values):
+        key = _semantic_key(value)
+        if key is not None:
+            equivalent = keyed_classes.get(key)
+            if equivalent is None:
+                equivalent = next_class
+                keyed_classes[key] = equivalent
+                next_class += 1
+        else:
+            equivalent = None
+            for representative, class_id in fallback_representatives:
+                if _values_equal(value, representative):
+                    equivalent = class_id
+                    break
+            if equivalent is None:
+                equivalent = next_class
+                fallback_representatives.append((value, equivalent))
+                next_class += 1
+        equivalence[index] = equivalent
+
+    return equivalence
+
+
+def _is_numeric_population(values: Sequence[Any]) -> bool:
+    """Return whether a discrete population can use a native numeric dtype."""
+
+    return len(values) > 0 and all(
+        isinstance(value, (int, float, np.integer, np.floating)) for value in values
+    )
+
+
+@dataclass
+class _GroupState:
+    """Numeric representation of one solution/population group."""
+
+    continuous: bool
+    categorical: bool
+    scalar_output: bool
+    population: np.ndarray
+    solution: np.ndarray
+    categories: tuple[Any, ...] = ()
+    equivalence: np.ndarray | None = None
+
+    @classmethod
+    def create(
+        cls,
+        population: PopulationGroup,
+        number_of_elements: int,
+        solution: Any | None = None,
+    ) -> "_GroupState":
+        scalar_output = number_of_elements == 1
+
+        if isinstance(population, tuple):
+            if solution is None:
+                solution_values: list[Any] = []
+            elif scalar_output:
+                solution_values = [solution]
+            else:
+                solution_values = list(solution)
+            return cls(
+                continuous=True,
+                categorical=False,
+                scalar_output=scalar_output,
+                population=np.asarray(population, dtype=np.float64),
+                solution=np.asarray(solution_values, dtype=np.float64),
+            )
+
+        population_values = list(population)
+        if solution is None:
+            solution_values = []
+        elif scalar_output:
+            solution_values = [solution]
+        else:
+            solution_values = list(solution)
+        numeric_values = population_values + solution_values
+
+        if _is_numeric_population(numeric_values):
+            dtype = (
+                np.float64
+                if any(
+                    isinstance(value, (float, np.floating)) for value in numeric_values
+                )
+                else np.int64
+            )
+            return cls(
+                continuous=False,
+                categorical=False,
+                scalar_output=scalar_output,
+                population=np.asarray(population_values, dtype=dtype),
+                solution=np.asarray(solution_values, dtype=dtype),
+            )
+
+        categories = tuple(population_values + solution_values)
+        return cls(
+            continuous=False,
+            categorical=True,
+            scalar_output=scalar_output,
+            population=np.arange(len(population_values), dtype=np.int64),
+            solution=np.arange(len(population_values), len(categories), dtype=np.int64),
+            categories=categories,
+            equivalence=_categorical_equivalence(categories),
+        )
+
+    def equal(self, left: Any, right: Any) -> bool:
+        if self.categorical:
+            assert self.equivalence is not None
+            return bool(self.equivalence[int(left)] == self.equivalence[int(right)])
+        return bool(left == right)
+
+    def decode_value(self, value: Any) -> Any:
+        if self.categorical:
+            return self.categories[int(value)]
+        return value.item() if isinstance(value, np.generic) else value
+
+    def decode(self, values: np.ndarray) -> Any:
+        if self.scalar_output:
+            return self.decode_value(values[0])
+        if self.categorical:
+            return [self.categories[int(value)] for value in values]
+        return values.tolist()
+
+    def decode_solution(self) -> Any:
+        return self.decode(self.solution)
+
+    def decode_population(self) -> PopulationGroup:
+        if self.continuous:
+            return tuple(float(value) for value in self.population)
+        if self.categorical:
+            return [self.categories[int(value)] for value in self.population]
+        return self.population.tolist()
+
+
+@njit(cache=True)
+def _non_dominated_mask_kernel(f_arr: np.ndarray) -> np.ndarray:
+    """Return the non-dominated rows using compiled early-exit comparisons."""
+
+    row_count, objective_count = f_arr.shape
+    keep = np.ones(row_count, dtype=np.bool_)
+
+    for candidate in range(row_count):
+        for other in range(row_count):
+            if candidate == other:
+                continue
+
+            dominates = True
+
+            for objective in range(objective_count):
+                if not f_arr[other, objective] <= f_arr[candidate, objective]:
+                    dominates = False
+                    break
+
+            if dominates:
+                keep[candidate] = False
+                break
+
+    return keep
+
+
 class Anneal:
     """This class implements the MOSA algorithm."""
 
@@ -55,6 +263,7 @@ class Anneal:
         self._decrease: float = 0.9
         self._ntemp: int = 10
         self._population: Population = {}
+        self._group_states: dict[str, _GroupState] = {}
         self._changemove: dict[str, Number] = {}
         self._swapmove: dict[str, Number] = {}
         self._insordelmove: dict[str, Number] = {}
@@ -71,8 +280,7 @@ class Anneal:
         self._weight: ObjectiveWeightValues = []
         self._niter: int = 1000
         self._archive_file: str = "archive.json"
-        self._checkpoint_interval: int = 1
-        self._archive_save_interval: int = 1
+        self._archive_save_interval: int = 10
         self._archivesize: int = 1000
         self._maxarchivereject: int = 1000
         self._alpha: float = 0.0
@@ -219,7 +427,9 @@ class Anneal:
 
         print("--- BEGIN: Evolving a solution ---\n")
 
+        from_archive: bool = False
         from_checkpoint: bool = False
+        from_saved_state: bool = False
         pmax: float = 0.0
         gamma: float = 1.0
         updated: int = 0
@@ -231,7 +441,6 @@ class Anneal:
         weight: ObjectiveWeightValues = []
         lstep: dict[str, int] = {}
         population: Population = {}
-        poptmp: Population = {}
         xcurr: Solution = {}
         xtmp: Solution = {}
         xstep: dict[str, Number] = {}
@@ -253,25 +462,33 @@ class Anneal:
         self._temp = [self._initemp * self._decrease**i for i in range(self._ntemp)]
 
         if self._restart:
-            xcurr, fcurr, population = self.__getcheckpoint()
-
             if len(self._archive_x) == 0:
-                try:
-                    print(
-                        f"Trying to load the archive from file {self._archive_file}..."
-                    )
+                print(f"Trying to load the archive from file {self._archive_file}...")
 
-                    tmp_archive = json.load(open(self._archive_file, "r"))
-                    tmp_archive = self.__checkarchive(tmp_archive)
-                    self.__set_archive_data(tmp_archive["x"], tmp_archive["f"])
-                except FileNotFoundError:
+                if not self.__load_archive_file(self._archive_file):
                     print(
-                        f"File {self._archive_file} not found! Initializing an empty archive..."
+                        f"File {self._archive_file} not found or invalid! "
+                        "Initializing an empty archive..."
                     )
-
                     self.__set_archive_data([], [])
 
                 print("Done!")
+
+            if len(self._archive_x) > 0 and self._population:
+                xcurr = deepcopy(self._archive_x[-1])
+                fcurr = (
+                    self._archive_f_arr[len(self._archive_x) - 1].astype(float).tolist()
+                )
+                population = {
+                    group: tuple(values) if isinstance(values, tuple) else list(values)
+                    for group, values in self._population.items()
+                }
+                from_archive = True
+            else:
+                xcurr, fcurr, population = self.__getcheckpoint()
+
+                if population and xcurr and len(fcurr) > 0:
+                    from_checkpoint = True
         else:
             print("Initializing an empty archive...")
 
@@ -281,10 +498,15 @@ class Anneal:
 
         if population and xcurr and len(fcurr) > 0:
             if set(population.keys()) == set(xcurr.keys()):
-                from_checkpoint = True
+                from_saved_state = True
             else:
                 raise MOSAError("Solution and population must have the same groups!")
         else:
+            if self._restart and len(self._archive_x) > 0 and not self._population:
+                raise MOSAError(
+                    "A population must be configured to restart from the archive!"
+                )
+
             if self._population:
                 xcurr = {}
                 fcurr = []
@@ -331,7 +553,7 @@ class Anneal:
                 print("        Sample space: discrete")
                 print(f"        Size of population group: {len(population[group])}")
 
-                if len(population[group]) <= 1 and not from_checkpoint:
+                if len(population[group]) <= 1 and not from_saved_state:
                     raise MOSAError(
                         "Number of elements in the population group must be greater than one!"
                     )
@@ -449,40 +671,89 @@ class Anneal:
                 changemove[group] = 0.0
                 swapmove[group] = 1.0
 
-        print("------")
+        self._group_states = {}
+
+        for group in groups:
+            try:
+                self._group_states[group] = _GroupState.create(
+                    population[group],
+                    xnel[group],
+                    xcurr[group] if from_saved_state else None,
+                )
+            except (TypeError, ValueError, OverflowError) as error:
+                if from_saved_state:
+                    raise MOSAError(
+                        f"Saved solution group '{group}' has an incompatible format!"
+                    ) from error
+
+                raise
+
+        if from_archive:
+            for group in groups:
+                self.__restore_archive_group_state(
+                    group,
+                    self._group_states[group],
+                    xdistinct.get(group, False),
+                )
+
+        if from_saved_state:
+            xcurr = {
+                group: self._group_states[group].decode_solution() for group in groups
+            }
 
         if from_checkpoint:
-            print("Initial solution loaded from the checkpoint file...")
+            updated = self.__updatearchive(xcurr, fcurr)
+
+        print("------")
+
+        if from_archive:
+            print("Initial solution loaded from the archive...")
+        elif from_checkpoint:
+            print("Initial solution loaded from a legacy checkpoint file...")
         else:
             print("Initializing with a random solution from scratch...")
 
             for group in groups:
+                state = self._group_states[group]
+
                 if xnel[group] == 1:
                     if xsampling[group] == 0:
-                        m = choice(len(population[group]))
-                        xcurr[group] = population[group][m]
+                        m = choice(len(state.population))
+                        state.solution = np.asarray(
+                            [state.population[m]], dtype=state.population.dtype
+                        )
 
                         if xdistinct[group]:
-                            population[group].pop(m)
+                            state.population = np.delete(state.population, m)
                     else:
-                        xcurr[group] = uniform(xbounds[group][0], xbounds[group][1])
+                        state.solution = np.asarray(
+                            [uniform(xbounds[group][0], xbounds[group][1])],
+                            dtype=np.float64,
+                        )
                 else:
-                    xcurr[group] = []
+                    values: list[Any] = []
 
                     for j in range(xnel[group]):
                         if xsampling[group] == 0:
-                            m = choice(len(population[group]))
-                            xcurr[group].append(population[group][m])
+                            m = choice(len(state.population))
+                            values.append(state.population[m])
 
                             if xdistinct[group]:
-                                population[group].pop(m)
+                                state.population = np.delete(state.population, m)
                         else:
-                            xcurr[group].append(
-                                uniform(xbounds[group][0], xbounds[group][1])
-                            )
+                            values.append(uniform(xbounds[group][0], xbounds[group][1]))
+
+                    state.solution = np.asarray(
+                        values,
+                        dtype=(
+                            np.float64 if state.continuous else state.population.dtype
+                        ),
+                    )
 
                     if xsort[group]:
-                        xcurr[group].sort()
+                        state.solution.sort()
+
+                xcurr[group] = state.decode_solution()
 
             if callable(func):
                 fcurr = list(func(**xcurr))
@@ -532,18 +803,19 @@ class Anneal:
                     0.0, (changemove[group] + swapmove[group] + insordelmove[group])
                 )
 
-                xtmp = xcurr.copy()
-
-                if isinstance(xcurr[group], list):
-                    xtmp[group] = xcurr[group].copy()
+                state = self._group_states[group]
+                candidate = (
+                    state.solution[0] if state.scalar_output else state.solution.copy()
+                )
+                encoded_population = state.population
 
                 if r < changemove[group] or r >= (changemove[group] + swapmove[group]):
                     if xnel[group] > 1:
-                        old = choice(len(xtmp[group]))
+                        old = choice(len(candidate))
 
-                    if xsampling[group] == 0 and len(population[group]) > 0:
+                    if xsampling[group] == 0 and len(encoded_population) > 0:
                         for _ in range(MAX_FAILED):
-                            if len(population[group]) == 1:
+                            if len(encoded_population) == 1:
                                 new = 0
                             elif xstep[group] >= MIN_STEP_LENGTH:
                                 selstep = int(
@@ -551,21 +823,25 @@ class Anneal:
                                 )
                                 new = lstep[group] + selstep
 
-                                if new >= len(population[group]):
-                                    new -= len(population[group])
+                                if new >= len(encoded_population):
+                                    new -= len(encoded_population)
                                 elif new < 0:
-                                    new += len(population[group])
+                                    new += len(encoded_population)
                             else:
-                                new = choice(len(population[group]))
+                                new = choice(len(encoded_population))
 
                             if r >= changemove[group] or xdistinct[group]:
                                 break
                             else:
                                 if xnel[group] == 1:
-                                    if not xtmp[group] == population[group][new]:
+                                    if not state.equal(
+                                        candidate, encoded_population[new]
+                                    ):
                                         break
                                 else:
-                                    if not xtmp[group][old] == population[group][new]:
+                                    if not state.equal(
+                                        candidate[old], encoded_population[new]
+                                    ):
                                         break
                         else:
                             new = None
@@ -590,92 +866,94 @@ class Anneal:
                                 population_update = (
                                     "replace",
                                     new,
-                                    xtmp[group],
+                                    candidate,
                                 )
-                                xtmp[group] = population[group][new]
+                                candidate = encoded_population[new]
                             else:
                                 population_update = (
                                     "replace",
                                     new,
-                                    xtmp[group][old],
+                                    candidate[old],
                                 )
-                                xtmp[group][old] = population[group][new]
+                                candidate[old] = encoded_population[new]
                         else:
                             if xnel[group] == 1:
-                                xtmp[group] = population[group][new]
+                                candidate = encoded_population[new]
                             else:
-                                xtmp[group][old] = population[group][new]
+                                candidate[old] = encoded_population[new]
                     else:
                         if xnel[group] == 1:
-                            xtmp[group] += uniform(-xstep[group], xstep[group])
+                            candidate += uniform(-xstep[group], xstep[group])
 
-                            if xtmp[group] > xbounds[group][1]:
-                                xtmp[group] -= xbounds[group][1] - xbounds[group][0]
-                            elif xtmp[group] < xbounds[group][0]:
-                                xtmp[group] += xbounds[group][1] - xbounds[group][0]
+                            if candidate > xbounds[group][1]:
+                                candidate -= xbounds[group][1] - xbounds[group][0]
+                            elif candidate < xbounds[group][0]:
+                                candidate += xbounds[group][1] - xbounds[group][0]
                         else:
-                            xtmp[group][old] += uniform(-xstep[group], xstep[group])
+                            candidate[old] += uniform(-xstep[group], xstep[group])
 
-                            if xtmp[group][old] > xbounds[group][1]:
-                                xtmp[group][old] -= (
-                                    xbounds[group][1] - xbounds[group][0]
-                                )
-                            elif xtmp[group][old] < xbounds[group][0]:
-                                xtmp[group][old] += (
-                                    xbounds[group][1] - xbounds[group][0]
-                                )
+                            if candidate[old] > xbounds[group][1]:
+                                candidate[old] -= xbounds[group][1] - xbounds[group][0]
+                            elif candidate[old] < xbounds[group][0]:
+                                candidate[old] += xbounds[group][1] - xbounds[group][0]
 
                     if xsort[group] and xnel[group] > 1:
-                        xtmp[group].sort()
+                        candidate.sort()
                 elif r < (changemove[group] + swapmove[group]):
-                    for _ in range(int(len(xtmp[group]) / 2)):
-                        chosen = choice(len(xtmp[group]), 2, False)
+                    for _ in range(int(len(candidate) / 2)):
+                        chosen = choice(len(candidate), 2, False)
 
-                        if not xtmp[group][chosen[0]] == xtmp[group][chosen[1]]:
-                            xtmp[group][chosen[0]], xtmp[group][chosen[1]] = (
-                                xtmp[group][chosen[1]],
-                                xtmp[group][chosen[0]],
+                        if not state.equal(candidate[chosen[0]], candidate[chosen[1]]):
+                            candidate[chosen[0]], candidate[chosen[1]] = (
+                                candidate[chosen[1]],
+                                candidate[chosen[0]],
                             )
 
                             break
                     else:
                         if self._verbose:
                             print(
-                                f"WARNING!!!!!! Failed {int(len(xtmp[group])/2)} times to find different elements in group '{group}' for swapping at iteration {j}!"
+                                f"WARNING!!!!!! Failed {int(len(candidate)/2)} times to find different elements in group '{group}' for swapping at iteration {j}!"
                             )
 
                         continue
                 else:
-                    if len(xtmp[group]) == 1:
+                    if len(candidate) == 1:
                         r = 0.0
-                    elif (xsampling[group] == 0 and len(population[group]) == 0) or len(
-                        xtmp[group]
-                    ) >= maxnel[group]:
+                    elif (
+                        xsampling[group] == 0 and len(encoded_population) == 0
+                    ) or len(candidate) >= maxnel[group]:
                         r = 1.0
                     else:
                         r = uniform(0.0, 1.0)
 
                     if r < 0.5:
                         if xsampling[group] == 0:
-                            xtmp[group].append(population[group][new])
+                            candidate = np.append(candidate, encoded_population[new])
 
                             if xdistinct[group]:
                                 population_update = ("remove", new, None)
                         else:
-                            xtmp[group].append(
-                                uniform(xbounds[group][0], xbounds[group][1])
+                            candidate = np.append(
+                                candidate, uniform(xbounds[group][0], xbounds[group][1])
                             )
 
                         if xsort[group]:
-                            xtmp[group].sort()
+                            candidate.sort()
                     else:
                         if xsampling[group] == 0 and xdistinct[group]:
-                            population_update = ("append", None, xtmp[group][old])
+                            population_update = ("append", None, candidate[old])
 
-                        xtmp[group].pop(old)
+                        candidate = np.delete(candidate, old)
 
                 gamma = 1.0
 
+                xtmp = xcurr.copy()
+                xtmp[group] = (
+                    state.decode_value(candidate)
+                    if state.scalar_output
+                    else state.decode(candidate)
+                )
                 ftmp = list(func(**xtmp))
 
                 for k in range(len(ftmp)):
@@ -697,18 +975,22 @@ class Anneal:
 
                     fcurr = ftmp
                     xcurr = xtmp
+                    if state.scalar_output:
+                        state.solution[0] = candidate
+                    else:
+                        state.solution = candidate
 
                     if population_update is not None:
                         action, index, value = population_update
 
                         if action == "replace":
                             assert index is not None
-                            population[group][index] = value
+                            state.population[index] = value
                         elif action == "remove":
                             assert index is not None
-                            population[group].pop(index)
+                            state.population = np.delete(state.population, index)
                         else:
-                            population[group].append(value)
+                            state.population = np.append(state.population, value)
 
                     naccept += 1
                     updated = self.__updatearchive(xcurr, fcurr)
@@ -743,25 +1025,19 @@ class Anneal:
                     print("------")
                     print("\n--- THE END ---")
 
-                    self.__savecheckpoint(xcurr, fcurr, population)
-
                     if archive_dirty:
                         self.savex()
 
                     return
 
             final_temperature = temperature_index == len(self._temp)
-            checkpoint_due = final_temperature or (
-                self._checkpoint_interval > 0
-                and temperature_index % self._checkpoint_interval == 0
-            )
             archive_save_due = final_temperature or (
                 self._archive_save_interval > 0
-                and temperature_index % self._archive_save_interval == 0
+                and (
+                    temperature_index == 1
+                    or temperature_index % self._archive_save_interval == 0
+                )
             )
-
-            if checkpoint_due:
-                self.__savecheckpoint(xcurr, fcurr, population)
 
             if self._verbose:
                 if naccept > 0:
@@ -849,7 +1125,7 @@ class Anneal:
         else:
             raise MOSAError("The name of the archive file must be a string!")
 
-        json.dump(xset, open(archive_file, "w"), indent=4)
+        self.__write_json_atomic(xset, archive_file)
 
     def loadx(self, archive_file: str = "") -> None:
         """
@@ -871,21 +1147,8 @@ class Anneal:
         else:
             raise MOSAError("Name of the archive file must be a string!")
 
-        try:
-            tmpdict = json.load(open(archive_file, "r"))
-        except FileNotFoundError:
-            print(f"File {archive_file} not found!")
-
-            return
-
-        try:
-            tmpdict = self.__checkarchive(tmpdict)
-        except:
-            print(f"Something wrong with file {archive_file}!")
-
-            return
-
-        self.__set_archive_data(tmpdict["x"], tmpdict["f"])
+        if not self.__load_archive_file(archive_file):
+            print(f"File {archive_file} not found or invalid!")
 
     def trimx(
         self,
@@ -1321,7 +1584,7 @@ class Anneal:
     def __dominance_masks(
         archive_arr: np.ndarray, f_arr: np.ndarray
     ) -> tuple[np.ndarray, np.ndarray]:
-        """Compare objectives by column to avoid 2-D reduction temporaries."""
+        """Compare objectives by column to use NumPy's vectorized loops."""
 
         archive_dominates = archive_arr[:, 0] <= f_arr[0]
         candidate_dominates = archive_arr[:, 0] >= f_arr[0]
@@ -1334,30 +1597,110 @@ class Anneal:
 
     @staticmethod
     def __non_dominated_mask(f_arr: np.ndarray, block_size: int = 256) -> np.ndarray:
-        """Return a mask for Pareto-optimal rows without per-row allocations."""
+        """Return a mask for Pareto-optimal rows in the compiled kernel."""
 
-        row_count = len(f_arr)
-        dominated = np.zeros(row_count, dtype=bool)
-        objective_count = f_arr.shape[1]
-        memory_limited_block_size = max(1, 8_000_000 // max(row_count, 1))
-        block_size = min(block_size, memory_limited_block_size)
+        return _non_dominated_mask_kernel(f_arr)
 
-        for start in range(0, row_count, block_size):
-            end = min(start + block_size, row_count)
-            candidates = f_arr[start:end]
-            comparisons = f_arr[np.newaxis, :, 0] <= candidates[:, np.newaxis, 0]
+    @staticmethod
+    def __write_json_atomic(data: Any, destination: str) -> None:
+        """Write compact JSON while retaining one recoverable generation."""
 
-            for objective in range(1, objective_count):
-                comparisons &= (
-                    f_arr[np.newaxis, :, objective]
-                    <= candidates[:, np.newaxis, objective]
+        target = os.path.abspath(destination)
+        temporary = f"{target}.tmp"
+        backup = f"{target}.bak"
+
+        try:
+            encoded = json.dumps(data, separators=(",", ":"))
+
+            with open(temporary, "w", encoding="utf-8", newline="\n") as stream:
+                stream.write(encoded)
+                stream.flush()
+                os.fsync(stream.fileno())
+
+            if os.path.exists(target):
+                os.replace(target, backup)
+
+            os.replace(temporary, target)
+        except Exception:
+            if os.path.exists(temporary):
+                os.remove(temporary)
+
+            raise
+
+    def __load_archive_file(self, archive_file: str) -> bool:
+        """Load the primary archive or its last complete backup."""
+
+        for candidate in (archive_file, f"{archive_file}.bak"):
+            try:
+                with open(candidate, "r", encoding="utf-8") as stream:
+                    archive = json.load(stream)
+
+                if not isinstance(archive, dict) or not {
+                    "x",
+                    "f",
+                }.issubset(archive):
+                    raise MOSAError("Archive does not contain 'x' and 'f'!")
+
+                archive = self.__checkarchive(archive)
+                self.__set_archive_data(archive["x"], archive["f"])
+            except (FileNotFoundError, OSError, TypeError, ValueError, MOSAError):
+                continue
+
+            if candidate != archive_file:
+                print(f"Recovered archive from backup file {candidate}.")
+
+            return True
+
+        return False
+
+    @staticmethod
+    def __restore_archive_group_state(
+        group: str, state: _GroupState, distinct: bool
+    ) -> None:
+        """Validate an archived solution and rebuild its available population."""
+
+        if state.solution.size == 0:
+            raise MOSAError(f"Archived solution group '{group}' is empty!")
+
+        if state.solution.ndim != 1:
+            raise MOSAError(
+                f"Archived solution group '{group}' has an incompatible format!"
+            )
+
+        if state.continuous:
+            lower = min(float(state.population[0]), float(state.population[1]))
+            upper = max(float(state.population[0]), float(state.population[1]))
+
+            if np.any(state.solution < lower) or np.any(state.solution > upper):
+                raise MOSAError(
+                    f"Archived solution group '{group}' is outside its boundaries!"
                 )
 
-            local_rows = np.arange(end - start)
-            comparisons[local_rows, start + local_rows] = False
-            dominated[start:end] = np.any(comparisons, axis=1)
+            return
 
-        return ~dominated
+        available = state.population.copy()
+
+        for solution_index, selected in enumerate(state.solution):
+            match_index = None
+
+            for population_index, candidate in enumerate(available):
+                if state.equal(selected, candidate):
+                    match_index = population_index
+                    break
+
+            if match_index is None:
+                raise MOSAError(
+                    f"Archived solution group '{group}' is incompatible with its "
+                    "configured population!"
+                )
+
+            state.solution[solution_index] = available[match_index]
+
+            if distinct:
+                available = np.delete(available, match_index)
+
+        if distinct:
+            state.population = available
 
     def __getcheckpoint(self) -> tuple[Solution, ObjectiveValues, Population]:
         """
@@ -1373,10 +1716,11 @@ class Anneal:
         f: ObjectiveValues = []
         population: Population = {}
 
-        print("Looking for a solution in the checkpoint file...")
+        print("Looking for a solution in a legacy checkpoint file...")
 
         try:
-            tmpdict = json.load(open("checkpoint.json", "r"))
+            with open("checkpoint.json", "r", encoding="utf-8") as stream:
+                tmpdict = json.load(stream)
 
             if "x" in tmpdict and "f" in tmpdict and "Population" in tmpdict:
                 x = tmpdict["x"]
@@ -1389,42 +1733,12 @@ class Anneal:
                     for key in ss.keys():
                         if ss[key] == 1:
                             population[key] = tuple(population[key])
-        except:
-            print("No checkpoint file!")
+        except (FileNotFoundError, OSError, TypeError, ValueError, KeyError):
+            print("No valid legacy checkpoint file!")
 
         print("Done!")
 
         return x, f, population
-
-    def __savecheckpoint(
-        self, x: Solution, f: ObjectiveValues, population: Population
-    ) -> None:
-        """
-        Saves the solution passed as argument as JSON into a text file.
-
-        ### Parameters
-
-        `x`: solution.
-
-        `f`: objective values.
-
-        `population`: population compatible with the solution.
-        """
-
-        tmpdict: dict[str, Any] = {
-            "x": x,
-            "f": f,
-            "Population": population,
-            "SampleSpace": {},
-        }
-
-        for key in population.keys():
-            if isinstance(population[key], list):
-                tmpdict["SampleSpace"][key] = 0
-            elif isinstance(population[key], tuple):
-                tmpdict["SampleSpace"][key] = 1
-
-        json.dump(tmpdict, open("checkpoint.json", "w"), indent=4)
 
     def __checkarchive(self, xset: Archive | None = None) -> Archive:
         """
@@ -1546,7 +1860,10 @@ class Anneal:
     @property
     def restart(self) -> bool:
         """
-        Restarts from a previous run if a checkpoint file is available.
+        Restarts from the last retained solution when an archive is available.
+
+        The configured population rebuilds the available search space. Legacy
+        checkpoint files remain readable as a migration fallback.
 
         The default is `True`.
         """
@@ -1686,29 +2003,12 @@ class Anneal:
             raise MOSAError("A file name must be provided!")
 
     @property
-    def checkpoint_interval(self) -> int:
-        """
-        Number of completed temperatures between checkpoint writes.
-
-        The default is 1. Set it to 0 to write only when evolution finishes.
-        A final checkpoint is always written, including on early termination.
-        """
-
-        return self._checkpoint_interval
-
-    @checkpoint_interval.setter
-    def checkpoint_interval(self, val: int) -> None:
-        if isinstance(val, int) and val >= 0:
-            self._checkpoint_interval = val
-        else:
-            raise MOSAError("Checkpoint interval must be a non-negative integer!")
-
-    @property
     def archive_save_interval(self) -> int:
         """
         Number of completed temperatures between automatic archive writes.
 
-        The default is 1. Set it to 0 to write only when evolution finishes.
+        The default is 10. Set it to 0 to write only when evolution finishes.
+        Positive intervals also persist after the first completed temperature.
         The archive is written only when it has changed since the previous save.
         """
 
