@@ -322,8 +322,8 @@ def test_restart_loads_the_last_solution_from_a_persisted_archive() -> None:
     assert restored._group_states["X"].decode_solution() == pytest.approx(0.25)
 
 
-def test_legacy_checkpoint_is_read_but_never_rewritten() -> None:
-    """Existing checkpoints support migration without creating new generations."""
+def test_legacy_checkpoint_is_ignored() -> None:
+    """Legacy checkpoints are not used as an implicit population source."""
 
     checkpoint = Path("checkpoint.json")
     legacy = {
@@ -335,11 +335,7 @@ def test_legacy_checkpoint_is_read_but_never_rewritten() -> None:
     original = json.dumps(legacy)
     checkpoint.write_text(original, encoding="utf-8")
     optimizer = mosa.Anneal()
-    optimizer.number_of_temperatures = 1
-    optimizer.number_of_iterations = 1
-    optimizer.archive_save_interval = 0
-    random.seed(2)
-
-    optimizer.evolve(lambda X: (X * X,))
+    with pytest.raises(MOSAError, match="A population must be provided"):
+        optimizer.evolve(lambda X: (X * X,))
 
     assert checkpoint.read_text(encoding="utf-8") == original
