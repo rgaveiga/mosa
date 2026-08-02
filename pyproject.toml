@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mosa"
-version = "0.9.0"
+version = "0.9.1"
 description = "Multi-Objective Simulated Annealing (MOSA)"
 authors = ["Roberto Gomes, PhD <roberto.veiga@ufabc.edu.br>"]
 license = "GPL 3.0"
@@ -10,6 +10,7 @@ readme = "README.md"
 python = "^3.10"
 jupyter = "^1.0.0"
 numpy = ">=1.25,<3.0"
+numba = "^0.66.0"
 matplotlib = "^3.8"
 scipy = "^1.12"
 black = {extras = ["jupyter"], version = "^24.10.0"}

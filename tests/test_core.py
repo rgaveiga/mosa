@@ -1,25 +1,18 @@
 """Regression tests that reproduce the example notebook optimizations."""
 
-import io
 from math import cos, pi, sqrt
 
 import pytest
 from numpy import arange, asarray, random
 
 import mosa
-import mosa.mosa as mosa_module
 
 
 @pytest.fixture(autouse=True)
-def prevent_optimizer_files(monkeypatch):
-    """Keep checkpoints and archives in memory during the tests."""
+def isolate_optimizer_files(tmp_path, monkeypatch):
+    """Keep optimizer persistence isolated from the working tree."""
 
-    monkeypatch.setattr(
-        mosa_module,
-        "open",
-        lambda *args, **kwargs: io.StringIO(),
-        raising=False,
-    )
+    monkeypatch.chdir(tmp_path)
 
 
 def test_alloy_optimization_topsis_result() -> None:
