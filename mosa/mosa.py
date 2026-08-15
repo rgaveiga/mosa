@@ -22,6 +22,7 @@ from .__support import (
     Solution,
     _GroupState,
     _categorical_equivalence,  # noqa: F401 - re-exported for compatibility
+    corana_step_length,
     _is_numeric_population,  # noqa: F401 - re-exported for compatibility
     _non_dominated_mask_kernel,
     _semantic_key,  # noqa: F401 - re-exported for compatibility
@@ -53,6 +54,7 @@ class Anneal:
         self._maxnel: dict[str, int] = {}
         self._xdistinct: dict[str, bool] = {}
         self._xstep: dict[str, Number] = {}
+        self._use_corana: bool = False
         self._xsort: dict[str, bool] = {}
         self._xselweight: dict[str, Number] = {}
         self._archive_x: list[Solution] = []
@@ -225,6 +227,8 @@ class Anneal:
         xcurr: Solution = {}
         xtmp: Solution = {}
         xstep: dict[str, Number] = {}
+        corana_attempts: dict[str, int] = {}
+        corana_accepts: dict[str, int] = {}
         xsampling: dict[str, int] = {}
         xbounds: dict[str, list[Number]] = {}
         changemove: dict[str, float] = {}
@@ -561,6 +565,8 @@ class Anneal:
 
             nupdated = 0
             naccept = 0
+            corana_attempts = {group: 0 for group in groups if xsampling[group] == 1}
+            corana_accepts = corana_attempts.copy()
 
             for j in range(self._niter):
                 selstep = chosen = old = new = None
@@ -657,18 +663,16 @@ class Anneal:
                     else:
                         if xnel[group] == 1:
                             candidate += uniform(-xstep[group], xstep[group])
-
-                            if candidate > xbounds[group][1]:
-                                candidate -= xbounds[group][1] - xbounds[group][0]
-                            elif candidate < xbounds[group][0]:
-                                candidate += xbounds[group][1] - xbounds[group][0]
+                            candidate = xbounds[group][0] + (
+                                (candidate - xbounds[group][0])
+                                % (xbounds[group][1] - xbounds[group][0])
+                            )
                         else:
                             candidate[old] += uniform(-xstep[group], xstep[group])
-
-                            if candidate[old] > xbounds[group][1]:
-                                candidate[old] -= xbounds[group][1] - xbounds[group][0]
-                            elif candidate[old] < xbounds[group][0]:
-                                candidate[old] += xbounds[group][1] - xbounds[group][0]
+                            candidate[old] = xbounds[group][0] + (
+                                (candidate[old] - xbounds[group][0])
+                                % (xbounds[group][1] - xbounds[group][0])
+                            )
 
                     if xsort[group] and xnel[group] > 1:
                         candidate.sort()
@@ -727,6 +731,10 @@ class Anneal:
                     if state.scalar_output
                     else state.decode(candidate)
                 )
+                continuous_change = xsampling[group] == 1 and r < changemove[group]
+                if continuous_change:
+                    corana_attempts[group] += 1
+
                 ftmp = list(func(**xtmp))
 
                 for k in range(len(ftmp)):
@@ -766,6 +774,8 @@ class Anneal:
                             state.population = np.append(state.population, value)
 
                     naccept += 1
+                    if continuous_change:
+                        corana_accepts[group] += 1
                     updated = self.__updatearchive(xcurr, fcurr)
                     nupdated += updated
                     archive_dirty = archive_dirty or updated == 1
@@ -802,6 +812,14 @@ class Anneal:
                         self.savex()
 
                     return
+
+            if self._use_corana:
+                for continuous_group, attempted_moves in corana_attempts.items():
+                    xstep[continuous_group] = corana_step_length(
+                        float(xstep[continuous_group]),
+                        corana_accepts[continuous_group],
+                        attempted_moves,
+                    )
 
             final_temperature = temperature_index == len(self._temp)
             archive_save_due = final_temperature or (
@@ -1863,6 +1881,22 @@ class Anneal:
             raise MOSAError(
                 "Whether or not to repeat elements in the group in the solution must be provided as a dictionary!"
             )
+
+    @property
+    def use_corana(self) -> bool:
+        """Whether Corana's adaptive step-length algorithm is enabled.
+
+        The default is `False`. Only continuous groups are affected.
+        """
+
+        return self._use_corana
+
+    @use_corana.setter
+    def use_corana(self, val: bool) -> None:
+        if isinstance(val, bool):
+            self._use_corana = val
+        else:
+            raise MOSAError("Corana usage must be a boolean!")
 
     @property
     def mc_step_size(self) -> dict[str, Number]:
