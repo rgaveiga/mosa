@@ -113,7 +113,7 @@ class Anneal:
 
         - `mc_step_size`
 
-        - `solution_increment`
+        - `mc_step_increment`
 
         - `change_value_move`
 
@@ -134,7 +134,7 @@ class Anneal:
                 "maximum_number_of_elements": "self._maxnel",
                 "distinct_elements": "self._xdistinct",
                 "mc_step_size": "self._xstep",
-                "solution_increment": "self._xincrement",
+                "mc_step_increment": "self._xincrement",
                 "change_value_move": "self._changemove",
                 "insert_or_delete_move": "self._insordelmove",
                 "swap_move": "self._swapmove",
@@ -167,7 +167,7 @@ class Anneal:
 
         - `mc_step_size`
 
-        - `solution_increment`
+        - `mc_step_increment`
 
         - `change_value_move`
 
@@ -192,7 +192,7 @@ class Anneal:
                 "maximum_number_of_elements": "self._maxnel",
                 "distinct_elements": "self._xdistinct",
                 "mc_step_size": "self._xstep",
-                "solution_increment": "self._xincrement",
+                "mc_step_increment": "self._xincrement",
                 "change_value_move": "self._changemove",
                 "insert_or_delete_move": "self._insordelmove",
                 "swap_move": "self._swapmove",
@@ -269,7 +269,7 @@ class Anneal:
                 if group not in xincrement_warned:
                     warnings.warn(
                         f"The interval from -{xstep[group]} to {xstep[group]} is not "
-                        f"divisible by solution increment {xincrement[group]} for group "
+                        f"divisible by step increment {xincrement[group]} for group "
                         f"'{group}'; the upper limit {xstep[group]} will not be included.",
                         UserWarning,
                         stacklevel=2,
@@ -464,7 +464,7 @@ class Anneal:
                         configured_increment = float(self._xincrement[group])
                     except (TypeError, ValueError, OverflowError) as error:
                         raise MOSAError(
-                            f"Solution increment for group '{group}' must be a positive number!"
+                            f"Step increment for group '{group}' must be a positive number!"
                         ) from error
 
                     if (
@@ -472,12 +472,12 @@ class Anneal:
                         or configured_increment <= 0.0
                     ):
                         raise MOSAError(
-                            f"Solution increment for group '{group}' must be a positive number!"
+                            f"Step increment for group '{group}' must be a positive number!"
                         )
 
                     xincrement[group] = configured_increment
                     update_increment_count(group)
-                    print(f"        Solution increment: {xincrement[group]}")
+                    print(f"        Step increment: {xincrement[group]}")
             elif (
                 xsampling[group] == 0
                 and (changemove[group] + insordelmove[group]) > 0.0
@@ -721,14 +721,14 @@ class Anneal:
                                 candidate[old] = encoded_population[new]
                     else:
                         if group in xincrement_count:
-                            solution_increment = -float(xstep[group]) + (
+                            mc_step_increment = -float(xstep[group]) + (
                                 choice(xincrement_count[group]) * xincrement[group]
                             )
                         else:
-                            solution_increment = uniform(-xstep[group], xstep[group])
+                            mc_step_increment = uniform(-xstep[group], xstep[group])
 
                         if xnel[group] == 1:
-                            candidate += solution_increment
+                            candidate += mc_step_increment
                             if (
                                 candidate > xbounds[group][1]
                                 or candidate < xbounds[group][0]
@@ -738,7 +738,7 @@ class Anneal:
                                     % (xbounds[group][1] - xbounds[group][0])
                                 )
                         else:
-                            candidate[old] += solution_increment
+                            candidate[old] += mc_step_increment
                             if (
                                 candidate[old] > xbounds[group][1]
                                 or candidate[old] < xbounds[group][0]
@@ -890,6 +890,7 @@ class Anneal:
                     if archive_dirty:
                         self.savex()
 
+                    self.__remove_json_backup(self._archive_file)
                     return
 
             if self._adapt_xstep:
@@ -936,6 +937,7 @@ class Anneal:
             print("------")
 
         print("\n--- THE END ---")
+        self.__remove_json_backup(self._archive_file)
 
     def prune_dominated(self, xset: Archive | None = None) -> Archive:
         """
@@ -1497,6 +1499,17 @@ class Anneal:
 
             raise
 
+    @staticmethod
+    def __remove_json_backup(destination: str) -> None:
+        """Remove the recoverable generation after successful optimization."""
+
+        backup = f"{os.path.abspath(destination)}.bak"
+
+        try:
+            os.remove(backup)
+        except FileNotFoundError:
+            pass
+
     def __load_archive_file(self, archive_file: str) -> bool:
         """Load the primary archive or its last complete backup."""
 
@@ -1966,7 +1979,7 @@ class Anneal:
         """
         Whether Corana's adaptive step-length algorithm is enabled.
 
-        The default is `False`. Only continuous groups without a configured solution increment are affected.
+        The default is `False`. Only continuous groups without a configured step increment are affected.
         """
 
         return self._adapt_xstep
@@ -2001,7 +2014,7 @@ class Anneal:
             raise MOSAError("Monte Carlo step sizes must be provided as a dictionary!")
 
     @property
-    def solution_increment(self) -> dict[str, Number]:
+    def mc_step_increment(self) -> dict[str, Number]:
         """Increment used to discretize continuous solution changes.
 
         The default is {}, which samples each continuous change uniformly between
@@ -2010,8 +2023,8 @@ class Anneal:
 
         return self._xincrement
 
-    @solution_increment.setter
-    def solution_increment(self, val: dict[str, Number]) -> None:
+    @mc_step_increment.setter
+    def mc_step_increment(self, val: dict[str, Number]) -> None:
         if isinstance(val, dict):
             for key, value in val.items():
                 if (
@@ -2023,10 +2036,10 @@ class Anneal:
                     self._xincrement[key] = value
                 else:
                     raise MOSAError(
-                        f"Solution increment for group '{key}' must be a positive number!"
+                        f"Step increment for group '{key}' must be a positive number!"
                     )
         else:
-            raise MOSAError("Solution increments must be provided as a dictionary!")
+            raise MOSAError("Step increments must be provided as a dictionary!")
 
     @property
     def change_value_move(self) -> dict[str, Number]:

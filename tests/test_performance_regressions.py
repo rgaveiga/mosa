@@ -339,3 +339,42 @@ def test_legacy_checkpoint_is_ignored() -> None:
         optimizer.evolve(lambda X: (X * X,))
 
     assert checkpoint.read_text(encoding="utf-8") == original
+
+
+def test_successful_evolution_removes_archive_backup() -> None:
+    """A completed optimization no longer needs its recoverable generation."""
+
+    archive_file = Path("archive.json")
+    archive_file.write_text('{"x":[],"f":[]}', encoding="utf-8")
+    optimizer = mosa.Anneal()
+    optimizer.set_population(X=(-1.0, 1.0))
+    optimizer.archive_file = str(archive_file)
+    optimizer.number_of_temperatures = 1
+    optimizer.number_of_iterations = 1
+    optimizer.maximum_archive_rejections = 100
+    optimizer.restart = False
+    random.seed(1)
+
+    optimizer.evolve(lambda X: (X * X,))
+
+    assert archive_file.exists()
+    assert not Path(f"{archive_file}.bak").exists()
+
+
+def test_failed_evolution_preserves_archive_backup() -> None:
+    """An interrupted optimization keeps the generation needed for recovery."""
+
+    archive_file = Path("archive.json")
+    optimizer = mosa.Anneal()
+    optimizer.archive_file = str(archive_file)
+    optimizer.archive = {"x": [{"X": 1.0}], "f": [[1.0]]}
+    optimizer.savex()
+    optimizer.archive = {"x": [{"X": 0.5}], "f": [[0.25]]}
+    optimizer.savex()
+    optimizer.set_population(X=(-1.0, 1.0))
+    optimizer.restart = False
+
+    with pytest.raises(RuntimeError, match="interrupted"):
+        optimizer.evolve(lambda X: (_ for _ in ()).throw(RuntimeError("interrupted")))
+
+    assert Path(f"{archive_file}.bak").exists()

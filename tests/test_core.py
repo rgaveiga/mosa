@@ -91,17 +91,17 @@ def test_rastrigin_last_solution() -> None:
     optimizer.number_of_iterations = 100
     optimizer.number_of_temperatures = 100
     optimizer.temperature_decrease_factor = 0.9
-    optimizer.set_group_params("X", number_of_elements=2, mc_step_size=1.0)
-    optimizer.restart = False
-    optimizer.adaptative_mc_step = False
+    optimizer.set_group_params(
+        "X", number_of_elements=2, mc_step_size=1.0, mc_step_increment=0.0001
+    )
     optimizer.evolve(fobj)
 
     result = optimizer.prune_dominated()
 
     assert result["x"][0]["X"] == pytest.approx(
-        [0.0013720747713694692, -0.0002757008832727781]
+        [-0.0009497197841741301, 0.0006391116535993113]
     )
-    assert result["f"][0] == pytest.approx([0.00038856846911095033])
+    assert result["f"][0] == pytest.approx([0.0002599785798818033])
 
 
 def test_rosenbrock_last_solution() -> None:
