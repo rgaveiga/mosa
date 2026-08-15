@@ -116,7 +116,7 @@ def test_solution_increment_disables_corana_for_its_group(monkeypatch) -> None:
 
     monkeypatch.setattr(mosa_module, "corana_step_length", record_adjustment)
     optimizer = mosa.Anneal()
-    optimizer.use_corana = True
+    optimizer.adaptative_mc_step = True
     optimizer.set_population(Incremented=(-10.0, 10.0), Adaptive=(-10.0, 10.0))
     optimizer.set_opt_param("mc_step_size", Incremented=0.5, Adaptive=1.0)
     optimizer.set_opt_param("solution_increment", Incremented=0.1)

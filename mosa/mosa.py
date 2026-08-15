@@ -57,7 +57,7 @@ class Anneal:
         self._xdistinct: dict[str, bool] = {}
         self._xincrement: dict[str, Number] = {}
         self._xstep: dict[str, Number] = {}
-        self._use_corana: bool = False
+        self._adapt_xstep: bool = False
         self._xsort: dict[str, bool] = {}
         self._xselweight: dict[str, Number] = {}
         self._archive_x: list[Solution] = []
@@ -619,7 +619,7 @@ class Anneal:
 
             nupdated = 0
             naccept = 0
-            if self._use_corana:
+            if self._adapt_xstep:
                 corana_attempts = {
                     group: 0
                     for group in groups
@@ -806,7 +806,7 @@ class Anneal:
                     else state.decode(candidate)
                 )
                 continuous_change = (
-                    self._use_corana
+                    self._adapt_xstep
                     and xsampling[group] == 1
                     and group not in xincrement
                     and r < changemove[group]
@@ -892,7 +892,7 @@ class Anneal:
 
                     return
 
-            if self._use_corana:
+            if self._adapt_xstep:
                 for continuous_group, attempted_moves in corana_attempts.items():
                     xstep[continuous_group] = corana_step_length(
                         float(xstep[continuous_group]),
@@ -1962,19 +1962,19 @@ class Anneal:
             )
 
     @property
-    def use_corana(self) -> bool:
+    def adaptative_mc_step(self) -> bool:
         """
         Whether Corana's adaptive step-length algorithm is enabled.
 
         The default is `False`. Only continuous groups without a configured solution increment are affected.
         """
 
-        return self._use_corana
+        return self._adapt_xstep
 
-    @use_corana.setter
-    def use_corana(self, val: bool) -> None:
+    @adaptative_mc_step.setter
+    def adaptative_mc_step(self, val: bool) -> None:
         if isinstance(val, bool):
-            self._use_corana = val
+            self._adapt_xstep = val
         else:
             raise MOSAError("Corana usage must be a boolean!")
 

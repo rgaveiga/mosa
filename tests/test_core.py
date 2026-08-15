@@ -54,7 +54,7 @@ def test_alloy_optimization_topsis_result() -> None:
     optimizer.set_opt_param("swap_move", Component=1.0)
     optimizer.set_opt_param("mc_step_size", Concentration=0.05)
     optimizer.restart = False
-    optimizer.use_corana = False
+    optimizer.adaptative_mc_step = False
 
     archives = []
     for seed in (1, 2, 3):
@@ -93,7 +93,7 @@ def test_rastrigin_last_solution() -> None:
     optimizer.temperature_decrease_factor = 0.9
     optimizer.set_group_params("X", number_of_elements=2, mc_step_size=1.0)
     optimizer.restart = False
-    optimizer.use_corana = False
+    optimizer.adaptative_mc_step = False
     optimizer.evolve(fobj)
 
     result = optimizer.prune_dominated()
@@ -125,7 +125,7 @@ def test_rosenbrock_last_solution() -> None:
     optimizer.temperature_decrease_factor = 0.9
     optimizer.set_group_params("X", number_of_elements=3, mc_step_size=1.0)
     optimizer.restart = False
-    optimizer.use_corana = False
+    optimizer.adaptative_mc_step = False
     optimizer.evolve(fobj)
 
     result = optimizer.prune_dominated()

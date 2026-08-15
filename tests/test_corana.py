@@ -38,13 +38,13 @@ def test_corana_step_length_rule(
 def test_corana_flag_defaults_to_false_and_validates_values() -> None:
     optimizer = mosa.Anneal()
 
-    assert optimizer.use_corana is False
+    assert optimizer.adaptative_mc_step is False
 
-    optimizer.use_corana = True
-    assert optimizer.use_corana is True
+    optimizer.adaptative_mc_step = True
+    assert optimizer.adaptative_mc_step is True
 
     with pytest.raises(MOSAError):
-        optimizer.use_corana = 1
+        optimizer.adaptative_mc_step = 1
 
 
 def test_corana_adapts_only_continuous_groups(monkeypatch) -> None:
@@ -58,7 +58,7 @@ def test_corana_adapts_only_continuous_groups(monkeypatch) -> None:
 
     monkeypatch.setattr(mosa_module, "corana_step_length", record_adjustment)
     optimizer = mosa.Anneal()
-    optimizer.use_corana = True
+    optimizer.adaptative_mc_step = True
     optimizer.set_population(Continuous=(-10.0, 10.0), Discrete=list(range(20)))
     optimizer.set_opt_param("mc_step_size", Continuous=1.0, Discrete=5)
     optimizer.set_opt_param("group_selection_weights", Continuous=1.0, Discrete=0.0)
@@ -83,7 +83,7 @@ def test_disabling_corana_preserves_continuous_step_length(monkeypatch) -> None:
     optimizer = mosa.Anneal()
     optimizer.set_population(X=(-10.0, 10.0))
     optimizer.mc_step_size = {"X": 1.0}
-    optimizer.use_corana = False
+    optimizer.adaptative_mc_step = False
     optimizer.number_of_temperatures = 2
     optimizer.number_of_iterations = 5
     optimizer.maximum_archive_rejections = 100
