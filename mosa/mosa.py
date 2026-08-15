@@ -565,8 +565,11 @@ class Anneal:
 
             nupdated = 0
             naccept = 0
-            corana_attempts = {group: 0 for group in groups if xsampling[group] == 1}
-            corana_accepts = corana_attempts.copy()
+            if self._use_corana:
+                corana_attempts = {
+                    group: 0 for group in groups if xsampling[group] == 1
+                }
+                corana_accepts = corana_attempts.copy()
 
             for j in range(self._niter):
                 selstep = chosen = old = new = None
@@ -663,16 +666,24 @@ class Anneal:
                     else:
                         if xnel[group] == 1:
                             candidate += uniform(-xstep[group], xstep[group])
-                            candidate = xbounds[group][0] + (
-                                (candidate - xbounds[group][0])
-                                % (xbounds[group][1] - xbounds[group][0])
-                            )
+                            if (
+                                candidate > xbounds[group][1]
+                                or candidate < xbounds[group][0]
+                            ):
+                                candidate = xbounds[group][0] + (
+                                    (candidate - xbounds[group][0])
+                                    % (xbounds[group][1] - xbounds[group][0])
+                                )
                         else:
                             candidate[old] += uniform(-xstep[group], xstep[group])
-                            candidate[old] = xbounds[group][0] + (
-                                (candidate[old] - xbounds[group][0])
-                                % (xbounds[group][1] - xbounds[group][0])
-                            )
+                            if (
+                                candidate[old] > xbounds[group][1]
+                                or candidate[old] < xbounds[group][0]
+                            ):
+                                candidate[old] = xbounds[group][0] + (
+                                    (candidate[old] - xbounds[group][0])
+                                    % (xbounds[group][1] - xbounds[group][0])
+                                )
 
                     if xsort[group] and xnel[group] > 1:
                         candidate.sort()
@@ -731,7 +742,9 @@ class Anneal:
                     if state.scalar_output
                     else state.decode(candidate)
                 )
-                continuous_change = xsampling[group] == 1 and r < changemove[group]
+                continuous_change = (
+                    self._use_corana and xsampling[group] == 1 and r < changemove[group]
+                )
                 if continuous_change:
                     corana_attempts[group] += 1
 
