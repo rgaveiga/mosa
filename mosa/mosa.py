@@ -4,11 +4,13 @@ from __future__ import print_function
 from __future__ import division
 import json
 import os
+import warnings
 from copy import deepcopy
+from math import exp, floor, inf, isclose, isfinite
 from typing import Any, Sequence
+
 import numpy as np
 from numpy.random import choice, triangular, uniform
-from math import exp, inf
 from . import __version__
 from .__error import MOSAError
 from .__support import (
@@ -22,6 +24,7 @@ from .__support import (
     Solution,
     _GroupState,
     _categorical_equivalence,  # noqa: F401 - re-exported for compatibility
+    corana_step_length,
     _is_numeric_population,  # noqa: F401 - re-exported for compatibility
     _non_dominated_mask_kernel,
     _semantic_key,  # noqa: F401 - re-exported for compatibility
@@ -52,7 +55,9 @@ class Anneal:
         self._xnel: dict[str, int] = {}
         self._maxnel: dict[str, int] = {}
         self._xdistinct: dict[str, bool] = {}
+        self._xincrement: dict[str, Number] = {}
         self._xstep: dict[str, Number] = {}
+        self._adapt_xstep: bool = False
         self._xsort: dict[str, bool] = {}
         self._xselweight: dict[str, Number] = {}
         self._archive_x: list[Solution] = []
@@ -108,6 +113,8 @@ class Anneal:
 
         - `mc_step_size`
 
+        - `mc_step_increment`
+
         - `change_value_move`
 
         - `insert_or_delete_move`
@@ -127,6 +134,7 @@ class Anneal:
                 "maximum_number_of_elements": "self._maxnel",
                 "distinct_elements": "self._xdistinct",
                 "mc_step_size": "self._xstep",
+                "mc_step_increment": "self._xincrement",
                 "change_value_move": "self._changemove",
                 "insert_or_delete_move": "self._insordelmove",
                 "swap_move": "self._swapmove",
@@ -159,6 +167,8 @@ class Anneal:
 
         - `mc_step_size`
 
+        - `mc_step_increment`
+
         - `change_value_move`
 
         - `insert_or_delete_move`
@@ -182,6 +192,7 @@ class Anneal:
                 "maximum_number_of_elements": "self._maxnel",
                 "distinct_elements": "self._xdistinct",
                 "mc_step_size": "self._xstep",
+                "mc_step_increment": "self._xincrement",
                 "change_value_move": "self._changemove",
                 "insert_or_delete_move": "self._insordelmove",
                 "swap_move": "self._swapmove",
@@ -225,6 +236,11 @@ class Anneal:
         xcurr: Solution = {}
         xtmp: Solution = {}
         xstep: dict[str, Number] = {}
+        xincrement: dict[str, float] = {}
+        xincrement_count: dict[str, int] = {}
+        xincrement_warned: set[str] = set()
+        corana_attempts: dict[str, int] = {}
+        corana_accepts: dict[str, int] = {}
         xsampling: dict[str, int] = {}
         xbounds: dict[str, list[Number]] = {}
         changemove: dict[str, float] = {}
@@ -239,6 +255,28 @@ class Anneal:
         groups: list[str] = []
         MAX_FAILED: int = 10
         MIN_STEP_LENGTH: int = 10
+
+        def update_increment_count(group: str) -> None:
+            interval_count = 2.0 * float(xstep[group]) / xincrement[group]
+            rounded_count = round(interval_count)
+            includes_upper = isclose(
+                interval_count, rounded_count, rel_tol=1e-12, abs_tol=1e-12
+            )
+            if includes_upper:
+                interval_count = rounded_count
+            else:
+                interval_count = floor(interval_count)
+                if group not in xincrement_warned:
+                    warnings.warn(
+                        f"The interval from -{xstep[group]} to {xstep[group]} is not "
+                        f"divisible by step increment {xincrement[group]} for group "
+                        f"'{group}'; the upper limit {xstep[group]} will not be included.",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+                    xincrement_warned.add(group)
+
+            xincrement_count[group] = int(interval_count) + 1
 
         self._temp = [self._initemp * self._decrease**i for i in range(self._ntemp)]
 
@@ -420,6 +458,26 @@ class Anneal:
 
             if xsampling[group] == 1:
                 print(f"        Maximum step size: {xstep[group]}")
+
+                if group in self._xincrement:
+                    try:
+                        configured_increment = float(self._xincrement[group])
+                    except (TypeError, ValueError, OverflowError) as error:
+                        raise MOSAError(
+                            f"Step increment for group '{group}' must be a positive number!"
+                        ) from error
+
+                    if (
+                        not isfinite(configured_increment)
+                        or configured_increment <= 0.0
+                    ):
+                        raise MOSAError(
+                            f"Step increment for group '{group}' must be a positive number!"
+                        )
+
+                    xincrement[group] = configured_increment
+                    update_increment_count(group)
+                    print(f"        Step increment: {xincrement[group]}")
             elif (
                 xsampling[group] == 0
                 and (changemove[group] + insordelmove[group]) > 0.0
@@ -561,6 +619,13 @@ class Anneal:
 
             nupdated = 0
             naccept = 0
+            if self._adapt_xstep:
+                corana_attempts = {
+                    group: 0
+                    for group in groups
+                    if xsampling[group] == 1 and group not in xincrement
+                }
+                corana_accepts = corana_attempts.copy()
 
             for j in range(self._niter):
                 selstep = chosen = old = new = None
@@ -655,20 +720,33 @@ class Anneal:
                             else:
                                 candidate[old] = encoded_population[new]
                     else:
-                        if xnel[group] == 1:
-                            candidate += uniform(-xstep[group], xstep[group])
-
-                            if candidate > xbounds[group][1]:
-                                candidate -= xbounds[group][1] - xbounds[group][0]
-                            elif candidate < xbounds[group][0]:
-                                candidate += xbounds[group][1] - xbounds[group][0]
+                        if group in xincrement_count:
+                            mc_step_increment = -float(xstep[group]) + (
+                                choice(xincrement_count[group]) * xincrement[group]
+                            )
                         else:
-                            candidate[old] += uniform(-xstep[group], xstep[group])
+                            mc_step_increment = uniform(-xstep[group], xstep[group])
 
-                            if candidate[old] > xbounds[group][1]:
-                                candidate[old] -= xbounds[group][1] - xbounds[group][0]
-                            elif candidate[old] < xbounds[group][0]:
-                                candidate[old] += xbounds[group][1] - xbounds[group][0]
+                        if xnel[group] == 1:
+                            candidate += mc_step_increment
+                            if (
+                                candidate > xbounds[group][1]
+                                or candidate < xbounds[group][0]
+                            ):
+                                candidate = xbounds[group][0] + (
+                                    (candidate - xbounds[group][0])
+                                    % (xbounds[group][1] - xbounds[group][0])
+                                )
+                        else:
+                            candidate[old] += mc_step_increment
+                            if (
+                                candidate[old] > xbounds[group][1]
+                                or candidate[old] < xbounds[group][0]
+                            ):
+                                candidate[old] = xbounds[group][0] + (
+                                    (candidate[old] - xbounds[group][0])
+                                    % (xbounds[group][1] - xbounds[group][0])
+                                )
 
                     if xsort[group] and xnel[group] > 1:
                         candidate.sort()
@@ -727,6 +805,15 @@ class Anneal:
                     if state.scalar_output
                     else state.decode(candidate)
                 )
+                continuous_change = (
+                    self._adapt_xstep
+                    and xsampling[group] == 1
+                    and group not in xincrement
+                    and r < changemove[group]
+                )
+                if continuous_change:
+                    corana_attempts[group] += 1
+
                 ftmp = list(func(**xtmp))
 
                 for k in range(len(ftmp)):
@@ -766,6 +853,8 @@ class Anneal:
                             state.population = np.append(state.population, value)
 
                     naccept += 1
+                    if continuous_change:
+                        corana_accepts[group] += 1
                     updated = self.__updatearchive(xcurr, fcurr)
                     nupdated += updated
                     archive_dirty = archive_dirty or updated == 1
@@ -801,7 +890,16 @@ class Anneal:
                     if archive_dirty:
                         self.savex()
 
+                    self.__remove_json_backup(self._archive_file)
                     return
+
+            if self._adapt_xstep:
+                for continuous_group, attempted_moves in corana_attempts.items():
+                    xstep[continuous_group] = corana_step_length(
+                        float(xstep[continuous_group]),
+                        corana_accepts[continuous_group],
+                        attempted_moves,
+                    )
 
             final_temperature = temperature_index == len(self._temp)
             archive_save_due = final_temperature or (
@@ -839,6 +937,7 @@ class Anneal:
             print("------")
 
         print("\n--- THE END ---")
+        self.__remove_json_backup(self._archive_file)
 
     def prune_dominated(self, xset: Archive | None = None) -> Archive:
         """
@@ -1400,6 +1499,17 @@ class Anneal:
 
             raise
 
+    @staticmethod
+    def __remove_json_backup(destination: str) -> None:
+        """Remove the recoverable generation after successful optimization."""
+
+        backup = f"{os.path.abspath(destination)}.bak"
+
+        try:
+            os.remove(backup)
+        except FileNotFoundError:
+            pass
+
     def __load_archive_file(self, archive_file: str) -> bool:
         """Load the primary archive or its last complete backup."""
 
@@ -1865,6 +1975,23 @@ class Anneal:
             )
 
     @property
+    def adaptative_mc_step(self) -> bool:
+        """
+        Whether Corana's adaptive step-length algorithm is enabled.
+
+        The default is `False`. Only continuous groups without a configured step increment are affected.
+        """
+
+        return self._adapt_xstep
+
+    @adaptative_mc_step.setter
+    def adaptative_mc_step(self, val: bool) -> None:
+        if isinstance(val, bool):
+            self._adapt_xstep = val
+        else:
+            raise MOSAError("Corana usage must be a boolean!")
+
+    @property
     def mc_step_size(self) -> dict[str, Number]:
         """
         Monte Carlo step size for each group in the solution.
@@ -1885,6 +2012,34 @@ class Anneal:
                     raise MOSAError(f"Group '{key}' must be a number!")
         else:
             raise MOSAError("Monte Carlo step sizes must be provided as a dictionary!")
+
+    @property
+    def mc_step_increment(self) -> dict[str, Number]:
+        """Increment used to discretize continuous solution changes.
+
+        The default is {}, which samples each continuous change uniformly between
+        the negative and positive Monte Carlo step sizes.
+        """
+
+        return self._xincrement
+
+    @mc_step_increment.setter
+    def mc_step_increment(self, val: dict[str, Number]) -> None:
+        if isinstance(val, dict):
+            for key, value in val.items():
+                if (
+                    isinstance(value, (int, float))
+                    and not isinstance(value, bool)
+                    and isfinite(value)
+                    and value > 0.0
+                ):
+                    self._xincrement[key] = value
+                else:
+                    raise MOSAError(
+                        f"Step increment for group '{key}' must be a positive number!"
+                    )
+        else:
+            raise MOSAError("Step increments must be provided as a dictionary!")
 
     @property
     def change_value_move(self) -> dict[str, Number]:

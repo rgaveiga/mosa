@@ -28,6 +28,26 @@ ObjectiveFunction: TypeAlias = Callable[..., Sequence[Number]]
 """@private"""
 
 
+def corana_step_length(
+    step_length: float, accepted_moves: int, attempted_moves: int
+) -> float:
+    """Adjust a continuous step length using Corana's acceptance rule.
+
+    A coordinate that was not attempted keeps its current step length.
+    """
+
+    if attempted_moves == 0:
+        return step_length
+
+    acceptance_rate = accepted_moves / attempted_moves
+
+    if acceptance_rate > 0.6:
+        return step_length * (1.0 + 2.0 * (acceptance_rate - 0.6) / 0.4)
+    if acceptance_rate < 0.4:
+        return step_length / (1.0 + 2.0 * (0.4 - acceptance_rate) / 0.4)
+    return step_length
+
+
 class Archive(TypedDict):
     """@private"""
 
