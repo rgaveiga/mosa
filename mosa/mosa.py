@@ -1,7 +1,5 @@
 """This module defines the `Anneal` class, which implements the MOSA algorithm."""
 
-from __future__ import print_function
-from __future__ import division
 import json
 import os
 import warnings
@@ -1593,7 +1591,7 @@ class Anneal:
         return archive_dominates, candidate_dominates
 
     @staticmethod
-    def __non_dominated_mask(f_arr: np.ndarray, block_size: int = 256) -> np.ndarray:
+    def __non_dominated_mask(f_arr: np.ndarray) -> np.ndarray:
         """Return a mask for Pareto-optimal rows in the compiled kernel."""
 
         return _non_dominated_mask_kernel(f_arr)
