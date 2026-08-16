@@ -18,7 +18,7 @@ def isolate_optimizer_files(tmp_path, monkeypatch) -> None:
 
 def configured_optimizer() -> mosa.Anneal:
     optimizer = mosa.Anneal()
-    optimizer.set_population(X=(-100.0, 100.0))
+    optimizer.set_population(X=(-25.0, 25.0))
     optimizer.mc_step_size = {"X": 0.5}
     optimizer.number_of_temperatures = 1
     optimizer.number_of_iterations = 3

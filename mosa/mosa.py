@@ -63,6 +63,9 @@ class Anneal:
         self._archive_x: list[Solution] = []
         self._archive_f_arr: np.ndarray = np.empty((0, 0), dtype=float)
         self._archive_f_capacity: int = 0
+        self._xcache: bool = False
+        self._xcachesize: int = 10000
+        self._cache: Archive = {"x": [], "f": []}
         self._temp: list[float] = []
         self._weight: ObjectiveWeightValues = []
         self._niter: int = 1000
@@ -220,6 +223,9 @@ class Anneal:
 
         print("--- BEGIN: Evolving a solution ---\n")
 
+        if not callable(func):
+            raise MOSAError("A Python function must be provided!")
+
         from_archive: bool = False
         from_saved_state: bool = False
         pmax: float = 0.0
@@ -236,6 +242,7 @@ class Anneal:
         xcurr: Solution = {}
         xtmp: Solution = {}
         xstep: dict[str, Number] = {}
+        xstep_bounds: dict[str, tuple[float, float]] = {}
         xincrement: dict[str, float] = {}
         xincrement_count: dict[str, int] = {}
         xincrement_warned: set[str] = set()
@@ -439,22 +446,39 @@ class Anneal:
 
             print(f"        Sort values: {xsort[group]}")
 
-            if group in self._xstep.keys():
-                if xsampling[group] == 1:
+            if xsampling[group] == 1:
+                boundary_range = float(xbounds[group][1] - xbounds[group][0])
+                minimum_xstep = boundary_range / 100.0
+                maximum_xstep = boundary_range / 2.0
+                xstep_bounds[group] = (minimum_xstep, maximum_xstep)
+
+                if group in self._xstep:
                     xstep[group] = float(self._xstep[group])
 
-                    if xstep[group] <= 0.0:
-                        xstep[group] = 0.1
+                    if xstep[group] < minimum_xstep:
+                        print(
+                            f"WARNING: Monte Carlo step size for continuous group "
+                            f"'{group}' is below the minimum {minimum_xstep}. "
+                            f"Using {minimum_xstep}."
+                        )
+                        xstep[group] = minimum_xstep
+                    elif xstep[group] > maximum_xstep:
+                        print(
+                            f"WARNING: Monte Carlo step size for continuous group "
+                            f"'{group}' is above the maximum {maximum_xstep}. "
+                            f"Using {maximum_xstep}."
+                        )
+                        xstep[group] = maximum_xstep
                 else:
-                    xstep[group] = int(self._xstep[group])
+                    xstep[group] = boundary_range / 10.0
+
+                self._xstep[group] = xstep[group]
+            elif group in self._xstep:
+                xstep[group] = int(self._xstep[group])
+            elif changemove[group] > 0.0:
+                xstep[group] = int(len(population[group]) / 2)
             else:
-                if xsampling[group] == 1:
-                    xstep[group] = 0.1
-                else:
-                    if changemove[group] > 0.0:
-                        xstep[group] = int(len(population[group]) / 2)
-                    else:
-                        xstep[group] = 0
+                xstep[group] = 0
 
             if xsampling[group] == 1:
                 print(f"        Maximum step size: {xstep[group]}")
@@ -478,6 +502,13 @@ class Anneal:
                     xincrement[group] = configured_increment
                     update_increment_count(group)
                     print(f"        Step increment: {xincrement[group]}")
+
+                if self._xcache and group not in self._xincrement:
+                    print(
+                        "WARNING: The solution cache is enabled, but no Monte Carlo "
+                        f"step increment was set for continuous group '{group}'. "
+                        "This may prevent effective use of the cache."
+                    )
             elif (
                 xsampling[group] == 0
                 and (changemove[group] + insordelmove[group]) > 0.0
@@ -586,18 +617,15 @@ class Anneal:
 
                 xcurr[group] = state.decode_solution()
 
-            if callable(func):
-                fcurr = list(func(**xcurr))
+            fcurr = self.__evaluate_solution(func, xcurr)
 
-                updated = self.__updatearchive(xcurr, fcurr)
+            updated = self.__updatearchive(xcurr, fcurr)
 
-                if self._trackoptprogress:
-                    if len(fcurr) == 1:
-                        self._f.append(fcurr[0])
-                    else:
-                        self._f.append(fcurr)
-            else:
-                raise MOSAError("A Python function must be provided!")
+            if self._trackoptprogress:
+                if len(fcurr) == 1:
+                    self._f.append(fcurr[0])
+                else:
+                    self._f.append(fcurr)
 
         print("Done!")
         print("------")
@@ -814,7 +842,7 @@ class Anneal:
                 if continuous_change:
                     corana_attempts[group] += 1
 
-                ftmp = list(func(**xtmp))
+                ftmp = self.__evaluate_solution(func, xtmp)
 
                 for k in range(len(ftmp)):
                     if ftmp[k] < fcurr[k]:
@@ -895,10 +923,14 @@ class Anneal:
 
             if self._adapt_xstep:
                 for continuous_group, attempted_moves in corana_attempts.items():
-                    xstep[continuous_group] = corana_step_length(
+                    adjusted_xstep = corana_step_length(
                         float(xstep[continuous_group]),
                         corana_accepts[continuous_group],
                         attempted_moves,
+                    )
+                    minimum_xstep, maximum_xstep = xstep_bounds[continuous_group]
+                    xstep[continuous_group] = min(
+                        max(adjusted_xstep, minimum_xstep), maximum_xstep
                     )
 
             final_temperature = temperature_index == len(self._temp)
@@ -1433,6 +1465,14 @@ class Anneal:
                     updated = False
 
                 if updated and dominated_rows.size > 0:
+                    removed_solutions = [
+                        (
+                            self._archive_x[int(row)],
+                            archive_arr[int(row)].astype(float).tolist(),
+                        )
+                        for row in dominated_rows
+                    ]
+
                     keep_mask = np.ones(archive_len, dtype=bool)
                     keep_mask[dominated_rows] = False
                     self._archive_x = [
@@ -1445,12 +1485,97 @@ class Anneal:
 
                     archive_len = kept_count
 
+                    for removed_x, removed_f in removed_solutions:
+                        self.__cache_solution(removed_x, removed_f)
+
         if updated:
             self.__ensure_archive_capacity(archive_len + 1, len(f_arr))
             self._archive_x.append(x)
             self._archive_f_arr[archive_len] = f_arr
+            self.__remove_cached_solution(x)
 
         return int(updated)
+
+    def __evaluate_solution(
+        self, func: ObjectiveFunction, x: Solution
+    ) -> ObjectiveValues:
+        """Return previously computed objectives or evaluate and cache the solution."""
+
+        if self._xcache:
+            archive_index = self.__solution_index(self._archive_x, x)
+
+            if archive_index is not None:
+                return self._archive_f_arr[archive_index].astype(float).tolist()
+
+            cache_index = self.__solution_index(self._cache["x"], x)
+
+            if cache_index is not None:
+                return list(self._cache["f"][cache_index])
+
+        objective_values = list(func(**x))
+        self.__cache_solution(x, objective_values)
+        return objective_values
+
+    @staticmethod
+    def __solution_index(solutions: list[Solution], x: Solution) -> int | None:
+        """Find a semantically equal solution in a list."""
+
+        for index, solution in enumerate(solutions):
+            if Anneal.__solution_values_equal(solution, x):
+                return index
+
+        return None
+
+    @staticmethod
+    def __solution_values_equal(left: Any, right: Any) -> bool:
+        """Compare nested solution values, including unhashable NumPy categories."""
+
+        left_key = _semantic_key(left)
+        right_key = _semantic_key(right)
+
+        if left_key is not None and right_key is not None:
+            return left_key == right_key
+
+        if isinstance(left, dict) and isinstance(right, dict):
+            return left.keys() == right.keys() and all(
+                Anneal.__solution_values_equal(left[key], right[key]) for key in left
+            )
+
+        if isinstance(left, (list, tuple)) and isinstance(right, (list, tuple)):
+            return len(left) == len(right) and all(
+                Anneal.__solution_values_equal(left_item, right_item)
+                for left_item, right_item in zip(left, right)
+            )
+
+        return _values_equal(left, right)
+
+    def __cache_solution(self, x: Solution, f: ObjectiveValues) -> None:
+        """Store one unique non-archive solution, evicting the oldest if needed."""
+
+        if not self._xcache:
+            return
+
+        if self.__solution_index(self._archive_x, x) is not None:
+            return
+
+        if self.__solution_index(self._cache["x"], x) is not None:
+            return
+
+        if len(self._cache["x"]) >= self._xcachesize:
+            self._cache["x"].pop(0)
+            self._cache["f"].pop(0)
+
+        self._cache["x"].append(deepcopy(x))
+        self._cache["f"].append(list(f))
+
+    def __remove_cached_solution(self, x: Solution) -> None:
+        """Remove a solution from the cache after it enters the archive."""
+
+        cache_index = self.__solution_index(self._cache["x"], x)
+
+        if cache_index is not None:
+            self._cache["x"].pop(cache_index)
+            self._cache["f"].pop(cache_index)
 
     @staticmethod
     def __dominance_masks(
@@ -1642,6 +1767,9 @@ class Anneal:
             self._archive_f_arr = archive_f_arr.copy()
             self._archive_f_capacity = self._archive_f_arr.shape[0]
 
+        for solution in self._archive_x:
+            self.__remove_cached_solution(solution)
+
     def __ensure_archive_capacity(self, rows: int, nf: int) -> None:
         """@private"""
 
@@ -1830,6 +1958,46 @@ class Anneal:
             raise MOSAError("The archive size must be an integer greater than zero!")
 
     @property
+    def solution_cache(self) -> bool:
+        """Enable the solution cache.
+
+        The cache should ideally be enabled only for objective functions that are
+        very computationally expensive. The default is `False`.
+        """
+
+        return self._xcache
+
+    @solution_cache.setter
+    def solution_cache(self, val: bool) -> None:
+        if isinstance(val, bool):
+            self._xcache = val
+        else:
+            raise MOSAError("Solution cache must be a boolean!")
+
+    @property
+    def solution_cache_size(self) -> int:
+        """Maximum number of solutions in the solution cache.
+
+        The default is 10,000.
+        """
+
+        return self._xcachesize
+
+    @solution_cache_size.setter
+    def solution_cache_size(self, val: int) -> None:
+        if isinstance(val, int) and not isinstance(val, bool) and val > 0:
+            self._xcachesize = val
+            overflow = len(self._cache["x"]) - val
+
+            if overflow > 0:
+                del self._cache["x"][:overflow]
+                del self._cache["f"][:overflow]
+        else:
+            raise MOSAError(
+                "The solution cache size must be an integer greater than zero!"
+            )
+
+    @property
     def archive_file(self) -> str:
         """
         Name of the archive file.
@@ -1996,8 +2164,10 @@ class Anneal:
         """
         Monte Carlo step size for each group in the solution.
 
-        The default is {}, which means 0.1 for continuous search space and half
-        the number of elements in a population group for discrete search space.
+        The default is {}, which means one tenth of the boundary range for a
+        continuous search space and half the number of elements in a population
+        group for a discrete search space. Continuous step sizes are constrained
+        between one hundredth and one half of the boundary range.
         """
 
         return self._xstep

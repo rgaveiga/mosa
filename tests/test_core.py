@@ -131,9 +131,9 @@ def test_rosenbrock_last_solution() -> None:
     result = optimizer.prune_dominated()
 
     assert result["x"][0]["X"] == pytest.approx(
-        [1.0010230081413158, 1.002265827636082, 1.0044758281864978]
+        [1.0008314486507954, 1.001198172672729, 1.0022183539851799]
     )
-    assert result["f"][0] == pytest.approx([0.0006232094825663027])
+    assert result["f"][0] == pytest.approx([0.0002375730646252557])
 
 
 def test_thief_in_the_treasure_room_topsis_result() -> None:
