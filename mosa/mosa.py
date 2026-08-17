@@ -2089,7 +2089,8 @@ class Anneal:
 
     @property
     def solution_cache(self) -> bool:
-        """Enable the solution cache.
+        """
+        Enable the solution cache.
 
         The cache should ideally be enabled only for objective functions that are
         very computationally expensive. The default is `False`.
@@ -2106,7 +2107,8 @@ class Anneal:
 
     @property
     def solution_cache_size(self) -> int:
-        """Maximum number of solutions in the solution cache.
+        """
+        Maximum number of solutions in the solution cache.
 
         The default is 10,000.
         """
@@ -2166,8 +2168,8 @@ class Anneal:
     @property
     def maximum_archive_rejections(self) -> int:
         """
-        Maximum number of consecutive rejections of insertion of a solution
-        in the archive.
+        Maximum number of consecutive times a solution insertion into the archive
+        can be rejected.
 
         The default is 1,000.
         """
@@ -2275,9 +2277,10 @@ class Anneal:
     @property
     def adaptative_mc_step(self) -> bool:
         """
-        Whether Corana's adaptive step-length algorithm is enabled.
+        Whether Corana's adaptive maximum step-length algorithm is enabled.
 
-        The default is `False`. Only continuous groups without a configured step increment are affected.
+        The default is `False`. Only continuous groups without a configured step
+        increment are affected.
         """
 
         return self._adapt_xstep
@@ -2291,7 +2294,8 @@ class Anneal:
 
     @property
     def adaptive_selection(self) -> bool:
-        """Enable adaptive selection of solution groups.
+        """
+        Enable adaptive selection of solution groups.
 
         When enabled, accepted moves assign each selected group a reward equal
         to the mean normalized variation across all objectives. At the end of
@@ -2315,7 +2319,7 @@ class Anneal:
     @property
     def mc_step_size(self) -> dict[str, Number]:
         """
-        Monte Carlo step size for each group in the solution.
+        Monte Carlo maximum step size for each group in the solution.
 
         The default is {}, which means one tenth of the boundary range for a
         continuous search space and half the number of elements in a population
@@ -2338,10 +2342,11 @@ class Anneal:
 
     @property
     def mc_step_increment(self) -> dict[str, Number]:
-        """Increment used to discretize continuous solution changes.
+        """
+        Increment used to discretize continuous solution changes.
 
         The default is {}, which samples each continuous change uniformly between
-        the negative and positive Monte Carlo step sizes.
+        the negative and positive Monte Carlo maximum step size.
         """
 
         return self._xincrement
@@ -2487,7 +2492,8 @@ class Anneal:
 
     @property
     def group_selection_alpha(self) -> float:
-        """EMA smoothing factor used by adaptive group selection.
+        """
+        EMA smoothing factor used by adaptive group selection.
 
         The value must be between zero and one. Higher values give more
         importance to recent accepted moves. The default is 0.2.
