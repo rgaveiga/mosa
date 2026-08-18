@@ -4,7 +4,7 @@ import mosa
 import numpy as np
 import pytest
 
-from mosa.__error import MOSAError
+from mosa._error import MOSAError
 
 
 @pytest.fixture(autouse=True)

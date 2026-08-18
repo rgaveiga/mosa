@@ -10,8 +10,8 @@ from typing import Any, Sequence
 import numpy as np
 from numpy.random import choice, triangular, uniform
 from . import __version__
-from .__error import MOSAError
-from .__support import (
+from ._error import MOSAError
+from ._support import (
     Archive,
     Number,
     ObjectiveFunction,
@@ -21,92 +21,17 @@ from .__support import (
     PopulationGroup,
     Solution,
     _GroupState,
+    _adaptative_selection_probabilities,
+    _adaptative_selection_reward,
     _categorical_equivalence,  # noqa: F401 - re-exported for compatibility
     corana_step_length,
     _is_numeric_population,  # noqa: F401 - re-exported for compatibility
     _non_dominated_mask_kernel,
+    _normalize_selection_weights,
+    _selection_probability_floor,
     _semantic_key,  # noqa: F401 - re-exported for compatibility
     _values_equal,  # noqa: F401 - re-exported for compatibility
 )
-
-
-_ADAPTIVE_SELECTION_MIN_PROBABILITY = 0.01
-
-
-def _selection_probability_floor(number_of_groups: int) -> float:
-    """Return a feasible minimum probability for every selectable group."""
-
-    return min(_ADAPTIVE_SELECTION_MIN_PROBABILITY, 1.0 / number_of_groups)
-
-
-def _normalize_selection_weights(
-    weights: Sequence[Number], minimum_probability: float
-) -> np.ndarray:
-    """Normalize selection weights while preserving an exploration floor."""
-
-    values = np.asarray(weights, dtype=float)
-    if (
-        values.ndim != 1
-        or values.size == 0
-        or not np.all(np.isfinite(values))
-        or np.any(values < 0.0)
-        or float(values.sum()) <= 0.0
-    ):
-        raise MOSAError(
-            "Adaptive group selection weights must be finite, non-negative, "
-            "and have a positive sum!"
-        )
-
-    probabilities = values / values.sum()
-    return (
-        minimum_probability + (1.0 - minimum_probability * values.size) * probabilities
-    )
-
-
-def _adaptive_selection_probabilities(
-    qualities: Sequence[Number], temperature: float, minimum_probability: float
-) -> np.ndarray:
-    """Convert adaptive qualities into stable Boltzmann probabilities."""
-
-    scaled_qualities = np.asarray(qualities, dtype=float) / temperature
-    scaled_qualities -= np.max(scaled_qualities)
-    probabilities = np.exp(scaled_qualities)
-    probabilities /= probabilities.sum()
-    return (
-        minimum_probability
-        + (1.0 - minimum_probability * probabilities.size) * probabilities
-    )
-
-
-def _adaptive_selection_reward(
-    previous: Sequence[Number],
-    candidate: Sequence[Number],
-    maximum_deltas: np.ndarray,
-) -> float:
-    """Return the mean normalized objective variation and update its maxima."""
-
-    previous_values = np.asarray(previous, dtype=float)
-    candidate_values = np.asarray(candidate, dtype=float)
-    finite_pairs = np.isfinite(previous_values) & np.isfinite(candidate_values)
-    deltas = np.zeros_like(previous_values)
-    deltas[finite_pairs] = np.abs(
-        candidate_values[finite_pairs] - previous_values[finite_pairs]
-    )
-    np.maximum(maximum_deltas, deltas, out=maximum_deltas)
-
-    normalized_deltas = np.zeros_like(deltas)
-    np.divide(
-        deltas,
-        maximum_deltas,
-        out=normalized_deltas,
-        where=maximum_deltas > 0.0,
-    )
-
-    # A transition between a finite value and +/-inf represents a maximal
-    # variation. Equal infinities do not represent a change.
-    nonfinite_changes = ~finite_pairs & (previous_values != candidate_values)
-    normalized_deltas[nonfinite_changes] = 1.0
-    return float(np.mean(normalized_deltas))
 
 
 class Anneal:
@@ -135,7 +60,7 @@ class Anneal:
         self._xincrement: dict[str, Number] = {}
         self._xstep: dict[str, Number] = {}
         self._adapt_xstep: bool = False
-        self._adaptive_selection: bool = False
+        self._adaptative_selection: bool = False
         self._xsort: dict[str, bool] = {}
         self._xselalpha: float = 0.2
         self._xselweight: dict[str, Number] = {}
@@ -339,8 +264,8 @@ class Anneal:
         totlength: float = 0.0
         sellength: dict[str, float] = {}
         selection_weights: dict[str, float] = {}
-        adaptive_quality: dict[str, float] = {}
-        adaptive_maximum_deltas = np.empty(0, dtype=float)
+        adaptative_quality: dict[str, float] = {}
+        adaptative_maximum_deltas = np.empty(0, dtype=float)
         minimum_selection_probability: float = 0.0
         groups: list[str] = []
         MAX_FAILED: int = 10
@@ -422,7 +347,7 @@ class Anneal:
 
         groups = list(population.keys())
 
-        if self._adaptive_selection:
+        if self._adaptative_selection:
             minimum_selection_probability = _selection_probability_floor(len(groups))
             initial_probabilities = _normalize_selection_weights(
                 [self._xselweight.get(group, 1.0) for group in groups],
@@ -489,7 +414,7 @@ class Anneal:
                 raise MOSAError(f"Wrong format of group {group}!")
 
             totlength += selection_weights[group]
-            if self._adaptive_selection:
+            if self._adaptative_selection:
                 print(f"        Selection probability: {selection_weights[group]:.6f}")
             else:
                 print(f"        Selection weight: {selection_weights[group]}")
@@ -728,9 +653,9 @@ class Anneal:
         else:
             weight = [1.0 for k in range(len(fcurr))]
 
-        if self._adaptive_selection:
-            adaptive_quality = {group: 0.0 for group in groups}
-            adaptive_maximum_deltas = np.zeros(len(fcurr), dtype=float)
+        if self._adaptative_selection:
+            adaptative_quality = {group: 0.0 for group in groups}
+            adaptative_maximum_deltas = np.zeros(len(fcurr), dtype=float)
 
         if not self._verbose:
             print(f"Starting at temperature: {self._temp[0]:.6f}")
@@ -964,12 +889,12 @@ class Anneal:
                     if xsampling[group] == 0 and new is not None:
                         lstep[group] = new
 
-                    if self._adaptive_selection:
-                        reward = _adaptive_selection_reward(
-                            fcurr, ftmp, adaptive_maximum_deltas
+                    if self._adaptative_selection:
+                        reward = _adaptative_selection_reward(
+                            fcurr, ftmp, adaptative_maximum_deltas
                         )
-                        previous_quality = adaptive_quality[group]
-                        adaptive_quality[group] = previous_quality + (
+                        previous_quality = adaptative_quality[group]
+                        adaptative_quality[group] = previous_quality + (
                             self._xselalpha * (reward - previous_quality)
                         )
 
@@ -1045,14 +970,14 @@ class Anneal:
                         max(adjusted_xstep, minimum_xstep), maximum_xstep
                     )
 
-            if self._adaptive_selection:
+            if self._adaptative_selection:
                 selection_temperature = (
                     self._temp[temperature_index]
                     if temperature_index < len(self._temp)
                     else temp
                 )
-                probabilities = _adaptive_selection_probabilities(
-                    [adaptive_quality[group] for group in groups],
+                probabilities = _adaptative_selection_probabilities(
+                    [adaptative_quality[group] for group in groups],
                     selection_temperature,
                     minimum_selection_probability,
                 )
@@ -2277,7 +2202,7 @@ class Anneal:
     @property
     def adaptative_mc_step(self) -> bool:
         """
-        Whether Corana's adaptive maximum step-length algorithm is enabled.
+        Whether Corana's adaptative maximum step-length algorithm is enabled.
 
         The default is `False`. Only continuous groups without a configured step
         increment are affected.
@@ -2293,9 +2218,9 @@ class Anneal:
             raise MOSAError("Corana usage must be a boolean!")
 
     @property
-    def adaptive_selection(self) -> bool:
+    def adaptative_selection(self) -> bool:
         """
-        Enable adaptive selection of solution groups.
+        Enable adaptative selection of solution groups.
 
         When enabled, accepted moves assign each selected group a reward equal
         to the mean normalized variation across all objectives. At the end of
@@ -2307,14 +2232,14 @@ class Anneal:
         The default is `False`.
         """
 
-        return self._adaptive_selection
+        return self._adaptative_selection
 
-    @adaptive_selection.setter
-    def adaptive_selection(self, val: bool) -> None:
+    @adaptative_selection.setter
+    def adaptative_selection(self, val: bool) -> None:
         if isinstance(val, bool):
-            self._adaptive_selection = val
+            self._adaptative_selection = val
         else:
-            raise MOSAError("Adaptive group selection usage must be a boolean!")
+            raise MOSAError("Adaptative group selection usage must be a boolean!")
 
     @property
     def mc_step_size(self) -> dict[str, Number]:
@@ -2473,7 +2398,7 @@ class Anneal:
 
         The default value is {}, which means that all groups have the same selection
         weight, i.e., the same probability of being selected. When
-        `adaptive_selection` is enabled, configured weights are used as initial
+        `adaptative_selection` is enabled, configured weights are used as initial
         probabilities and this dictionary is updated after every temperature.
         """
 
@@ -2493,7 +2418,7 @@ class Anneal:
     @property
     def group_selection_alpha(self) -> float:
         """
-        EMA smoothing factor used by adaptive group selection.
+        EMA smoothing factor used by adaptative group selection.
 
         The value must be between zero and one. Higher values give more
         importance to recent accepted moves. The default is 0.2.

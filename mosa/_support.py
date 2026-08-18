@@ -6,6 +6,8 @@ from typing import Any, Callable, Sequence, TypeAlias, TypedDict
 import numpy as np
 from numba import njit
 
+from ._error import MOSAError
+
 Number: TypeAlias = int | float
 """@private"""
 
@@ -26,6 +28,94 @@ Population: TypeAlias = dict[str, PopulationGroup]
 
 ObjectiveFunction: TypeAlias = Callable[..., Sequence[Number]]
 """@private"""
+
+
+_ADAPTATIVE_SELECTION_MIN_PROBABILITY = 0.01
+
+
+def _selection_probability_floor(number_of_groups: int) -> float:
+    """Return a feasible minimum probability for every selectable group."""
+
+    return min(_ADAPTATIVE_SELECTION_MIN_PROBABILITY, 1.0 / number_of_groups)
+
+
+def _apply_selection_probability_floor(
+    probabilities: np.ndarray, minimum_probability: float
+) -> np.ndarray:
+    """Apply the exploration floor only when a probability violates it."""
+
+    if np.all(probabilities >= minimum_probability):
+        return probabilities
+
+    return (
+        minimum_probability
+        + (1.0 - minimum_probability * probabilities.size) * probabilities
+    )
+
+
+def _normalize_selection_weights(
+    weights: Sequence[Number], minimum_probability: float
+) -> np.ndarray:
+    """Normalize selection weights while preserving an exploration floor."""
+
+    values = np.asarray(weights, dtype=float)
+    if (
+        values.ndim != 1
+        or values.size == 0
+        or not np.all(np.isfinite(values))
+        or np.any(values < 0.0)
+        or float(values.sum()) <= 0.0
+    ):
+        raise MOSAError(
+            "Adaptative group selection weights must be finite, non-negative, "
+            "and have a positive sum!"
+        )
+
+    probabilities = values / values.sum()
+    return _apply_selection_probability_floor(probabilities, minimum_probability)
+
+
+def _adaptative_selection_probabilities(
+    qualities: Sequence[Number], temperature: float, minimum_probability: float
+) -> np.ndarray:
+    """Convert adaptative qualities into stable Boltzmann probabilities."""
+
+    scaled_qualities = np.asarray(qualities, dtype=float) / temperature
+    scaled_qualities -= np.max(scaled_qualities)
+    probabilities = np.exp(scaled_qualities)
+    probabilities /= probabilities.sum()
+    return _apply_selection_probability_floor(probabilities, minimum_probability)
+
+
+def _adaptative_selection_reward(
+    previous: Sequence[Number],
+    candidate: Sequence[Number],
+    maximum_deltas: np.ndarray,
+) -> float:
+    """Return the mean normalized objective variation and update its maxima."""
+
+    previous_values = np.asarray(previous, dtype=float)
+    candidate_values = np.asarray(candidate, dtype=float)
+    finite_pairs = np.isfinite(previous_values) & np.isfinite(candidate_values)
+    deltas = np.zeros_like(previous_values)
+    deltas[finite_pairs] = np.abs(
+        candidate_values[finite_pairs] - previous_values[finite_pairs]
+    )
+    np.maximum(maximum_deltas, deltas, out=maximum_deltas)
+
+    normalized_deltas = np.zeros_like(deltas)
+    np.divide(
+        deltas,
+        maximum_deltas,
+        out=normalized_deltas,
+        where=maximum_deltas > 0.0,
+    )
+
+    # A transition between a finite value and +/-inf represents a maximal
+    # variation. Equal infinities do not represent a change.
+    nonfinite_changes = ~finite_pairs & (previous_values != candidate_values)
+    normalized_deltas[nonfinite_changes] = 1.0
+    return float(np.mean(normalized_deltas))
 
 
 def corana_step_length(

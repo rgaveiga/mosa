@@ -6,7 +6,7 @@ import mosa
 import pytest
 from numpy import random
 
-from mosa.__error import MOSAError
+from mosa._error import MOSAError
 
 mosa_module = importlib.import_module("mosa.mosa")
 

@@ -6,8 +6,8 @@ import mosa
 import pytest
 from numpy import random
 
-from mosa.__error import MOSAError
-from mosa.__support import corana_step_length
+from mosa._error import MOSAError
+from mosa._support import corana_step_length
 
 mosa_module = importlib.import_module("mosa.mosa")
 
