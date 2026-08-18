@@ -103,5 +103,43 @@ def test_evolve_favors_group_that_changes_the_objective(capsys) -> None:
     assert sum(probabilities.values()) == pytest.approx(1.0)
     assert probabilities["Impact"] > probabilities["Inert"]
     assert probabilities["Inert"] >= 0.01
-    assert output.count("    Group selection probabilities:\n") == 2
-    assert "        Impact: 0.500000\n        Inert: 0.500000\n" in output
+    assert output.count("    Group selection probabilities:\n") == 1
+    assert output.count("Selection probability: 0.500000") == 2
+
+
+def test_verbose_prints_normalized_probabilities_only_when_they_change(capsys) -> None:
+    optimizer = mosa.Anneal()
+    optimizer.set_population(First=(0.0, 1.0), Second=(0.0, 1.0))
+    optimizer.set_opt_param("group_selection_weights", First=1.0, Second=4.0)
+    optimizer.number_of_temperatures = 2
+    optimizer.number_of_iterations = 1
+    optimizer.maximum_archive_rejections = 10_000
+    optimizer.archive_save_interval = 0
+    optimizer.restart = False
+    optimizer.verbose = True
+
+    optimizer.evolve(lambda First, Second: (First + Second,))
+
+    output = capsys.readouterr().out
+    assert "Selection weight:" not in output
+    assert output.count("Selection probability: 0.200000") == 1
+    assert output.count("Selection probability: 0.800000") == 1
+    assert "    Group selection probabilities:\n" not in output
+
+
+def test_verbose_does_not_repeat_unchanged_adaptative_probabilities(capsys) -> None:
+    optimizer = mosa.Anneal()
+    optimizer.set_population(First=(0.0, 1.0), Second=(0.0, 1.0))
+    optimizer.number_of_temperatures = 2
+    optimizer.number_of_iterations = 1
+    optimizer.maximum_archive_rejections = 10_000
+    optimizer.archive_save_interval = 0
+    optimizer.restart = False
+    optimizer.adaptative_selection = True
+    optimizer.verbose = True
+
+    optimizer.evolve(lambda First, Second: (0.0,))
+
+    output = capsys.readouterr().out
+    assert output.count("Selection probability: 0.500000") == 2
+    assert "    Group selection probabilities:\n" not in output

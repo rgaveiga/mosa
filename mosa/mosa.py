@@ -264,6 +264,7 @@ class Anneal:
         totlength: float = 0.0
         sellength: dict[str, float] = {}
         selection_weights: dict[str, float] = {}
+        displayed_selection_probabilities: tuple[float, ...] = ()
         adaptative_quality: dict[str, float] = {}
         adaptative_maximum_deltas = np.empty(0, dtype=float)
         minimum_selection_probability: float = 0.0
@@ -360,6 +361,11 @@ class Anneal:
                 group: float(self._xselweight.get(group, 1.0)) for group in groups
             }
 
+        selection_weight_total = sum(selection_weights.values())
+        displayed_selection_probabilities = tuple(
+            selection_weights[group] / selection_weight_total for group in groups
+        )
+
         print("------\n")
         print("Groups in the solution:\n======================\n")
 
@@ -414,10 +420,8 @@ class Anneal:
                 raise MOSAError(f"Wrong format of group {group}!")
 
             totlength += selection_weights[group]
-            if self._adaptative_selection:
-                print(f"        Selection probability: {selection_weights[group]:.6f}")
-            else:
-                print(f"        Selection weight: {selection_weights[group]}")
+            selection_probability = selection_weights[group] / selection_weight_total
+            print(f"        Selection probability: {selection_probability:.6f}")
 
             sellength[group] = totlength
 
@@ -666,12 +670,19 @@ class Anneal:
         for temperature_index, temp in enumerate(self._temp, start=1):
             if self._verbose:
                 print(f"TEMPERATURE: {temp:.6f}")
-                print("    Group selection probabilities:")
-                for selected_group in groups:
-                    selection_probability = (
-                        selection_weights[selected_group] / totlength
-                    )
-                    print(f"        {selected_group}: " f"{selection_probability:.6f}")
+                current_selection_probabilities = tuple(
+                    selection_weights[selected_group] / totlength
+                    for selected_group in groups
+                )
+                if current_selection_probabilities != displayed_selection_probabilities:
+                    print("    Group selection probabilities:")
+                    for selected_group, selection_probability in zip(
+                        groups, current_selection_probabilities
+                    ):
+                        print(
+                            f"        {selected_group}: " f"{selection_probability:.6f}"
+                        )
+                    displayed_selection_probabilities = current_selection_probabilities
 
             nupdated = 0
             naccept = 0
