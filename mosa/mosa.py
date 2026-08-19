@@ -4,7 +4,8 @@ import json
 import os
 import warnings
 from copy import deepcopy
-from math import exp, floor, inf, isclose, isfinite
+from math import ceil, exp, floor, inf, isclose, isfinite, log10
+from numbers import Real
 from typing import Any, Sequence
 
 import numpy as np
@@ -47,6 +48,9 @@ class Anneal:
         print("--------------------------------------------------")
 
         self._initemp: float = 1.0
+        self._initial_temperature_user_set: bool = False
+        self._auto_high_temperature: bool = False
+        self._high_temperature_acceptance_threshold: float = 0.8
         self._decrease: float = 0.9
         self._ntemp: int = 10
         self._population: Population = {}
@@ -232,8 +236,6 @@ class Anneal:
 
         from_archive: bool = False
         from_saved_state: bool = False
-        pmax: float = 0.0
-        gamma: float = 1.0
         updated: int = 0
         nupdated: int = 0
         naccept: int = 0
@@ -293,8 +295,6 @@ class Anneal:
                     xincrement_warned.add(group)
 
             xincrement_count[group] = int(interval_count) + 1
-
-        self._temp = [self._initemp * self._decrease**i for i in range(self._ntemp)]
 
         if self._restart:
             if len(self._archive_x) == 0:
@@ -657,6 +657,32 @@ class Anneal:
         else:
             weight = [1.0 for k in range(len(fcurr))]
 
+        automatic_high_temperature = (
+            self._auto_high_temperature and not self._initial_temperature_user_set
+        )
+        if automatic_high_temperature:
+            initial_temperature = self.__estimate_initial_temperature(fcurr)
+            initial_scale = sum(abs(float(value)) for value in fcurr) / len(fcurr)
+            self.__validate_calibration_weights(weight)
+            self._temp = [
+                initial_temperature * self._decrease**i for i in range(self._ntemp)
+            ]
+            if self._verbose:
+                print("Automatic high-temperature calibration enabled.")
+                print(f"Initial objective scale: {initial_scale:.6e}")
+                print("Initial calibration temperature: " f"{initial_temperature:.6e}")
+        else:
+            self._temp = [self._initemp * self._decrease**i for i in range(self._ntemp)]
+            if (
+                self._verbose
+                and self._auto_high_temperature
+                and self._initial_temperature_user_set
+            ):
+                print(
+                    "Explicit initial temperature provided; automatic "
+                    "high-temperature calibration is disabled for this run."
+                )
+
         if self._adaptative_selection:
             adaptative_quality = {group: 0.0 for group in groups}
             adaptative_maximum_deltas = np.zeros(len(fcurr), dtype=float)
@@ -668,6 +694,10 @@ class Anneal:
         archive_dirty = updated == 1
 
         for temperature_index, temp in enumerate(self._temp, start=1):
+            collect_calibration = automatic_high_temperature and temperature_index == 1
+            reduced_delta_samples: list[list[float]] = []
+            evaluated_trials = 0
+            accepted_evaluated_trials = 0
             if self._verbose:
                 print(f"TEMPERATURE: {temp:.6f}")
                 current_selection_probabilities = tuple(
@@ -864,8 +894,6 @@ class Anneal:
 
                         candidate = np.delete(candidate, old)
 
-                gamma = 1.0
-
                 xtmp = xcurr.copy()
                 xtmp[group] = (
                     state.decode_value(candidate)
@@ -883,20 +911,17 @@ class Anneal:
 
                 ftmp = self.__evaluate_solution(func, xtmp)
 
-                for k in range(len(ftmp)):
-                    if ftmp[k] < fcurr[k]:
-                        pmax = p = 1.0
-                    else:
-                        p = exp(-(ftmp[k] - fcurr[k]) / (temp * weight[k]))
-
-                        if pmax < p:
-                            pmax = p
-
-                    gamma *= p
-
-                gamma = (1.0 - self._alpha) * gamma + self._alpha * pmax
+                reduced_delta = self.__reduced_objective_deltas(fcurr, ftmp, weight)
+                gamma = self.__acceptance_probability_from_reduced_delta(
+                    reduced_delta, temp
+                )
+                if collect_calibration:
+                    reduced_delta_samples.append(reduced_delta)
+                    evaluated_trials += 1
 
                 if gamma == 1.0 or uniform(0.0, 1.0) < gamma:
+                    if collect_calibration:
+                        accepted_evaluated_trials += 1
                     if xsampling[group] == 0 and new is not None:
                         lstep[group] = new
 
@@ -968,6 +993,75 @@ class Anneal:
 
                     self.__remove_json_backup(self._archive_file)
                     return
+
+            if collect_calibration:
+                if reduced_delta_samples:
+                    expected_acceptance = self.__expected_acceptance(
+                        reduced_delta_samples, temp
+                    )
+                    observed_acceptance = accepted_evaluated_trials / evaluated_trials
+                    if self._verbose:
+                        print(
+                            "    Expected acceptance at initial temperature: "
+                            f"{expected_acceptance:.6f}"
+                        )
+                        print(
+                            "    Observed acceptance at initial temperature: "
+                            f"{observed_acceptance:.6f}"
+                        )
+                        print(
+                            "    Target high-temperature acceptance: "
+                            f"{self._high_temperature_acceptance_threshold:.6f}"
+                        )
+
+                    if (
+                        expected_acceptance
+                        < self._high_temperature_acceptance_threshold
+                        and self._ntemp >= 2
+                    ):
+                        high_temperature = self.__estimate_high_temperature(
+                            temp,
+                            reduced_delta_samples,
+                            self._high_temperature_acceptance_threshold,
+                        )
+                        self._temp[1:] = [
+                            high_temperature * self._decrease**i
+                            for i in range(self._ntemp - 1)
+                        ]
+                        if self._verbose:
+                            print(
+                                "    Estimated high temperature: "
+                                f"{high_temperature:.6e}"
+                            )
+                            print(
+                                "    Temperature scale factor: "
+                                f"{high_temperature / temp:.6f}"
+                            )
+                            print(
+                                "    Starting geometric quench after the "
+                                "calibrated high-temperature stage."
+                            )
+                    elif self._verbose:
+                        if (
+                            expected_acceptance
+                            >= self._high_temperature_acceptance_threshold
+                        ):
+                            print(
+                                "    Initial calibration temperature satisfies "
+                                "the target acceptance."
+                            )
+                            print("    Starting geometric quench.")
+                        else:
+                            print(
+                                "    A higher calibrated stage cannot be executed "
+                                "because only one temperature is configured."
+                            )
+                elif self._verbose:
+                    print(
+                        "    Automatic high-temperature calibration could not "
+                        "estimate acceptance because no trial move was evaluated "
+                        "at the initial temperature."
+                    )
 
             if self._adapt_xstep:
                 for continuous_group, attempted_moves in corana_attempts.items():
@@ -1492,6 +1586,181 @@ class Anneal:
             "Std": fstd.astype(float).tolist(),
         }
 
+    def __estimate_initial_temperature(
+        self, objective_values: ObjectiveValues
+    ) -> float:
+        if not objective_values:
+            raise MOSAError(
+                "Initial objective values must be a non-empty sequence of finite numbers!"
+            )
+
+        try:
+            values = [float(value) for value in objective_values]
+        except (TypeError, ValueError, OverflowError) as error:
+            raise MOSAError(
+                "Initial objective values must be a non-empty sequence of finite numbers!"
+            ) from error
+
+        if not all(isfinite(value) for value in values):
+            raise MOSAError(
+                "Initial objective values must be a non-empty sequence of finite numbers!"
+            )
+
+        objective_scale = sum(abs(value) for value in values) / len(values)
+        if not isfinite(objective_scale):
+            raise MOSAError("Initial objective scale must be finite!")
+
+        if objective_scale == 0.0:
+            temperature = 1.0
+        else:
+            try:
+                temperature = 10.0 ** ceil(log10(objective_scale))
+            except (OverflowError, ValueError) as error:
+                raise MOSAError(
+                    "Automatic initial temperature must be finite and greater than zero!"
+                ) from error
+
+        if not isfinite(temperature) or temperature <= 0.0:
+            raise MOSAError(
+                "Automatic initial temperature must be finite and greater than zero!"
+            )
+        return float(temperature)
+
+    @staticmethod
+    def __validate_calibration_weights(weights: ObjectiveWeightValues) -> None:
+        try:
+            valid = all(
+                not isinstance(weight, bool)
+                and isfinite(float(weight))
+                and float(weight) > 0.0
+                for weight in weights
+            )
+        except (TypeError, ValueError, OverflowError):
+            valid = False
+        if not weights or not valid:
+            raise MOSAError(
+                "Objective weights used for automatic high-temperature calibration "
+                "must be finite numbers greater than zero!"
+            )
+
+    def __reduced_objective_deltas(
+        self,
+        current_values: ObjectiveValues,
+        trial_values: ObjectiveValues,
+        weights: ObjectiveWeightValues,
+    ) -> list[float]:
+        if not (
+            len(current_values) == len(trial_values) == len(weights)
+            and len(trial_values) > 0
+        ):
+            raise MOSAError(
+                "Current objectives, trial objectives, and weights must have "
+                "the same non-zero length!"
+            )
+        self.__validate_calibration_weights(weights)
+
+        try:
+            reduced_delta = [
+                max(
+                    (float(trial) - float(current)) / float(weight),
+                    0.0,
+                )
+                for current, trial, weight in zip(current_values, trial_values, weights)
+            ]
+        except (TypeError, ValueError, OverflowError) as error:
+            raise MOSAError("Objective values must be finite numbers!") from error
+
+        if not all(isfinite(delta) for delta in reduced_delta):
+            raise MOSAError("Objective values must be finite numbers!")
+        return reduced_delta
+
+    def __acceptance_probability_from_reduced_delta(
+        self, reduced_delta: Sequence[float], temperature: float
+    ) -> float:
+        if not isinstance(temperature, Real) or isinstance(temperature, bool):
+            raise MOSAError("Temperature must be a finite number greater than zero!")
+        temperature = float(temperature)
+        if not isfinite(temperature) or temperature <= 0.0:
+            raise MOSAError("Temperature must be a finite number greater than zero!")
+        if not reduced_delta:
+            raise MOSAError("At least one reduced objective delta is required!")
+
+        try:
+            deltas = [float(delta) for delta in reduced_delta]
+        except (TypeError, ValueError, OverflowError) as error:
+            raise MOSAError(
+                "Reduced objective deltas must be finite non-negative numbers!"
+            ) from error
+        if not all(isfinite(delta) and delta >= 0.0 for delta in deltas):
+            raise MOSAError(
+                "Reduced objective deltas must be finite non-negative numbers!"
+            )
+
+        probabilities = [exp(-delta / temperature) for delta in deltas]
+        gamma_product = 1.0
+        for probability in probabilities:
+            gamma_product *= probability
+        gamma = (1.0 - self._alpha) * gamma_product + self._alpha * max(probabilities)
+        if not isfinite(gamma):
+            raise MOSAError("MOSA acceptance probability must be finite!")
+        return min(max(float(gamma), 0.0), 1.0)
+
+    def __expected_acceptance(
+        self, samples: Sequence[Sequence[float]], temperature: float
+    ) -> float:
+        if not samples:
+            raise MOSAError(
+                "At least one calibration sample is required to estimate acceptance!"
+            )
+        return sum(
+            self.__acceptance_probability_from_reduced_delta(sample, temperature)
+            for sample in samples
+        ) / len(samples)
+
+    def __estimate_high_temperature(
+        self,
+        initial_temperature: float,
+        samples: Sequence[Sequence[float]],
+        target_acceptance: float,
+    ) -> float:
+        if (
+            self.__expected_acceptance(samples, initial_temperature)
+            >= target_acceptance
+        ):
+            return float(initial_temperature)
+
+        low = float(initial_temperature)
+        high = 2.0 * low
+        for _ in range(60):
+            if not isfinite(high):
+                break
+            if self.__expected_acceptance(samples, high) >= target_acceptance:
+                break
+            low = high
+            high *= 2.0
+        else:
+            raise MOSAError(
+                "Unable to bracket a temperature satisfying the target acceptance!"
+            )
+
+        if (
+            not isfinite(high)
+            or self.__expected_acceptance(samples, high) < target_acceptance
+        ):
+            raise MOSAError(
+                "Unable to bracket a temperature satisfying the target acceptance!"
+            )
+
+        for _ in range(100):
+            if (high - low) / high <= 1e-6:
+                break
+            middle = 0.5 * (low + high)
+            if self.__expected_acceptance(samples, middle) >= target_acceptance:
+                high = middle
+            else:
+                low = middle
+        return high
+
     def __updatearchive(self, x: Solution, f: ObjectiveValues) -> int:
         """
         Appends a solution to the archive if it is not dominated by other existing
@@ -1937,7 +2206,9 @@ class Anneal:
         """
         Initial temperature.
 
-        The default is 1.0.
+        The numerical default is 1.0. Explicitly assigning this property takes
+        precedence over automatic high-temperature calibration, even when
+        `auto_high_temperature` is `True`.
         """
 
         return self._initemp
@@ -1945,9 +2216,55 @@ class Anneal:
     @initial_temperature.setter
     def initial_temperature(self, val: Number) -> None:
         if isinstance(val, (int, float)) and val > 0.0:
-            self._initemp = val
+            self._initemp = float(val)
+            self._initial_temperature_user_set = True
         else:
             raise MOSAError("Initial temperature must be a number greater than zero!")
+
+    @property
+    def auto_high_temperature(self) -> bool:
+        """
+        Enables automatic calibration of the high-temperature stage.
+
+        The default is `False`. When enabled and `initial_temperature` has not
+        been explicitly assigned, the first temperature is estimated from the
+        initial objective scale. If its expected mean MOSA move-acceptance
+        probability is below the configured target, one higher calibration stage
+        is used before geometric quenching begins.
+        """
+
+        return self._auto_high_temperature
+
+    @auto_high_temperature.setter
+    def auto_high_temperature(self, val: bool) -> None:
+        if isinstance(val, bool):
+            self._auto_high_temperature = val
+        else:
+            raise MOSAError("Automatic high-temperature calibration must be a boolean!")
+
+    @property
+    def high_temperature_acceptance_threshold(self) -> float:
+        """
+        Target expected mean MOSA move-acceptance probability during automatic
+        high-temperature calibration.
+
+        The default is 0.8 and the valid range is strictly between zero and one.
+        """
+
+        return self._high_temperature_acceptance_threshold
+
+    @high_temperature_acceptance_threshold.setter
+    def high_temperature_acceptance_threshold(self, val: Number) -> None:
+        valid = isinstance(val, Real) and not isinstance(val, bool)
+        if valid:
+            value = float(val)
+            valid = isfinite(value) and 0.0 < value < 1.0
+        if not valid:
+            raise MOSAError(
+                "High-temperature acceptance threshold must be a finite number "
+                "greater than zero and less than one!"
+            )
+        self._high_temperature_acceptance_threshold = value
 
     @property
     def temperature_decrease_factor(self) -> float:
