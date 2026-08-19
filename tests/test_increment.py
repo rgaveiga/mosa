@@ -45,6 +45,18 @@ def test_mc_step_increment_api_and_validation() -> None:
     with pytest.raises(MOSAError):
         optimizer.mc_step_increment = 0.01
 
+    with pytest.raises(MOSAError, match="must be a positive number"):
+        optimizer.set_group_params("X", mc_step_increment="0.01")
+
+    with pytest.raises(MOSAError, match="must be a positive number"):
+        optimizer.set_opt_param("mc_step_increment", X="0.01")
+
+    with pytest.raises(MOSAError, match="does not exist"):
+        optimizer.set_group_params("X", unknown_parameter=1)
+
+    with pytest.raises(MOSAError, match="does not exist"):
+        optimizer.set_opt_param("unknown_parameter", X=1)
+
 
 def test_default_continuous_change_uses_uniform(monkeypatch) -> None:
     optimizer = configured_optimizer()
@@ -96,7 +108,7 @@ def test_non_divisible_increment_warns_and_excludes_upper_limit(monkeypatch) -> 
 def test_mc_step_increment_is_ignored_for_discrete_groups() -> None:
     optimizer = mosa.Anneal()
     optimizer.set_population(X=[0, 1, 2])
-    optimizer.set_opt_param("mc_step_increment", X="ignored")
+    optimizer.set_opt_param("mc_step_increment", X=0.5)
     optimizer.number_of_temperatures = 1
     optimizer.number_of_iterations = 2
     optimizer.maximum_archive_rejections = 100
@@ -104,7 +116,7 @@ def test_mc_step_increment_is_ignored_for_discrete_groups() -> None:
 
     optimizer.evolve(lambda X: (float(X),))
 
-    assert optimizer.mc_step_increment == {"X": "ignored"}
+    assert optimizer.mc_step_increment == {"X": 0.5}
 
 
 def test_mc_step_increment_disables_corana_for_its_group(monkeypatch) -> None:

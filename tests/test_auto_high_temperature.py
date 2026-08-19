@@ -20,10 +20,10 @@ def test_automatic_temperature_api_defaults_and_validation() -> None:
     assert anneal.auto_high_temperature is False
     assert anneal.high_temperature_acceptance_threshold == pytest.approx(0.8)
     assert anneal.initial_temperature == pytest.approx(1.0)
-    assert anneal._initial_temperature_user_set is False
+    assert anneal._initempset is False
 
     anneal.initial_temperature = 1.0
-    assert anneal._initial_temperature_user_set is True
+    assert anneal._initempset is True
 
     for value in (0, 1, "yes", None):
         with pytest.raises(MOSAError):
@@ -132,7 +132,7 @@ def test_automatic_schedule_heats_when_t0_is_insufficient() -> None:
     assert anneal._temp[1] > anneal._temp[0]
     assert anneal._temp[2] == pytest.approx(anneal._temp[1] * 0.5)
     assert anneal.initial_temperature == pytest.approx(1.0)
-    assert anneal._initial_temperature_user_set is False
+    assert anneal._initempset is False
 
 
 def test_sufficient_t0_and_explicit_temperature_schedules() -> None:

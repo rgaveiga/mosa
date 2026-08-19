@@ -35,6 +35,22 @@ from ._support import (
 )
 
 
+_GROUP_PARAMS = frozenset(
+    {
+        "number_of_elements",
+        "maximum_number_of_elements",
+        "distinct_elements",
+        "mc_step_size",
+        "mc_step_increment",
+        "change_value_move",
+        "insert_or_delete_move",
+        "swap_move",
+        "sort_elements",
+        "group_selection_weights",
+    }
+)
+
+
 class Anneal:
     """This class implements the MOSA algorithm."""
 
@@ -48,13 +64,13 @@ class Anneal:
         print("--------------------------------------------------")
 
         self._initemp: float = 1.0
-        self._initial_temperature_user_set: bool = False
-        self._auto_high_temperature: bool = False
-        self._high_temperature_acceptance_threshold: float = 0.8
+        self._initempset: bool = False
+        self._autohightemp: bool = False
+        self._hightempaccthresh: float = 0.8
         self._decrease: float = 0.9
         self._ntemp: int = 10
         self._population: Population = {}
-        self._group_states: dict[str, _GroupState] = {}
+        self._groupstates: dict[str, _GroupState] = {}
         self._changemove: dict[str, Number] = {}
         self._swapmove: dict[str, Number] = {}
         self._insordelmove: dict[str, Number] = {}
@@ -63,22 +79,22 @@ class Anneal:
         self._xdistinct: dict[str, bool] = {}
         self._xincrement: dict[str, Number] = {}
         self._xstep: dict[str, Number] = {}
-        self._adapt_xstep: bool = False
-        self._adaptative_selection: bool = False
+        self._adaptxstep: bool = False
+        self._adaptsel: bool = False
         self._xsort: dict[str, bool] = {}
         self._xselalpha: float = 0.2
         self._xselweight: dict[str, Number] = {}
-        self._archive_x: list[Solution] = []
-        self._archive_f_arr: np.ndarray = np.empty((0, 0), dtype=float)
-        self._archive_f_capacity: int = 0
+        self._archivex: list[Solution] = []
+        self._archivefarr: np.ndarray = np.empty((0, 0), dtype=float)
+        self._archivefcap: int = 0
         self._xcache: bool = False
         self._xcachesize: int = 10000
         self._cache: Archive = {"x": [], "f": []}
         self._temp: list[float] = []
         self._weight: ObjectiveWeightValues = []
         self._niter: int = 1000
-        self._archive_file: str = "archive.json"
-        self._archive_save_interval: int = 10
+        self._archivefile: str = "archive.json"
+        self._archivesaveint: int = 10
         self._archivesize: int = 1000
         self._maxarchivereject: int = 1000
         self._alpha: float = 0.0
@@ -137,27 +153,14 @@ class Anneal:
         - `group_selection_weights`
         """
 
-        allowed: dict[str, str]
-
-        if len(params) > 0:
-            allowed = {
-                "number_of_elements": "self._xnel",
-                "maximum_number_of_elements": "self._maxnel",
-                "distinct_elements": "self._xdistinct",
-                "mc_step_size": "self._xstep",
-                "mc_step_increment": "self._xincrement",
-                "change_value_move": "self._changemove",
-                "insert_or_delete_move": "self._insordelmove",
-                "swap_move": "self._swapmove",
-                "sort_elements": "self._xsort",
-                "group_selection_weights": "self._xselweight",
-            }
-
-            for param, value in params.items():
-                if param in allowed:
-                    exec(f"{allowed[param]}[group]=value")
-        else:
+        if len(params) == 0:
             raise MOSAError("No keyword was provided!")
+
+        for param, value in params.items():
+            if param not in _GROUP_PARAMS:
+                raise MOSAError("Optimization parameter does not exist!")
+
+            setattr(self, param, {group: value})
 
     def set_opt_param(self, param: str, **groups: Any) -> None:
         """
@@ -194,31 +197,13 @@ class Anneal:
         group in the solution to the problem.
         """
 
-        params: dict[str, str]
-        execstr: str
-
-        if len(groups) > 0:
-            params = {
-                "number_of_elements": "self._xnel",
-                "maximum_number_of_elements": "self._maxnel",
-                "distinct_elements": "self._xdistinct",
-                "mc_step_size": "self._xstep",
-                "mc_step_increment": "self._xincrement",
-                "change_value_move": "self._changemove",
-                "insert_or_delete_move": "self._insordelmove",
-                "swap_move": "self._swapmove",
-                "sort_elements": "self._xsort",
-                "group_selection_weights": "self._xselweight",
-            }
-
-            if param in params:
-                execstr = "for key,value in groups.items():\n"
-                execstr += f"    {params[param]}[key]=value"
-                exec(execstr)
-            else:
-                raise MOSAError("Optimization parameter does not exist!")
-        else:
+        if len(groups) == 0:
             raise MOSAError("No keyword was provided!")
+
+        if param not in _GROUP_PARAMS:
+            raise MOSAError("Optimization parameter does not exist!")
+
+        setattr(self, param, groups)
 
     def evolve(self, func: ObjectiveFunction) -> None:
         """
@@ -297,24 +282,24 @@ class Anneal:
             xincrement_count[group] = int(interval_count) + 1
 
         if self._restart:
-            if len(self._archive_x) == 0:
-                print(f"Trying to load the archive from file {self._archive_file}...")
+            if len(self._archivex) == 0:
+                print(f"Trying to load the archive from file {self._archivefile}...")
 
-                if not self.__load_archive_file(self._archive_file):
+                if not self.__load_archive_file(self._archivefile):
                     print(
-                        f"File {self._archive_file} not found or invalid! "
+                        f"File {self._archivefile} not found or invalid! "
                         "Initializing an empty archive..."
                     )
                     self.__set_archive_data([], [])
                 else:
-                    print(f"File {self._archive_file} found!")
+                    print(f"File {self._archivefile} found!")
 
-            if len(self._archive_x) > 0 and self._population:
+            if len(self._archivex) > 0 and self._population:
                 print("Restarting from a previous run...")
 
-                xcurr = deepcopy(self._archive_x[-1])
+                xcurr = deepcopy(self._archivex[-1])
                 fcurr = (
-                    self._archive_f_arr[len(self._archive_x) - 1].astype(float).tolist()
+                    self._archivefarr[len(self._archivex) - 1].astype(float).tolist()
                 )
                 population = {
                     group: tuple(values) if isinstance(values, tuple) else list(values)
@@ -334,7 +319,7 @@ class Anneal:
             else:
                 raise MOSAError("Solution and population must have the same groups!")
         else:
-            if self._restart and len(self._archive_x) > 0 and not self._population:
+            if self._restart and len(self._archivex) > 0 and not self._population:
                 raise MOSAError(
                     "A population must be configured to restart from the archive!"
                 )
@@ -348,7 +333,7 @@ class Anneal:
 
         groups = list(population.keys())
 
-        if self._adaptative_selection:
+        if self._adaptsel:
             minimum_selection_probability = _selection_probability_floor(len(groups))
             initial_probabilities = _normalize_selection_weights(
                 [self._xselweight.get(group, 1.0) for group in groups],
@@ -560,11 +545,11 @@ class Anneal:
                 changemove[group] = 0.0
                 swapmove[group] = 1.0
 
-        self._group_states = {}
+        self._groupstates = {}
 
         for group in groups:
             try:
-                self._group_states[group] = _GroupState.create(
+                self._groupstates[group] = _GroupState.create(
                     population[group],
                     xnel[group],
                     xcurr[group] if from_saved_state else None,
@@ -581,13 +566,13 @@ class Anneal:
             for group in groups:
                 self.__restore_archive_group_state(
                     group,
-                    self._group_states[group],
+                    self._groupstates[group],
                     xdistinct.get(group, False),
                 )
 
         if from_saved_state:
             xcurr = {
-                group: self._group_states[group].decode_solution() for group in groups
+                group: self._groupstates[group].decode_solution() for group in groups
             }
 
         print("------")
@@ -598,7 +583,7 @@ class Anneal:
             print("Initializing with a random solution from scratch...")
 
             for group in groups:
-                state = self._group_states[group]
+                state = self._groupstates[group]
 
                 if xnel[group] == 1:
                     if xsampling[group] == 0:
@@ -658,7 +643,7 @@ class Anneal:
             weight = [1.0 for k in range(len(fcurr))]
 
         automatic_high_temperature = (
-            self._auto_high_temperature and not self._initial_temperature_user_set
+            self._autohightemp and not self._initempset
         )
         if automatic_high_temperature:
             initial_temperature = self.__estimate_initial_temperature(fcurr)
@@ -675,15 +660,15 @@ class Anneal:
             self._temp = [self._initemp * self._decrease**i for i in range(self._ntemp)]
             if (
                 self._verbose
-                and self._auto_high_temperature
-                and self._initial_temperature_user_set
+                and self._autohightemp
+                and self._initempset
             ):
                 print(
                     "Explicit initial temperature provided; automatic "
                     "high-temperature calibration is disabled for this run."
                 )
 
-        if self._adaptative_selection:
+        if self._adaptsel:
             adaptative_quality = {group: 0.0 for group in groups}
             adaptative_maximum_deltas = np.zeros(len(fcurr), dtype=float)
 
@@ -716,7 +701,7 @@ class Anneal:
 
             nupdated = 0
             naccept = 0
-            if self._adapt_xstep:
+            if self._adaptxstep:
                 corana_attempts = {
                     group: 0
                     for group in groups
@@ -738,7 +723,7 @@ class Anneal:
                     0.0, (changemove[group] + swapmove[group] + insordelmove[group])
                 )
 
-                state = self._group_states[group]
+                state = self._groupstates[group]
                 candidate = (
                     state.solution[0] if state.scalar_output else state.solution.copy()
                 )
@@ -901,7 +886,7 @@ class Anneal:
                     else state.decode(candidate)
                 )
                 continuous_change = (
-                    self._adapt_xstep
+                    self._adaptxstep
                     and xsampling[group] == 1
                     and group not in xincrement
                     and r < changemove[group]
@@ -925,7 +910,7 @@ class Anneal:
                     if xsampling[group] == 0 and new is not None:
                         lstep[group] = new
 
-                    if self._adaptative_selection:
+                    if self._adaptsel:
                         reward = _adaptative_selection_reward(
                             fcurr, ftmp, adaptative_maximum_deltas
                         )
@@ -991,7 +976,7 @@ class Anneal:
                     if archive_dirty:
                         self.savex()
 
-                    self.__remove_json_backup(self._archive_file)
+                    self.__remove_json_backup(self._archivefile)
                     return
 
             if collect_calibration:
@@ -1011,18 +996,18 @@ class Anneal:
                         )
                         print(
                             "    Target high-temperature acceptance: "
-                            f"{self._high_temperature_acceptance_threshold:.6f}"
+                            f"{self._hightempaccthresh:.6f}"
                         )
 
                     if (
                         expected_acceptance
-                        < self._high_temperature_acceptance_threshold
+                        < self._hightempaccthresh
                         and self._ntemp >= 2
                     ):
                         high_temperature = self.__estimate_high_temperature(
                             temp,
                             reduced_delta_samples,
-                            self._high_temperature_acceptance_threshold,
+                            self._hightempaccthresh,
                         )
                         self._temp[1:] = [
                             high_temperature * self._decrease**i
@@ -1044,7 +1029,7 @@ class Anneal:
                     elif self._verbose:
                         if (
                             expected_acceptance
-                            >= self._high_temperature_acceptance_threshold
+                            >= self._hightempaccthresh
                         ):
                             print(
                                 "    Initial calibration temperature satisfies "
@@ -1063,7 +1048,7 @@ class Anneal:
                         "at the initial temperature."
                     )
 
-            if self._adapt_xstep:
+            if self._adaptxstep:
                 for continuous_group, attempted_moves in corana_attempts.items():
                     adjusted_xstep = corana_step_length(
                         float(xstep[continuous_group]),
@@ -1075,7 +1060,7 @@ class Anneal:
                         max(adjusted_xstep, minimum_xstep), maximum_xstep
                     )
 
-            if self._adaptative_selection:
+            if self._adaptsel:
                 selection_temperature = (
                     self._temp[temperature_index]
                     if temperature_index < len(self._temp)
@@ -1095,10 +1080,10 @@ class Anneal:
 
             final_temperature = temperature_index == len(self._temp)
             archive_save_due = final_temperature or (
-                self._archive_save_interval > 0
+                self._archivesaveint > 0
                 and (
                     temperature_index == 1
-                    or temperature_index % self._archive_save_interval == 0
+                    or temperature_index % self._archivesaveint == 0
                 )
             )
 
@@ -1129,7 +1114,7 @@ class Anneal:
             print("------")
 
         print("\n--- THE END ---")
-        self.__remove_json_backup(self._archive_file)
+        self.__remove_json_backup(self._archivefile)
 
     def prune_dominated(self, xset: Archive | None = None) -> Archive:
         """
@@ -1185,7 +1170,7 @@ class Anneal:
             archive_file = archive_file.strip()
 
             if len(archive_file) == 0:
-                archive_file = self._archive_file
+                archive_file = self._archivefile
         else:
             raise MOSAError("The name of the archive file must be a string!")
 
@@ -1207,7 +1192,7 @@ class Anneal:
             archive_file = archive_file.strip()
 
             if len(archive_file) == 0:
-                archive_file = self._archive_file
+                archive_file = self._archivefile
         else:
             raise MOSAError("Name of the archive file must be a string!")
 
@@ -1777,13 +1762,13 @@ class Anneal:
         1, if the archive is updated, or 0, if not.
         """
 
-        archive_len = len(self._archive_x)
+        archive_len = len(self._archivex)
         f_arr = np.asarray(f, dtype=float)
 
         if archive_len == 0:
             updated = True
         else:
-            archive_arr = self._archive_f_arr[:archive_len]
+            archive_arr = self._archivefarr[:archive_len]
             archive_dominates, candidate_dominates = self.__dominance_masks(
                 archive_arr, f_arr
             )
@@ -1802,7 +1787,7 @@ class Anneal:
                 if updated and dominated_rows.size > 0:
                     removed_solutions = [
                         (
-                            self._archive_x[int(row)],
+                            self._archivex[int(row)],
                             archive_arr[int(row)].astype(float).tolist(),
                         )
                         for row in dominated_rows
@@ -1810,13 +1795,13 @@ class Anneal:
 
                     keep_mask = np.ones(archive_len, dtype=bool)
                     keep_mask[dominated_rows] = False
-                    self._archive_x = [
-                        value for i, value in enumerate(self._archive_x) if keep_mask[i]
+                    self._archivex = [
+                        value for i, value in enumerate(self._archivex) if keep_mask[i]
                     ]
                     kept_count = int(np.count_nonzero(keep_mask))
 
                     if kept_count > 0:
-                        self._archive_f_arr[:kept_count] = archive_arr[keep_mask]
+                        self._archivefarr[:kept_count] = archive_arr[keep_mask]
 
                     archive_len = kept_count
 
@@ -1825,8 +1810,8 @@ class Anneal:
 
         if updated:
             self.__ensure_archive_capacity(archive_len + 1, len(f_arr))
-            self._archive_x.append(x)
-            self._archive_f_arr[archive_len] = f_arr
+            self._archivex.append(x)
+            self._archivefarr[archive_len] = f_arr
             self.__remove_cached_solution(x)
 
         return int(updated)
@@ -1837,10 +1822,10 @@ class Anneal:
         """Return previously computed objectives or evaluate and cache the solution."""
 
         if self._xcache:
-            archive_index = self.__solution_index(self._archive_x, x)
+            archive_index = self.__solution_index(self._archivex, x)
 
             if archive_index is not None:
-                return self._archive_f_arr[archive_index].astype(float).tolist()
+                return self._archivefarr[archive_index].astype(float).tolist()
 
             cache_index = self.__solution_index(self._cache["x"], x)
 
@@ -1890,7 +1875,7 @@ class Anneal:
         if not self._xcache:
             return
 
-        if self.__solution_index(self._archive_x, x) is not None:
+        if self.__solution_index(self._archivex, x) is not None:
             return
 
         if self.__solution_index(self._cache["x"], x) is not None:
@@ -2079,8 +2064,8 @@ class Anneal:
         """@private"""
 
         return {
-            "x": self._archive_x.copy(),
-            "f": self._archive_f_arr[: len(self._archive_x)].astype(float).tolist(),
+            "x": self._archivex.copy(),
+            "f": self._archivefarr[: len(self._archivex)].astype(float).tolist(),
         }
 
     def __set_archive_data(
@@ -2088,42 +2073,42 @@ class Anneal:
     ) -> None:
         """@private"""
 
-        self._archive_x = list(x_values)
+        self._archivex = list(x_values)
 
         if len(f_values) == 0:
-            self._archive_f_arr = np.empty((0, 0), dtype=float)
-            self._archive_f_capacity = 0
+            self._archivefarr = np.empty((0, 0), dtype=float)
+            self._archivefcap = 0
         else:
             archive_f_arr = np.asarray(f_values, dtype=float)
 
             if archive_f_arr.ndim == 1:
                 archive_f_arr = archive_f_arr.reshape(1, -1)
 
-            self._archive_f_arr = archive_f_arr.copy()
-            self._archive_f_capacity = self._archive_f_arr.shape[0]
+            self._archivefarr = archive_f_arr.copy()
+            self._archivefcap = self._archivefarr.shape[0]
 
-        for solution in self._archive_x:
+        for solution in self._archivex:
             self.__remove_cached_solution(solution)
 
     def __ensure_archive_capacity(self, rows: int, nf: int) -> None:
         """@private"""
 
-        if self._archive_f_capacity >= rows and self._archive_f_arr.shape[1] == nf:
+        if self._archivefcap >= rows and self._archivefarr.shape[1] == nf:
             return
 
-        if self._archive_f_capacity == 0 or self._archive_f_arr.shape[1] != nf:
+        if self._archivefcap == 0 or self._archivefarr.shape[1] != nf:
             new_capacity = max(rows, 1)
             new_archive_f_arr = np.empty((new_capacity, nf), dtype=float)
         else:
-            new_capacity = max(rows, self._archive_f_capacity * 2)
+            new_capacity = max(rows, self._archivefcap * 2)
             new_archive_f_arr = np.empty((new_capacity, nf), dtype=float)
-            active_rows = len(self._archive_x)
+            active_rows = len(self._archivex)
 
             if active_rows > 0:
-                new_archive_f_arr[:active_rows] = self._archive_f_arr[:active_rows]
+                new_archive_f_arr[:active_rows] = self._archivefarr[:active_rows]
 
-        self._archive_f_arr = new_archive_f_arr
-        self._archive_f_capacity = new_capacity
+        self._archivefarr = new_archive_f_arr
+        self._archivefcap = new_capacity
 
     @property
     def population(self) -> Population:
@@ -2217,7 +2202,7 @@ class Anneal:
     def initial_temperature(self, val: Number) -> None:
         if isinstance(val, (int, float)) and val > 0.0:
             self._initemp = float(val)
-            self._initial_temperature_user_set = True
+            self._initempset = True
         else:
             raise MOSAError("Initial temperature must be a number greater than zero!")
 
@@ -2233,12 +2218,12 @@ class Anneal:
         is used before geometric quenching begins.
         """
 
-        return self._auto_high_temperature
+        return self._autohightemp
 
     @auto_high_temperature.setter
     def auto_high_temperature(self, val: bool) -> None:
         if isinstance(val, bool):
-            self._auto_high_temperature = val
+            self._autohightemp = val
         else:
             raise MOSAError("Automatic high-temperature calibration must be a boolean!")
 
@@ -2251,7 +2236,7 @@ class Anneal:
         The default is 0.8 and the valid range is strictly between zero and one.
         """
 
-        return self._high_temperature_acceptance_threshold
+        return self._hightempaccthresh
 
     @high_temperature_acceptance_threshold.setter
     def high_temperature_acceptance_threshold(self, val: Number) -> None:
@@ -2264,7 +2249,7 @@ class Anneal:
                 "High-temperature acceptance threshold must be a finite number "
                 "greater than zero and less than one!"
             )
-        self._high_temperature_acceptance_threshold = value
+        self._hightempaccthresh = value
 
     @property
     def temperature_decrease_factor(self) -> float:
@@ -2390,12 +2375,12 @@ class Anneal:
         The default is 'archive.json'.
         """
 
-        return self._archive_file
+        return self._archivefile
 
     @archive_file.setter
     def archive_file(self, val: str) -> None:
         if isinstance(val, str) and len(val.strip()) > 0:
-            self._archive_file = val.strip()
+            self._archivefile = val.strip()
         else:
             raise MOSAError("A file name must be provided!")
 
@@ -2409,12 +2394,12 @@ class Anneal:
         The archive is written only when it has changed since the previous save.
         """
 
-        return self._archive_save_interval
+        return self._archivesaveint
 
     @archive_save_interval.setter
     def archive_save_interval(self, val: int) -> None:
         if isinstance(val, int) and val >= 0:
-            self._archive_save_interval = val
+            self._archivesaveint = val
         else:
             raise MOSAError("Archive save interval must be a non-negative integer!")
 
@@ -2536,12 +2521,12 @@ class Anneal:
         increment are affected.
         """
 
-        return self._adapt_xstep
+        return self._adaptxstep
 
     @adaptative_mc_step.setter
     def adaptative_mc_step(self, val: bool) -> None:
         if isinstance(val, bool):
-            self._adapt_xstep = val
+            self._adaptxstep = val
         else:
             raise MOSAError("Corana usage must be a boolean!")
 
@@ -2560,12 +2545,12 @@ class Anneal:
         The default is `False`.
         """
 
-        return self._adaptative_selection
+        return self._adaptsel
 
     @adaptative_selection.setter
     def adaptative_selection(self, val: bool) -> None:
         if isinstance(val, bool):
-            self._adaptative_selection = val
+            self._adaptsel = val
         else:
             raise MOSAError("Adaptative group selection usage must be a boolean!")
 

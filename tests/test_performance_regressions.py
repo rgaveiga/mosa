@@ -70,7 +70,7 @@ def test_evolve_decodes_categorical_arrays_at_objective_boundary() -> None:
     random.seed(7)
     optimizer.evolve(objective)
 
-    state = optimizer._group_states["Item"]
+    state = optimizer._groupstates["Item"]
     assert state.population.dtype == np.int64
     assert state.categorical
     assert observed
@@ -207,7 +207,7 @@ def test_restart_uses_last_archive_solution_and_rebuilds_distinct_pool() -> None
     with pytest.raises(StopEvolution):
         optimizer.evolve(lambda Item: (_ for _ in ()).throw(StopEvolution()))
 
-    state = optimizer._group_states["Item"]
+    state = optimizer._groupstates["Item"]
     solution = state.decode_solution()
     remaining = state.decode_population()
 
@@ -253,7 +253,7 @@ def test_restart_reconstructs_a_variable_length_solution() -> None:
     with pytest.raises(StopEvolution):
         optimizer.evolve(lambda Items: (_ for _ in ()).throw(StopEvolution()))
 
-    state = optimizer._group_states["Items"]
+    state = optimizer._groupstates["Items"]
     assert state.decode_solution() == [2]
     assert state.decode_population() == [0, 1, 3, 4, 5]
 
@@ -319,7 +319,7 @@ def test_restart_loads_the_last_solution_from_a_persisted_archive() -> None:
     with pytest.raises(StopEvolution):
         restored.evolve(lambda X: (_ for _ in ()).throw(StopEvolution()))
 
-    assert restored._group_states["X"].decode_solution() == pytest.approx(0.25)
+    assert restored._groupstates["X"].decode_solution() == pytest.approx(0.25)
 
 
 def test_legacy_checkpoint_is_ignored() -> None:
