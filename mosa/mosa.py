@@ -4,7 +4,7 @@ import json
 import os
 import warnings
 from copy import deepcopy
-from math import ceil, exp, floor, inf, isclose, isfinite, log10
+from math import ceil, exp, floor, inf, isclose, isfinite, isnan, log10
 from numbers import Real
 from typing import Any, Sequence
 
@@ -1645,18 +1645,29 @@ class Anneal:
         self.__validate_calibration_weights(weights)
 
         try:
-            reduced_delta = [
-                max(
-                    (float(trial) - float(current)) / float(weight),
-                    0.0,
-                )
-                for current, trial, weight in zip(current_values, trial_values, weights)
-            ]
+            current = [float(value) for value in current_values]
+            trial = [float(value) for value in trial_values]
         except (TypeError, ValueError, OverflowError) as error:
-            raise MOSAError("Objective values must be finite numbers!") from error
+            raise MOSAError("Objective values must be numbers!") from error
 
-        if not all(isfinite(delta) for delta in reduced_delta):
-            raise MOSAError("Objective values must be finite numbers!")
+        reduced_delta: list[float] = []
+        for current_value, trial_value, weight in zip(current, trial, weights):
+            if not isfinite(trial_value):
+                # A non-finite trial objective is a constraint penalty. Mapping it
+                # to +inf makes the complete proposal's acceptance probability zero.
+                delta = inf
+            elif not isfinite(current_value):
+                # A finite trial is always an improvement over a penalized current
+                # solution, regardless of which non-finite sentinel was returned.
+                delta = 0.0
+            else:
+                delta = max((trial_value - current_value) / float(weight), 0.0)
+            reduced_delta.append(delta)
+
+        if any(isnan(delta) or delta < 0.0 for delta in reduced_delta):
+            raise MOSAError(
+                "Reduced objective deltas must be non-negative numbers other than NaN!"
+            )
         return reduced_delta
 
     def __acceptance_probability_from_reduced_delta(
@@ -1673,13 +1684,11 @@ class Anneal:
         try:
             deltas = [float(delta) for delta in reduced_delta]
         except (TypeError, ValueError, OverflowError) as error:
-            raise MOSAError(
-                "Reduced objective deltas must be finite non-negative numbers!"
-            ) from error
-        if not all(isfinite(delta) and delta >= 0.0 for delta in deltas):
-            raise MOSAError(
-                "Reduced objective deltas must be finite non-negative numbers!"
-            )
+            raise MOSAError("Reduced objective deltas must be numbers!") from error
+        if any(not isfinite(delta) for delta in deltas):
+            return 0.0
+        if not all(delta >= 0.0 for delta in deltas):
+            raise MOSAError("Finite reduced objective deltas must be non-negative!")
 
         probabilities = [exp(-delta / temperature) for delta in deltas]
         gamma_product = 1.0

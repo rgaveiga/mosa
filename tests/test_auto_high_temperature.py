@@ -1,6 +1,6 @@
 """Tests for automatic high-temperature calibration."""
 
-from math import exp
+from math import exp, inf
 
 import pytest
 from numpy import random
@@ -74,6 +74,29 @@ def test_reduced_deltas_and_acceptance_match_mosa_equation() -> None:
     assert probability([1.0, 2.0], 2.0) == pytest.approx(expected)
 
 
+@pytest.mark.parametrize("penalty", [inf, -inf, float("nan")])
+def test_non_finite_trial_objective_has_zero_acceptance(penalty) -> None:
+    anneal = Anneal()
+    reduced = anneal._Anneal__reduced_objective_deltas
+    probability = anneal._Anneal__acceptance_probability_from_reduced_delta
+
+    penalized_trial = reduced([1.0, 2.0], [penalty, 1.0], [1.0, 1.0])
+    assert penalized_trial == [inf, 0.0]
+    assert probability(penalized_trial, 1000.0) == 0.0
+    assert probability([penalty], 1000.0) == 0.0
+
+
+@pytest.mark.parametrize("penalty", [inf, -inf, float("nan")])
+def test_finite_trial_can_escape_non_finite_current_objective(penalty) -> None:
+    anneal = Anneal()
+    reduced = anneal._Anneal__reduced_objective_deltas
+    probability = anneal._Anneal__acceptance_probability_from_reduced_delta
+
+    finite_trial = reduced([penalty], [1.0], [1.0])
+    assert finite_trial == [0.0]
+    assert probability(finite_trial, 1000.0) == 1.0
+
+
 def test_pmax_is_local_to_each_proposal() -> None:
     anneal = Anneal()
     anneal.alpha = 0.5
@@ -110,6 +133,39 @@ def _configured_anneal() -> Anneal:
     anneal.temperature_decrease_factor = 0.5
     anneal.maximum_archive_rejections = 100
     return anneal
+
+
+def test_automatic_calibration_is_not_attempted_by_default(monkeypatch) -> None:
+    random.seed(5)
+    anneal = _configured_anneal()
+
+    def unexpected_calibration(_objective_values):
+        raise AssertionError("automatic temperature calibration was attempted")
+
+    monkeypatch.setattr(
+        anneal,
+        "_Anneal__estimate_initial_temperature",
+        unexpected_calibration,
+    )
+    anneal.evolve(lambda X: (X,))
+
+    assert anneal._temp == pytest.approx([1.0, 0.5, 0.25])
+
+
+@pytest.mark.parametrize("penalty", [inf, -inf, float("nan")])
+def test_non_finite_constraint_penalty_does_not_abort_evolution(penalty) -> None:
+    random.seed(17)
+    anneal = _configured_anneal()
+    evaluations = 0
+
+    def objective(X):
+        nonlocal evaluations
+        evaluations += 1
+        return (0.0,) if evaluations == 1 else (penalty,)
+
+    anneal.evolve(objective)
+
+    assert evaluations > 1
 
 
 def test_automatic_schedule_heats_when_t0_is_insufficient() -> None:
