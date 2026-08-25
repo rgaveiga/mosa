@@ -642,9 +642,7 @@ class Anneal:
         else:
             weight = [1.0 for k in range(len(fcurr))]
 
-        automatic_high_temperature = (
-            self._autohightemp and not self._initempset
-        )
+        automatic_high_temperature = self._autohightemp and not self._initempset
         if automatic_high_temperature:
             initial_temperature = self.__estimate_initial_temperature(fcurr)
             initial_scale = sum(abs(float(value)) for value in fcurr) / len(fcurr)
@@ -658,11 +656,7 @@ class Anneal:
                 print("Initial calibration temperature: " f"{initial_temperature:.6e}")
         else:
             self._temp = [self._initemp * self._decrease**i for i in range(self._ntemp)]
-            if (
-                self._verbose
-                and self._autohightemp
-                and self._initempset
-            ):
+            if self._verbose and self._autohightemp and self._initempset:
                 print(
                     "Explicit initial temperature provided; automatic "
                     "high-temperature calibration is disabled for this run."
@@ -1000,8 +994,7 @@ class Anneal:
                         )
 
                     if (
-                        expected_acceptance
-                        < self._hightempaccthresh
+                        expected_acceptance < self._hightempaccthresh
                         and self._ntemp >= 2
                     ):
                         high_temperature = self.__estimate_high_temperature(
@@ -1027,10 +1020,7 @@ class Anneal:
                                 "calibrated high-temperature stage."
                             )
                     elif self._verbose:
-                        if (
-                            expected_acceptance
-                            >= self._hightempaccthresh
-                        ):
+                        if expected_acceptance >= self._hightempaccthresh:
                             print(
                                 "    Initial calibration temperature satisfies "
                                 "the target acceptance."
@@ -1460,6 +1450,7 @@ class Anneal:
         index2: int = 1,
         index3: int | None = None,
         file: str | None = None,
+        label: Sequence[str] = (),
     ) -> None:
         """
         Plots 2D or 3D scatter plots of selected objective values.
@@ -1485,6 +1476,10 @@ class Anneal:
         `file`: name of the image file where the plot will be saved.
 
         The default is `None`, which means that no figure will be created.
+
+        `label`: axis labels in objective order, provided as a list or tuple.
+
+        The default is an empty tuple, which uses `f0`, `f1`, ... as labels.
         """
 
         try:
@@ -1495,6 +1490,16 @@ class Anneal:
         xset = self.__checkarchive(xset)
 
         nobj = len(xset["f"][0])
+        if not isinstance(label, (list, tuple)):
+            raise MOSAError("Axis labels must be provided in a list or tuple!")
+
+        if len(label) not in (0, nobj):
+            raise MOSAError(
+                "The number of axis labels must be zero or equal to the number "
+                "of objective functions!"
+            )
+
+        axis_labels = list(label) if len(label) > 0 else [f"f{i}" for i in range(nobj)]
         indices = [index1, index2]
 
         if index3 is not None:
@@ -1516,15 +1521,15 @@ class Anneal:
 
         if index3 is None:
             ax = fig.add_subplot()
-            ax.set_xlabel(f"f{index1}")
-            ax.set_ylabel(f"f{index2}")
+            ax.set_xlabel(axis_labels[index1])
+            ax.set_ylabel(axis_labels[index2])
             ax.grid()
             ax.scatter(f[0], f[1])
         else:
             ax = fig.add_subplot(projection="3d")
-            ax.set_xlabel(f"f{index1}")
-            ax.set_ylabel(f"f{index2}")
-            ax.set_zlabel(f"f{index3}")
+            ax.set_xlabel(axis_labels[index1])
+            ax.set_ylabel(axis_labels[index2])
+            ax.set_zlabel(axis_labels[index3])
             ax.grid()
             ax.scatter(f[0], f[1], f[2])
 
@@ -1652,14 +1657,21 @@ class Anneal:
 
         reduced_delta: list[float] = []
         for current_value, trial_value, weight in zip(current, trial, weights):
-            if not isfinite(trial_value):
-                # A non-finite trial objective is a constraint penalty. Mapping it
-                # to +inf makes the complete proposal's acceptance probability zero.
+            if isnan(trial_value) or trial_value == inf:
+                # NaN and +inf are invalid or maximally bad trial objectives for a
+                # minimization problem. Mapping either to +inf makes the complete
+                # proposal's acceptance probability zero.
                 delta = inf
-            elif not isfinite(current_value):
-                # A finite trial is always an improvement over a penalized current
-                # solution, regardless of which non-finite sentinel was returned.
+            elif trial_value == -inf:
+                # -inf is the best possible value in a minimization problem, so its
+                # individual Metropolis probability is exp(0) == 1.
                 delta = 0.0
+            elif isnan(current_value) or current_value == inf:
+                # A finite trial improves upon an invalid or +inf current value.
+                delta = 0.0
+            elif current_value == -inf:
+                # Moving from -inf to a finite value is a maximal worsening.
+                delta = inf
             else:
                 delta = max((trial_value - current_value) / float(weight), 0.0)
             reduced_delta.append(delta)

@@ -74,7 +74,7 @@ def test_reduced_deltas_and_acceptance_match_mosa_equation() -> None:
     assert probability([1.0, 2.0], 2.0) == pytest.approx(expected)
 
 
-@pytest.mark.parametrize("penalty", [inf, -inf, float("nan")])
+@pytest.mark.parametrize("penalty", [inf, float("nan")])
 def test_non_finite_trial_objective_has_zero_acceptance(penalty) -> None:
     anneal = Anneal()
     reduced = anneal._Anneal__reduced_objective_deltas
@@ -86,7 +86,21 @@ def test_non_finite_trial_objective_has_zero_acceptance(penalty) -> None:
     assert probability([penalty], 1000.0) == 0.0
 
 
-@pytest.mark.parametrize("penalty", [inf, -inf, float("nan")])
+def test_negative_infinity_trial_is_a_maximal_improvement() -> None:
+    anneal = Anneal()
+    anneal.alpha = 0.25
+    reduced = anneal._Anneal__reduced_objective_deltas
+    probability = anneal._Anneal__acceptance_probability_from_reduced_delta
+
+    trial = reduced([1.0, 2.0], [-inf, 4.0], [1.0, 1.0])
+    second_probability = exp(-2.0)
+
+    assert trial == [0.0, 2.0]
+    assert probability(trial, 1.0) == pytest.approx(0.75 * second_probability + 0.25)
+    assert probability(reduced([1.0], [-inf], [1.0]), 1.0) == 1.0
+
+
+@pytest.mark.parametrize("penalty", [inf, float("nan")])
 def test_finite_trial_can_escape_non_finite_current_objective(penalty) -> None:
     anneal = Anneal()
     reduced = anneal._Anneal__reduced_objective_deltas
@@ -95,6 +109,17 @@ def test_finite_trial_can_escape_non_finite_current_objective(penalty) -> None:
     finite_trial = reduced([penalty], [1.0], [1.0])
     assert finite_trial == [0.0]
     assert probability(finite_trial, 1000.0) == 1.0
+
+
+def test_finite_trial_cannot_worsen_negative_infinity_current_objective() -> None:
+    anneal = Anneal()
+    reduced = anneal._Anneal__reduced_objective_deltas
+    probability = anneal._Anneal__acceptance_probability_from_reduced_delta
+
+    finite_trial = reduced([-inf], [1.0], [1.0])
+
+    assert finite_trial == [inf]
+    assert probability(finite_trial, 1000.0) == 0.0
 
 
 def test_pmax_is_local_to_each_proposal() -> None:
