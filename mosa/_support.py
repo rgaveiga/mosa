@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Sequence, TypeAlias, TypedDict
 
 import numpy as np
+
 from numba import njit
 
 from ._error import MOSAError
