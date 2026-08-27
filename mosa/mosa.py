@@ -26,6 +26,7 @@ from ._support import (
     _adaptative_selection_reward,
     _categorical_equivalence,  # noqa: F401 - re-exported for compatibility
     corana_step_length,
+    _dominance_masks_kernel,
     _is_numeric_population,  # noqa: F401 - re-exported for compatibility
     _non_dominated_mask_kernel,
     _normalize_selection_weights,
@@ -90,6 +91,8 @@ class Anneal:
         self._xcache: bool = False
         self._xcachesize: int = 10000
         self._cache: Archive = {"x": [], "f": []}
+        self._archive_lookup: dict[Any, int] = {}
+        self._cache_lookup: dict[Any, tuple[Solution, ObjectiveValues]] = {}
         self._temp: list[float] = []
         self._weight: ObjectiveWeightValues = []
         self._niter: int = 1000
@@ -641,12 +644,12 @@ class Anneal:
             weight = self._weight.copy()
         else:
             weight = [1.0 for k in range(len(fcurr))]
+        self.__validate_calibration_weights(weight)
 
         automatic_high_temperature = self._autohightemp and not self._initempset
         if automatic_high_temperature:
             initial_temperature = self.__estimate_initial_temperature(fcurr)
             initial_scale = sum(abs(float(value)) for value in fcurr) / len(fcurr)
-            self.__validate_calibration_weights(weight)
             self._temp = [
                 initial_temperature * self._decrease**i for i in range(self._ntemp)
             ]
@@ -890,11 +893,15 @@ class Anneal:
 
                 ftmp = self.__evaluate_solution(func, xtmp)
 
-                reduced_delta = self.__reduced_objective_deltas(fcurr, ftmp, weight)
-                gamma = self.__acceptance_probability_from_reduced_delta(
-                    reduced_delta, temp
+                reduced_delta, gamma = self.__trial_acceptance(
+                    fcurr,
+                    ftmp,
+                    weight,
+                    temp,
+                    collect_reduced_delta=collect_calibration,
                 )
                 if collect_calibration:
+                    assert reduced_delta is not None
                     reduced_delta_samples.append(reduced_delta)
                     evaluated_trials += 1
 
@@ -1231,8 +1238,9 @@ class Anneal:
         included = np.flatnonzero(np.all(f_arr <= threshold_array, axis=-1))
 
         if len(included) > 0:
-            tmpdict["x"] = [v for i, v in enumerate(x) if i in included]
-            tmpdict["f"] = [v for i, v in enumerate(f) if i in included]
+            included_indices = included.tolist()
+            tmpdict["x"] = [x[i] for i in included_indices]
+            tmpdict["f"] = [f[i] for i in included_indices]
         else:
             raise RuntimeError("No solution remained in the reduced archive!")
 
@@ -1557,17 +1565,10 @@ class Anneal:
         xset = self.__checkarchive(xset)
 
         f_arr = np.array(xset["f"])
-        nf = f_arr.shape[1]
-        fmin: np.ndarray = np.zeros(nf)
-        fmax: np.ndarray = np.zeros(nf)
-        favg: np.ndarray = np.zeros(nf)
-        fstd: np.ndarray = np.zeros(nf)
-
-        for i in range(nf):
-            fmin[i] = f_arr[:, i].min()
-            fmax[i] = f_arr[:, i].max()
-            favg[i] = f_arr[:, i].mean()
-            fstd[i] = f_arr[:, i].std()
+        fmin = f_arr.min(axis=0)
+        fmax = f_arr.max(axis=0)
+        favg = f_arr.mean(axis=0)
+        fstd = f_arr.std(axis=0)
 
         return {
             "Min": fmin.astype(float).tolist(),
@@ -1682,6 +1683,70 @@ class Anneal:
             )
         return reduced_delta
 
+    def __trial_acceptance(
+        self,
+        current_values: ObjectiveValues,
+        trial_values: ObjectiveValues,
+        weights: ObjectiveWeightValues,
+        temperature: float,
+        *,
+        collect_reduced_delta: bool,
+    ) -> tuple[list[float] | None, float]:
+        """Compute trial deltas and acceptance in one pass inside evolve."""
+
+        if not (
+            len(current_values) == len(trial_values) == len(weights)
+            and len(trial_values) > 0
+        ):
+            raise MOSAError(
+                "Current objectives, trial objectives, and weights must have "
+                "the same non-zero length!"
+            )
+
+        reduced_delta: list[float] | None = [] if collect_reduced_delta else None
+        gamma_product = 1.0
+        maximum_probability = 0.0
+        invalid_delta = False
+
+        try:
+            for current_value, trial_value, weight in zip(
+                current_values, trial_values, weights
+            ):
+                current = float(current_value)
+                trial = float(trial_value)
+
+                if isnan(trial) or trial == inf:
+                    delta = inf
+                elif trial == -inf:
+                    delta = 0.0
+                elif isnan(current) or current == inf:
+                    delta = 0.0
+                elif current == -inf:
+                    delta = inf
+                else:
+                    delta = max((trial - current) / float(weight), 0.0)
+
+                if reduced_delta is not None:
+                    reduced_delta.append(delta)
+
+                if not isfinite(delta):
+                    invalid_delta = True
+                elif not invalid_delta:
+                    probability = exp(-delta / temperature)
+                    gamma_product *= probability
+                    if probability > maximum_probability:
+                        maximum_probability = probability
+        except (TypeError, ValueError, OverflowError) as error:
+            raise MOSAError("Objective values must be numbers!") from error
+
+        if invalid_delta:
+            return reduced_delta, 0.0
+
+        gamma = (1.0 - self._alpha) * gamma_product + (
+            self._alpha * maximum_probability
+        )
+        return reduced_delta, min(max(float(gamma), 0.0), 1.0)
+
     def __acceptance_probability_from_reduced_delta(
         self, reduced_delta: Sequence[float], temperature: float
     ) -> float:
@@ -1723,16 +1788,73 @@ class Anneal:
             for sample in samples
         ) / len(samples)
 
+    @staticmethod
+    def __calibration_sample_statistics(
+        samples: Sequence[Sequence[float]],
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Precompute temperature-independent calibration sample statistics."""
+
+        sums = np.empty(len(samples), dtype=float)
+        minima = np.empty(len(samples), dtype=float)
+        valid = np.ones(len(samples), dtype=bool)
+
+        for index, sample in enumerate(samples):
+            if not sample:
+                raise MOSAError("At least one reduced objective delta is required!")
+            try:
+                deltas = np.asarray(sample, dtype=float)
+            except (TypeError, ValueError, OverflowError) as error:
+                raise MOSAError("Reduced objective deltas must be numbers!") from error
+
+            if np.any(deltas < 0.0):
+                raise MOSAError("Finite reduced objective deltas must be non-negative!")
+            if not np.all(np.isfinite(deltas)):
+                valid[index] = False
+                sums[index] = 0.0
+                minima[index] = 0.0
+            else:
+                sums[index] = float(deltas.sum())
+                minima[index] = float(deltas.min())
+
+        return sums, minima, valid
+
+    def __expected_acceptance_from_statistics(
+        self,
+        sums: np.ndarray,
+        minima: np.ndarray,
+        valid: np.ndarray,
+        temperature: float,
+    ) -> float:
+        """Evaluate all calibration samples with vectorized NumPy operations."""
+
+        if not isinstance(temperature, Real) or isinstance(temperature, bool):
+            raise MOSAError("Temperature must be a finite number greater than zero!")
+        temperature = float(temperature)
+        if not isfinite(temperature) or temperature <= 0.0:
+            raise MOSAError("Temperature must be a finite number greater than zero!")
+
+        probabilities = np.zeros(sums.size, dtype=float)
+        probabilities[valid] = (1.0 - self._alpha) * np.exp(
+            -sums[valid] / temperature
+        ) + self._alpha * np.exp(-minima[valid] / temperature)
+        return float(probabilities.mean())
+
     def __estimate_high_temperature(
         self,
         initial_temperature: float,
         samples: Sequence[Sequence[float]],
         target_acceptance: float,
     ) -> float:
-        if (
-            self.__expected_acceptance(samples, initial_temperature)
-            >= target_acceptance
-        ):
+        if not samples:
+            raise MOSAError(
+                "At least one calibration sample is required to estimate acceptance!"
+            )
+        statistics = self.__calibration_sample_statistics(samples)
+
+        def expected(temperature: float) -> float:
+            return self.__expected_acceptance_from_statistics(*statistics, temperature)
+
+        if expected(initial_temperature) >= target_acceptance:
             return float(initial_temperature)
 
         low = float(initial_temperature)
@@ -1740,7 +1862,7 @@ class Anneal:
         for _ in range(60):
             if not isfinite(high):
                 break
-            if self.__expected_acceptance(samples, high) >= target_acceptance:
+            if expected(high) >= target_acceptance:
                 break
             low = high
             high *= 2.0
@@ -1749,10 +1871,7 @@ class Anneal:
                 "Unable to bracket a temperature satisfying the target acceptance!"
             )
 
-        if (
-            not isfinite(high)
-            or self.__expected_acceptance(samples, high) < target_acceptance
-        ):
+        if not isfinite(high) or expected(high) < target_acceptance:
             raise MOSAError(
                 "Unable to bracket a temperature satisfying the target acceptance!"
             )
@@ -1761,7 +1880,7 @@ class Anneal:
             if (high - low) / high <= 1e-6:
                 break
             middle = 0.5 * (low + high)
-            if self.__expected_acceptance(samples, middle) >= target_acceptance:
+            if expected(middle) >= target_acceptance:
                 high = middle
             else:
                 low = middle
@@ -1825,6 +1944,7 @@ class Anneal:
                         self._archivefarr[:kept_count] = archive_arr[keep_mask]
 
                     archive_len = kept_count
+                    self.__rebuild_archive_lookup()
 
                     for removed_x, removed_f in removed_solutions:
                         self.__cache_solution(removed_x, removed_f)
@@ -1833,6 +1953,9 @@ class Anneal:
             self.__ensure_archive_capacity(archive_len + 1, len(f_arr))
             self._archivex.append(x)
             self._archivefarr[archive_len] = f_arr
+            solution_key = _semantic_key(x)
+            if solution_key is not None:
+                self._archive_lookup[solution_key] = archive_len
             self.__remove_cached_solution(x)
 
         return int(updated)
@@ -1843,15 +1966,24 @@ class Anneal:
         """Return previously computed objectives or evaluate and cache the solution."""
 
         if self._xcache:
-            archive_index = self.__solution_index(self._archivex, x)
+            solution_key = _semantic_key(x)
+            archive_index = (
+                self._archive_lookup.get(solution_key)
+                if solution_key is not None
+                else self.__solution_index(self._archivex, x)
+            )
 
             if archive_index is not None:
                 return self._archivefarr[archive_index].astype(float).tolist()
 
-            cache_index = self.__solution_index(self._cache["x"], x)
-
-            if cache_index is not None:
-                return list(self._cache["f"][cache_index])
+            if solution_key is not None:
+                cached = self._cache_lookup.get(solution_key)
+                if cached is not None:
+                    return list(cached[1])
+            else:
+                cache_index = self.__solution_index(self._cache["x"], x)
+                if cache_index is not None:
+                    return list(self._cache["f"][cache_index])
 
         objective_values = list(func(**x))
         self.__cache_solution(x, objective_values)
@@ -1896,42 +2028,82 @@ class Anneal:
         if not self._xcache:
             return
 
-        if self.__solution_index(self._archivex, x) is not None:
-            return
+        solution_key = _semantic_key(x)
+        if solution_key is not None:
+            if solution_key in self._archive_lookup:
+                return
+            if solution_key in self._cache_lookup:
+                return
+        else:
+            if self.__solution_index(self._archivex, x) is not None:
+                return
 
-        if self.__solution_index(self._cache["x"], x) is not None:
-            return
+            if self.__solution_index(self._cache["x"], x) is not None:
+                return
 
         if len(self._cache["x"]) >= self._xcachesize:
-            self._cache["x"].pop(0)
+            evicted = self._cache["x"].pop(0)
             self._cache["f"].pop(0)
+            evicted_key = _semantic_key(evicted)
+            if evicted_key is not None:
+                self._cache_lookup.pop(evicted_key, None)
 
-        self._cache["x"].append(deepcopy(x))
-        self._cache["f"].append(list(f))
+        cached_x = deepcopy(x)
+        cached_f = list(f)
+        self._cache["x"].append(cached_x)
+        self._cache["f"].append(cached_f)
+        if solution_key is not None:
+            self._cache_lookup[solution_key] = (cached_x, cached_f)
 
     def __remove_cached_solution(self, x: Solution) -> None:
         """Remove a solution from the cache after it enters the archive."""
 
-        cache_index = self.__solution_index(self._cache["x"], x)
+        solution_key = _semantic_key(x)
+        cache_index: int | None = None
+        if solution_key is not None:
+            cached = self._cache_lookup.pop(solution_key, None)
+            if cached is not None:
+                cached_x = cached[0]
+                cache_index = next(
+                    (
+                        index
+                        for index, solution in enumerate(self._cache["x"])
+                        if solution is cached_x
+                    ),
+                    None,
+                )
+        else:
+            cache_index = self.__solution_index(self._cache["x"], x)
 
         if cache_index is not None:
             self._cache["x"].pop(cache_index)
             self._cache["f"].pop(cache_index)
 
+    def __rebuild_archive_lookup(self) -> None:
+        """Rebuild the hash index for semantically hashable archive solutions."""
+
+        self._archive_lookup.clear()
+        for index, solution in enumerate(self._archivex):
+            solution_key = _semantic_key(solution)
+            if solution_key is not None:
+                self._archive_lookup[solution_key] = index
+
+    def __rebuild_cache_lookup(self) -> None:
+        """Rebuild the hash index for semantically hashable cached solutions."""
+
+        self._cache_lookup.clear()
+        for solution, objective_values in zip(self._cache["x"], self._cache["f"]):
+            solution_key = _semantic_key(solution)
+            if solution_key is not None:
+                self._cache_lookup[solution_key] = (solution, objective_values)
+
     @staticmethod
     def __dominance_masks(
         archive_arr: np.ndarray, f_arr: np.ndarray
     ) -> tuple[np.ndarray, np.ndarray]:
-        """Compare objectives by column to use NumPy's vectorized loops."""
+        """Compare archive objectives with one candidate in compiled code."""
 
-        archive_dominates = archive_arr[:, 0] <= f_arr[0]
-        candidate_dominates = archive_arr[:, 0] >= f_arr[0]
-
-        for objective in range(1, len(f_arr)):
-            archive_dominates &= archive_arr[:, objective] <= f_arr[objective]
-            candidate_dominates &= archive_arr[:, objective] >= f_arr[objective]
-
-        return archive_dominates, candidate_dominates
+        return _dominance_masks_kernel(archive_arr, f_arr)
 
     @staticmethod
     def __non_dominated_mask(f_arr: np.ndarray) -> np.ndarray:
@@ -2095,6 +2267,7 @@ class Anneal:
         """@private"""
 
         self._archivex = list(x_values)
+        self.__rebuild_archive_lookup()
 
         if len(f_values) == 0:
             self._archivefarr = np.empty((0, 0), dtype=float)
@@ -2383,6 +2556,7 @@ class Anneal:
             if overflow > 0:
                 del self._cache["x"][:overflow]
                 del self._cache["f"][:overflow]
+                self.__rebuild_cache_lookup()
         else:
             raise MOSAError(
                 "The solution cache size must be an integer greater than zero!"

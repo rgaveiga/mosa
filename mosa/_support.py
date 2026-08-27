@@ -97,26 +97,34 @@ def _adaptative_selection_reward(
 
     previous_values = np.asarray(previous, dtype=float)
     candidate_values = np.asarray(candidate, dtype=float)
-    finite_pairs = np.isfinite(previous_values) & np.isfinite(candidate_values)
-    deltas = np.zeros_like(previous_values)
-    deltas[finite_pairs] = np.abs(
-        candidate_values[finite_pairs] - previous_values[finite_pairs]
-    )
-    np.maximum(maximum_deltas, deltas, out=maximum_deltas)
-
-    normalized_deltas = np.zeros_like(deltas)
-    np.divide(
-        deltas,
-        maximum_deltas,
-        out=normalized_deltas,
-        where=maximum_deltas > 0.0,
+    return _adaptative_selection_reward_kernel(
+        previous_values, candidate_values, maximum_deltas
     )
 
-    # A transition between a finite value and +/-inf represents a maximal
-    # variation. Equal infinities do not represent a change.
-    nonfinite_changes = ~finite_pairs & (previous_values != candidate_values)
-    normalized_deltas[nonfinite_changes] = 1.0
-    return float(np.mean(normalized_deltas))
+
+@njit(cache=True)
+def _adaptative_selection_reward_kernel(
+    previous: np.ndarray,
+    candidate: np.ndarray,
+    maximum_deltas: np.ndarray,
+) -> float:
+    """Compute adaptive reward without per-call temporary arrays."""
+
+    total = 0.0
+    for index in range(previous.size):
+        previous_value = previous[index]
+        candidate_value = candidate[index]
+
+        if np.isfinite(previous_value) and np.isfinite(candidate_value):
+            delta = abs(candidate_value - previous_value)
+            if delta > maximum_deltas[index]:
+                maximum_deltas[index] = delta
+            if maximum_deltas[index] > 0.0:
+                total += delta / maximum_deltas[index]
+        elif previous_value != candidate_value:
+            total += 1.0
+
+    return total / previous.size
 
 
 def corana_step_length(
@@ -323,6 +331,38 @@ class _GroupState:
         if self.categorical:
             return [self.categories[int(value)] for value in self.population]
         return self.population.tolist()
+
+
+@njit(cache=True)
+def _dominance_masks_kernel(
+    archive_arr: np.ndarray, candidate: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """Compare an archive with one candidate in a single compiled pass."""
+
+    row_count, objective_count = archive_arr.shape
+    archive_dominates = np.ones(row_count, dtype=np.bool_)
+    candidate_dominates = np.ones(row_count, dtype=np.bool_)
+
+    for row in range(row_count):
+        archive_row_dominates = True
+        candidate_dominates_row = True
+
+        for objective in range(objective_count):
+            archive_value = archive_arr[row, objective]
+            candidate_value = candidate[objective]
+
+            if not archive_value <= candidate_value:
+                archive_row_dominates = False
+            if not archive_value >= candidate_value:
+                candidate_dominates_row = False
+
+            if not archive_row_dominates and not candidate_dominates_row:
+                break
+
+        archive_dominates[row] = archive_row_dominates
+        candidate_dominates[row] = candidate_dominates_row
+
+    return archive_dominates, candidate_dominates
 
 
 @njit(cache=True)
