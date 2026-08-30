@@ -6,8 +6,8 @@ import mosa
 import pytest
 from numpy import random
 
-from mosa.__error import MOSAError
-from mosa.__support import corana_step_length
+from mosa._error import MOSAError
+from mosa._support import corana_step_length
 
 mosa_module = importlib.import_module("mosa.mosa")
 
@@ -93,3 +93,79 @@ def test_disabling_corana_preserves_continuous_step_length(monkeypatch) -> None:
     optimizer.evolve(lambda X: (0.0,))
 
     assert optimizer.mc_step_size["X"] == 1.0
+
+
+def configured_continuous_optimizer() -> mosa.Anneal:
+    optimizer = mosa.Anneal()
+    optimizer.set_population(X=(-10.0, 10.0))
+    optimizer.number_of_temperatures = 1
+    optimizer.number_of_iterations = 1
+    optimizer.maximum_archive_rejections = 100
+    optimizer.restart = False
+    return optimizer
+
+
+def test_default_continuous_step_is_one_tenth_of_boundary_range() -> None:
+    optimizer = configured_continuous_optimizer()
+
+    optimizer.evolve(lambda X: (0.0,))
+
+    assert optimizer.mc_step_size["X"] == pytest.approx(2.0)
+
+
+@pytest.mark.parametrize(
+    ("configured_step", "expected_step", "warning_fragment"),
+    [
+        (0.01, 0.02, "below the minimum 0.02"),
+        (11.0, 10.0, "above the maximum 10.0"),
+    ],
+)
+def test_user_continuous_step_is_clamped_with_printed_warning(
+    configured_step: float,
+    expected_step: float,
+    warning_fragment: str,
+    capsys,
+) -> None:
+    optimizer = configured_continuous_optimizer()
+    optimizer.mc_step_size = {"X": configured_step}
+
+    optimizer.evolve(lambda X: (0.0,))
+
+    assert optimizer.mc_step_size["X"] == pytest.approx(expected_step)
+    output = capsys.readouterr().out
+    assert warning_fragment in output
+    assert "        WARNING: Monte Carlo step size" in output
+    assert "Using " not in output
+
+
+@pytest.mark.parametrize(
+    ("adapted_step", "expected_step"),
+    [(0.001, 0.02), (100.0, 10.0)],
+)
+def test_corana_silently_clamps_continuous_step(
+    monkeypatch, capsys, adapted_step: float, expected_step: float
+) -> None:
+    used_steps = []
+    optimization_started = False
+    original_uniform = mosa_module.uniform
+
+    def record_uniform(low, high, *args):
+        if optimization_started and low == -high and high in (2.0, expected_step):
+            used_steps.append(high)
+        return original_uniform(low, high, *args)
+
+    def objective(X):
+        nonlocal optimization_started
+        optimization_started = True
+        return (0.0,)
+
+    monkeypatch.setattr(mosa_module, "uniform", record_uniform)
+    monkeypatch.setattr(mosa_module, "corana_step_length", lambda *args: adapted_step)
+    optimizer = configured_continuous_optimizer()
+    optimizer.adaptative_mc_step = True
+    optimizer.number_of_temperatures = 2
+
+    optimizer.evolve(objective)
+
+    assert used_steps == pytest.approx([2.0, expected_step])
+    assert "WARNING: Monte Carlo step size" not in capsys.readouterr().out

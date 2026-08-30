@@ -53,23 +53,24 @@ def test_alloy_optimization_topsis_result() -> None:
     optimizer.set_opt_param("change_value_move", Component=1.0, Concentration=1.0)
     optimizer.set_opt_param("swap_move", Component=1.0)
     optimizer.set_opt_param("mc_step_size", Concentration=0.05)
+    optimizer.adaptative_selection = True
+    optimizer.verbose = True
     optimizer.restart = False
-    optimizer.adaptative_mc_step = False
 
     archives = []
     for seed in (1, 2, 3):
         random.seed(seed)
+        optimizer.archive_file = f"archive{seed}.json"
         optimizer.evolve(fobj)
         archives.append(optimizer.copyx())
 
     merged = optimizer.mergex(archives)
-    pruned = optimizer.prune_dominated(xset=merged)
-    trimmed = optimizer.trimx(xset=pruned, thresholds=(-27.0, None))
+    trimmed = optimizer.trimx(xset=merged, thresholds=(-27.0, None))
     result = optimizer.bestx(xset=trimmed)
 
     assert result["x"][0]["Component"] == ["V", "R"]
-    assert result["x"][0]["Concentration"] == pytest.approx(0.09997473981079008)
-    assert result["f"][0] == pytest.approx([-27.412569755936158, 65.41868547183883])
+    assert result["x"][0]["Concentration"] == pytest.approx(0.09992809330887281)
+    assert result["f"][0] == pytest.approx([-27.41265524468137, 65.42027177517922])
 
 
 def test_rastrigin_last_solution() -> None:
@@ -96,7 +97,7 @@ def test_rastrigin_last_solution() -> None:
     )
     optimizer.evolve(fobj)
 
-    result = optimizer.prune_dominated()
+    result = optimizer.copyx()
 
     assert result["x"][0]["X"] == pytest.approx(
         [-0.0009497197841741301, 0.0006391116535993113]
@@ -123,17 +124,16 @@ def test_rosenbrock_last_solution() -> None:
     optimizer.number_of_iterations = 100
     optimizer.number_of_temperatures = 1000
     optimizer.temperature_decrease_factor = 0.9
+    optimizer.adaptative_mc_step = True
     optimizer.set_group_params("X", number_of_elements=3, mc_step_size=1.0)
-    optimizer.restart = False
-    optimizer.adaptative_mc_step = False
     optimizer.evolve(fobj)
 
-    result = optimizer.prune_dominated()
+    result = optimizer.copyx()
 
     assert result["x"][0]["X"] == pytest.approx(
-        [1.0010230081413158, 1.002265827636082, 1.0044758281864978]
+        [1.0000045527104617, 0.9999716546218365, 0.9999509880361634]
     )
-    assert result["f"][0] == pytest.approx([0.0006232094825663027])
+    assert result["f"][0] == pytest.approx([2.2857030560856867e-07])
 
 
 def test_thief_in_the_treasure_room_topsis_result() -> None:
@@ -158,6 +158,7 @@ def test_thief_in_the_treasure_room_topsis_result() -> None:
     ]
     optimizer.archive_size = 1000
     optimizer.maximum_archive_rejections = 1000
+    optimizer.verbose = True
     optimizer.set_opt_param("distinct_elements", Items=True)
     optimizer.set_opt_param("sort_elements", Items=True)
     optimizer.set_opt_param("mc_step_size", Items=50)
@@ -165,11 +166,10 @@ def test_thief_in_the_treasure_room_topsis_result() -> None:
     optimizer.set_opt_param("insert_or_delete_move", Items=0.3)
     optimizer.set_opt_param("number_of_elements", Items=5)
     optimizer.set_opt_param("maximum_number_of_elements", Items=20)
-    optimizer.restart = False
+    optimizer.solution_cache = True
     optimizer.evolve(fobj)
 
-    pruned = optimizer.prune_dominated()
-    trimmed = optimizer.trimx(xset=pruned, thresholds=(None, 20))
+    trimmed = optimizer.trimx(thresholds=(None, 20))
     result = optimizer.bestx(xset=trimmed, weights=(1.0, 0.25))
 
     assert result["x"][0]["Items"] == [248, 405, 412, 551, 552, 581, 838]
@@ -238,10 +238,9 @@ def test_travelling_salesman_last_solution() -> None:
         change_value_move=0.0,
         swap_move=1.0,
     )
-    optimizer.restart = False
     optimizer.evolve(fobj)
 
-    result = optimizer.prune_dominated()
+    result = optimizer.copyx()
 
     assert result["x"][0]["Stops"] == [
         "Cherry City",

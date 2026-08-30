@@ -14,8 +14,7 @@ If you have any questions, corrections, comments or suggestions, just
 [drop a message](mailto:roberto.veiga@ufabc.edu.br).
 
 You can also reach me on [Linkedin](https://www.linkedin.com/in/roberto-gomes-phd-8a718317b/) or 
-follow me on [X](https://x.com/rgaveiga). When I have some free time, which is rare, I publish articles 
-on [Medium](https://medium.com/@rgaveiga).
+follow me on [X](https://x.com/rgaveiga).  
 
 If you want to support this and other open source projects that I maintain, become a 
 [sponsor on Github](https://github.com/sponsors/rgaveiga).
@@ -32,6 +31,7 @@ pip install mosa
 
 You can access the API documentation for **MOSA** on the 
 [project's GitHub Pages site](https://rgaveiga.github.io/mosa).
+
 
 ## Contribution
 

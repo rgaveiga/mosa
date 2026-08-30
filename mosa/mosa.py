@@ -1,19 +1,18 @@
 """This module defines the `Anneal` class, which implements the MOSA algorithm."""
 
-from __future__ import print_function
-from __future__ import division
 import json
 import os
 import warnings
 from copy import deepcopy
-from math import exp, floor, inf, isclose, isfinite
+from math import ceil, exp, floor, inf, isclose, isfinite, isinf, isnan, log10
+from numbers import Real
 from typing import Any, Sequence
 
 import numpy as np
 from numpy.random import choice, triangular, uniform
 from . import __version__
-from .__error import MOSAError
-from .__support import (
+from ._error import MOSAError
+from ._support import (
     Archive,
     Number,
     ObjectiveFunction,
@@ -23,12 +22,33 @@ from .__support import (
     PopulationGroup,
     Solution,
     _GroupState,
+    _adaptative_selection_probabilities,
+    _adaptative_selection_reward,
     _categorical_equivalence,  # noqa: F401 - re-exported for compatibility
     corana_step_length,
+    _dominance_masks_kernel,
     _is_numeric_population,  # noqa: F401 - re-exported for compatibility
     _non_dominated_mask_kernel,
-    _semantic_key,  # noqa: F401 - re-exported for compatibility
-    _values_equal,  # noqa: F401 - re-exported for compatibility
+    _normalize_selection_weights,
+    _selection_probability_floor,
+    _semantic_key,
+    _values_equal,
+)
+
+
+_GROUP_PARAMS = frozenset(
+    {
+        "number_of_elements",
+        "maximum_number_of_elements",
+        "distinct_elements",
+        "mc_step_size",
+        "mc_step_increment",
+        "change_value_move",
+        "insert_or_delete_move",
+        "swap_move",
+        "sort_elements",
+        "group_selection_weights",
+    }
 )
 
 
@@ -44,11 +64,14 @@ class Anneal:
         print(f" MULTI-OBJECTIVE SIMULATED ANNEALING (MOSA) {__version__}  ")
         print("--------------------------------------------------")
 
-        self._initemp: float = 1.0
+        self._initemp: float | None = None
+        self._initempset: bool = False
+        self._autohightemp: bool = True
+        self._hightempaccthresh: float = 0.8
         self._decrease: float = 0.9
         self._ntemp: int = 10
         self._population: Population = {}
-        self._group_states: dict[str, _GroupState] = {}
+        self._groupstates: dict[str, _GroupState] = {}
         self._changemove: dict[str, Number] = {}
         self._swapmove: dict[str, Number] = {}
         self._insordelmove: dict[str, Number] = {}
@@ -57,17 +80,25 @@ class Anneal:
         self._xdistinct: dict[str, bool] = {}
         self._xincrement: dict[str, Number] = {}
         self._xstep: dict[str, Number] = {}
-        self._adapt_xstep: bool = False
+        self._adaptxstep: bool = False
+        self._adaptsel: bool = False
         self._xsort: dict[str, bool] = {}
+        self._xselalpha: float = 0.2
         self._xselweight: dict[str, Number] = {}
-        self._archive_x: list[Solution] = []
-        self._archive_f_arr: np.ndarray = np.empty((0, 0), dtype=float)
-        self._archive_f_capacity: int = 0
+        self._archivex: list[Solution] = []
+        self._archivefarr: np.ndarray = np.empty((0, 0), dtype=float)
+        self._archivefcap: int = 0
+        self._xcache: bool = False
+        self._xcachesize: int = 10000
+        self._cache: Archive = {"x": [], "f": []}
+        self._archive_lookup: dict[Any, int] = {}
+        self._cache_lookup: dict[Any, tuple[Solution, ObjectiveValues]] = {}
+        self._nreused: int = 0
         self._temp: list[float] = []
         self._weight: ObjectiveWeightValues = []
         self._niter: int = 1000
-        self._archive_file: str = "archive.json"
-        self._archive_save_interval: int = 10
+        self._archivefile: str = "archive.json"
+        self._archivesaveint: int = 10
         self._archivesize: int = 1000
         self._maxarchivereject: int = 1000
         self._alpha: float = 0.0
@@ -126,27 +157,14 @@ class Anneal:
         - `group_selection_weights`
         """
 
-        allowed: dict[str, str]
-
-        if len(params) > 0:
-            allowed = {
-                "number_of_elements": "self._xnel",
-                "maximum_number_of_elements": "self._maxnel",
-                "distinct_elements": "self._xdistinct",
-                "mc_step_size": "self._xstep",
-                "mc_step_increment": "self._xincrement",
-                "change_value_move": "self._changemove",
-                "insert_or_delete_move": "self._insordelmove",
-                "swap_move": "self._swapmove",
-                "sort_elements": "self._xsort",
-                "group_selection_weights": "self._xselweight",
-            }
-
-            for param, value in params.items():
-                if param in allowed:
-                    exec(f"{allowed[param]}[group]=value")
-        else:
+        if len(params) == 0:
             raise MOSAError("No keyword was provided!")
+
+        for param, value in params.items():
+            if param not in _GROUP_PARAMS:
+                raise MOSAError("Optimization parameter does not exist!")
+
+            setattr(self, param, {group: value})
 
     def set_opt_param(self, param: str, **groups: Any) -> None:
         """
@@ -183,31 +201,13 @@ class Anneal:
         group in the solution to the problem.
         """
 
-        params: dict[str, str]
-        execstr: str
-
-        if len(groups) > 0:
-            params = {
-                "number_of_elements": "self._xnel",
-                "maximum_number_of_elements": "self._maxnel",
-                "distinct_elements": "self._xdistinct",
-                "mc_step_size": "self._xstep",
-                "mc_step_increment": "self._xincrement",
-                "change_value_move": "self._changemove",
-                "insert_or_delete_move": "self._insordelmove",
-                "swap_move": "self._swapmove",
-                "sort_elements": "self._xsort",
-                "group_selection_weights": "self._xselweight",
-            }
-
-            if param in params:
-                execstr = "for key,value in groups.items():\n"
-                execstr += f"    {params[param]}[key]=value"
-                exec(execstr)
-            else:
-                raise MOSAError("Optimization parameter does not exist!")
-        else:
+        if len(groups) == 0:
             raise MOSAError("No keyword was provided!")
+
+        if param not in _GROUP_PARAMS:
+            raise MOSAError("Optimization parameter does not exist!")
+
+        setattr(self, param, groups)
 
     def evolve(self, func: ObjectiveFunction) -> None:
         """
@@ -220,13 +220,17 @@ class Anneal:
 
         print("--- BEGIN: Evolving a solution ---\n")
 
+        if not callable(func):
+            raise MOSAError("A Python function must be provided!")
+
         from_archive: bool = False
         from_saved_state: bool = False
-        pmax: float = 0.0
-        gamma: float = 1.0
         updated: int = 0
         nupdated: int = 0
         naccept: int = 0
+        number_of_temperatures: int = 0
+        total_number_of_iterations: int = 0
+        total_number_of_accepted_iterations: int = 0
         narchivereject: int = 0
         fcurr: ObjectiveValues = []
         ftmp: ObjectiveValues = []
@@ -236,6 +240,7 @@ class Anneal:
         xcurr: Solution = {}
         xtmp: Solution = {}
         xstep: dict[str, Number] = {}
+        xstep_bounds: dict[str, tuple[float, float]] = {}
         xincrement: dict[str, float] = {}
         xincrement_count: dict[str, int] = {}
         xincrement_warned: set[str] = set()
@@ -252,9 +257,24 @@ class Anneal:
         xsort: dict[str, bool] = {}
         totlength: float = 0.0
         sellength: dict[str, float] = {}
+        selweights: dict[str, float] = {}
+        display_sel_prob: tuple[float, ...] = ()
+        adapt_quality: dict[str, float] = {}
+        adapt_max_deltas = np.empty(0, dtype=float)
+        minselprob: float = 0.0
         groups: list[str] = []
         MAX_FAILED: int = 10
         MIN_STEP_LENGTH: int = 10
+
+        def print_final_statistics() -> None:
+            acceptance_ratio = (
+                total_number_of_accepted_iterations / total_number_of_iterations
+                if total_number_of_iterations > 0
+                else 0.0
+            )
+            print(f"Number of temperatures: {number_of_temperatures}")
+            print(f"Total number of iterations: {total_number_of_iterations}")
+            print(f"Total acceptance ratio: {acceptance_ratio:.6f}")
 
         def update_increment_count(group: str) -> None:
             interval_count = 2.0 * float(xstep[group]) / xincrement[group]
@@ -278,27 +298,25 @@ class Anneal:
 
             xincrement_count[group] = int(interval_count) + 1
 
-        self._temp = [self._initemp * self._decrease**i for i in range(self._ntemp)]
-
         if self._restart:
-            if len(self._archive_x) == 0:
-                print(f"Trying to load the archive from file {self._archive_file}...")
+            if len(self._archivex) == 0:
+                print(f"Trying to load the archive from file {self._archivefile}...")
 
-                if not self.__load_archive_file(self._archive_file):
+                if not self.__load_archive_file(self._archivefile):
                     print(
-                        f"File {self._archive_file} not found or invalid! "
+                        f"File {self._archivefile} not found or invalid! "
                         "Initializing an empty archive..."
                     )
                     self.__set_archive_data([], [])
                 else:
-                    print(f"File {self._archive_file} found!")
+                    print(f"File {self._archivefile} found!")
 
-            if len(self._archive_x) > 0 and self._population:
+            if len(self._archivex) > 0 and self._population:
                 print("Restarting from a previous run...")
 
-                xcurr = deepcopy(self._archive_x[-1])
+                xcurr = deepcopy(self._archivex[-1])
                 fcurr = (
-                    self._archive_f_arr[len(self._archive_x) - 1].astype(float).tolist()
+                    self._archivefarr[len(self._archivex) - 1].astype(float).tolist()
                 )
                 population = {
                     group: tuple(values) if isinstance(values, tuple) else list(values)
@@ -318,7 +336,7 @@ class Anneal:
             else:
                 raise MOSAError("Solution and population must have the same groups!")
         else:
-            if self._restart and len(self._archive_x) > 0 and not self._population:
+            if self._restart and len(self._archivex) > 0 and not self._population:
                 raise MOSAError(
                     "A population must be configured to restart from the archive!"
                 )
@@ -331,6 +349,24 @@ class Anneal:
                 raise MOSAError("A population must be provided!")
 
         groups = list(population.keys())
+
+        if self._adaptsel:
+            minselprob = _selection_probability_floor(len(groups))
+            iniprob = _normalize_selection_weights(
+                [self._xselweight.get(group, 1.0) for group in groups],
+                minselprob,
+            )
+            selweights = dict(zip(groups, iniprob.tolist()))
+            self._xselweight.update(selweights)
+        else:
+            selweights = {
+                group: float(self._xselweight.get(group, 1.0)) for group in groups
+            }
+
+        selection_weight_total = sum(selweights.values())
+        display_sel_prob = tuple(
+            selweights[group] / selection_weight_total for group in groups
+        )
 
         print("------\n")
         print("Groups in the solution:\n======================\n")
@@ -385,14 +421,9 @@ class Anneal:
             else:
                 raise MOSAError(f"Wrong format of group {group}!")
 
-            if group in self._xselweight.keys():
-                totlength += self._xselweight[group]
-
-                print(f"        Selection weight: {self._xselweight[group]}")
-            else:
-                totlength += 1.0
-
-                print("        Selection weight: 1.0")
+            totlength += selweights[group]
+            selection_probability = selweights[group] / selection_weight_total
+            print(f"        Selection probability: {selection_probability:.6f}")
 
             sellength[group] = totlength
 
@@ -401,24 +432,13 @@ class Anneal:
             else:
                 changemove[group] = 1.0
 
-            if changemove[group] > 0.0:
-                print(
-                    f"        Weight of 'change value' trial move: {changemove[group]}"
-                )
-
             if group in self._swapmove.keys() and self._swapmove[group] > 0.0:
                 swapmove[group] = float(self._swapmove[group])
-
-                print(f"        Weight of 'swap' trial move: {swapmove[group]}")
             else:
                 swapmove[group] = 0.0
 
             if group in self._insordelmove.keys() and self._insordelmove[group] > 0.0:
                 insordelmove[group] = float(self._insordelmove[group])
-
-                print(
-                    f"        Weight of 'insert or delete' trial move: {insordelmove[group]}"
-                )
 
                 if group in self._maxnel.keys() and self._maxnel[group] >= xnel[group]:
                     maxnel[group] = int(self._maxnel[group])
@@ -427,10 +447,27 @@ class Anneal:
                         maxnel[group] = 2
                 else:
                     maxnel[group] = inf
-
-                print(f"        Maximum number of elements: {maxnel[group]}")
             else:
                 insordelmove[group] = 0.0
+
+            trial_move_weight = (
+                changemove[group] + swapmove[group] + insordelmove[group]
+            )
+            if trial_move_weight > 0.0:
+                print("        Trial move probabilities:")
+                if changemove[group] > 0.0:
+                    print(
+                        f"            Change value: "
+                        f"{changemove[group] / trial_move_weight}"
+                    )
+                if swapmove[group] > 0.0:
+                    print(f"            Swap: {swapmove[group] / trial_move_weight}")
+                if insordelmove[group] > 0.0:
+                    print(
+                        f"            Insert or delete: "
+                        f"{insordelmove[group] / trial_move_weight}"
+                    )
+                    print(f"        Maximum number of elements: {maxnel[group]}")
 
             if swapmove[group] == 0.0 and group in self._xsort.keys():
                 xsort[group] = bool(self._xsort[group])
@@ -439,22 +476,37 @@ class Anneal:
 
             print(f"        Sort values: {xsort[group]}")
 
-            if group in self._xstep.keys():
-                if xsampling[group] == 1:
+            if xsampling[group] == 1:
+                boundary_range = float(xbounds[group][1] - xbounds[group][0])
+                minimum_xstep = boundary_range / 1000.0
+                maximum_xstep = boundary_range / 2.0
+                xstep_bounds[group] = (minimum_xstep, maximum_xstep)
+
+                if group in self._xstep:
                     xstep[group] = float(self._xstep[group])
 
-                    if xstep[group] <= 0.0:
-                        xstep[group] = 0.1
+                    if xstep[group] < minimum_xstep:
+                        print(
+                            f"        WARNING: Monte Carlo step size for continuous "
+                            f"group '{group}' is below the minimum {minimum_xstep}."
+                        )
+                        xstep[group] = minimum_xstep
+                    elif xstep[group] > maximum_xstep:
+                        print(
+                            f"        WARNING: Monte Carlo step size for continuous "
+                            f"group '{group}' is above the maximum {maximum_xstep}."
+                        )
+                        xstep[group] = maximum_xstep
                 else:
-                    xstep[group] = int(self._xstep[group])
+                    xstep[group] = boundary_range / 10.0
+
+                self._xstep[group] = xstep[group]
+            elif group in self._xstep:
+                xstep[group] = int(self._xstep[group])
+            elif changemove[group] > 0.0:
+                xstep[group] = int(len(population[group]) / 2)
             else:
-                if xsampling[group] == 1:
-                    xstep[group] = 0.1
-                else:
-                    if changemove[group] > 0.0:
-                        xstep[group] = int(len(population[group]) / 2)
-                    else:
-                        xstep[group] = 0
+                xstep[group] = 0
 
             if xsampling[group] == 1:
                 print(f"        Maximum step size: {xstep[group]}")
@@ -478,6 +530,13 @@ class Anneal:
                     xincrement[group] = configured_increment
                     update_increment_count(group)
                     print(f"        Step increment: {xincrement[group]}")
+
+                if self._xcache and group not in self._xincrement:
+                    print(
+                        "        WARNING: The solution cache is enabled, but no Monte "
+                        "Carlo step increment was set for continuous group "
+                        f"'{group}'. This may prevent effective use of the cache."
+                    )
             elif (
                 xsampling[group] == 0
                 and (changemove[group] + insordelmove[group]) > 0.0
@@ -507,11 +566,11 @@ class Anneal:
                 changemove[group] = 0.0
                 swapmove[group] = 1.0
 
-        self._group_states = {}
+        self._groupstates = {}
 
         for group in groups:
             try:
-                self._group_states[group] = _GroupState.create(
+                self._groupstates[group] = _GroupState.create(
                     population[group],
                     xnel[group],
                     xcurr[group] if from_saved_state else None,
@@ -528,13 +587,13 @@ class Anneal:
             for group in groups:
                 self.__restore_archive_group_state(
                     group,
-                    self._group_states[group],
+                    self._groupstates[group],
                     xdistinct.get(group, False),
                 )
 
         if from_saved_state:
             xcurr = {
-                group: self._group_states[group].decode_solution() for group in groups
+                group: self._groupstates[group].decode_solution() for group in groups
             }
 
         print("------")
@@ -545,7 +604,7 @@ class Anneal:
             print("Initializing with a random solution from scratch...")
 
             for group in groups:
-                state = self._group_states[group]
+                state = self._groupstates[group]
 
                 if xnel[group] == 1:
                     if xsampling[group] == 0:
@@ -564,7 +623,7 @@ class Anneal:
                 else:
                     values: list[Any] = []
 
-                    for j in range(xnel[group]):
+                    for _ in range(xnel[group]):
                         if xsampling[group] == 0:
                             m = choice(len(state.population))
                             values.append(state.population[m])
@@ -586,18 +645,15 @@ class Anneal:
 
                 xcurr[group] = state.decode_solution()
 
-            if callable(func):
-                fcurr = list(func(**xcurr))
+            fcurr = self.__evaluate_solution(func, xcurr)
 
-                updated = self.__updatearchive(xcurr, fcurr)
+            updated = self.__updatearchive(xcurr, fcurr)
 
-                if self._trackoptprogress:
-                    if len(fcurr) == 1:
-                        self._f.append(fcurr[0])
-                    else:
-                        self._f.append(fcurr)
-            else:
-                raise MOSAError("A Python function must be provided!")
+            if self._trackoptprogress:
+                if len(fcurr) == 1:
+                    self._f.append(fcurr[0])
+                else:
+                    self._f.append(fcurr)
 
         print("Done!")
         print("------")
@@ -605,21 +661,60 @@ class Anneal:
         if len(fcurr) == len(self._weight):
             weight = self._weight.copy()
         else:
-            weight = [1.0 for k in range(len(fcurr))]
+            weight = [1.0] * len(fcurr)
+
+        self.__validate_calibration_weights(weight)
+
+        automatic_high_temperature = self._autohightemp and not self._initempset
+
+        if automatic_high_temperature:
+            print("Estimating initial high-temperature...")
+
+            self._initemp = self.__estimate_initial_temperature(fcurr)
+
+            print("Done!")
+            print("------")
+
+        if self._initemp is None:
+            raise MOSAError(
+                "An initial temperature must be provided or calibrated automatically!"
+            )
+
+        self._temp = [self._initemp * self._decrease**i for i in range(self._ntemp)]
+
+        if self._adaptsel:
+            adapt_quality = {group: 0.0 for group in groups}
+            adapt_max_deltas = np.zeros(len(fcurr), dtype=float)
 
         if not self._verbose:
             print(f"Starting at temperature: {self._temp[0]:.6f}")
             print("Evolving solutions to the problem, please wait...")
 
         archive_dirty = updated == 1
+        self._nreused = 0
 
         for temperature_index, temp in enumerate(self._temp, start=1):
+            number_of_temperatures += 1
+            collect_calibration = automatic_high_temperature and temperature_index == 1
+            reduced_delta_samples: list[list[float]] = []
             if self._verbose:
                 print(f"TEMPERATURE: {temp:.6f}")
+                curr_sel_prob = tuple(
+                    selweights[selected_group] / totlength for selected_group in groups
+                )
+                if curr_sel_prob != display_sel_prob:
+                    print("    Group selection probabilities:")
+                    for selected_group, selection_probability in zip(
+                        groups, curr_sel_prob
+                    ):
+                        print(
+                            f"        {selected_group}: " f"{selection_probability:.6f}"
+                        )
+                    display_sel_prob = curr_sel_prob
 
             nupdated = 0
             naccept = 0
-            if self._adapt_xstep:
+            if self._adaptxstep:
                 corana_attempts = {
                     group: 0
                     for group in groups
@@ -628,6 +723,7 @@ class Anneal:
                 corana_accepts = corana_attempts.copy()
 
             for j in range(self._niter):
+                total_number_of_iterations += 1
                 selstep = chosen = old = new = None
                 population_update: tuple[str, int | None, Any] | None = None
 
@@ -641,7 +737,7 @@ class Anneal:
                     0.0, (changemove[group] + swapmove[group] + insordelmove[group])
                 )
 
-                state = self._group_states[group]
+                state = self._groupstates[group]
                 candidate = (
                     state.solution[0] if state.scalar_output else state.solution.copy()
                 )
@@ -692,7 +788,9 @@ class Anneal:
                     else:
                         if self._verbose:
                             print(
-                                f"WARNING!!!!!! It was not possible to find an element in group '{group}' in the population to update the solution at iteration {j}!"
+                                "    WARNING: It was not possible to find an element "
+                                f"in group '{group}' in the population to update the "
+                                f"solution at iteration {j}."
                             )
 
                         continue
@@ -764,7 +862,9 @@ class Anneal:
                     else:
                         if self._verbose:
                             print(
-                                f"WARNING!!!!!! Failed {int(len(candidate)/2)} times to find different elements in group '{group}' for swapping at iteration {j}!"
+                                f"    WARNING: Failed {int(len(candidate)/2)} times to "
+                                f"find different elements in group '{group}' for "
+                                f"swapping at iteration {j}."
                             )
 
                         continue
@@ -797,8 +897,6 @@ class Anneal:
 
                         candidate = np.delete(candidate, old)
 
-                gamma = 1.0
-
                 xtmp = xcurr.copy()
                 xtmp[group] = (
                     state.decode_value(candidate)
@@ -806,7 +904,7 @@ class Anneal:
                     else state.decode(candidate)
                 )
                 continuous_change = (
-                    self._adapt_xstep
+                    self._adaptxstep
                     and xsampling[group] == 1
                     and group not in xincrement
                     and r < changemove[group]
@@ -814,24 +912,34 @@ class Anneal:
                 if continuous_change:
                     corana_attempts[group] += 1
 
-                ftmp = list(func(**xtmp))
+                ftmp = self.__evaluate_solution(func, xtmp)
 
-                for k in range(len(ftmp)):
-                    if ftmp[k] < fcurr[k]:
-                        pmax = p = 1.0
-                    else:
-                        p = exp(-(ftmp[k] - fcurr[k]) / (temp * weight[k]))
+                if collect_calibration:
+                    self.__raise_for_infinite_calibration_objectives(ftmp)
 
-                        if pmax < p:
-                            pmax = p
-
-                    gamma *= p
-
-                gamma = (1.0 - self._alpha) * gamma + self._alpha * pmax
+                reduced_delta, gamma = self.__trial_acceptance(
+                    fcurr,
+                    ftmp,
+                    weight,
+                    temp,
+                    collect_reduced_delta=collect_calibration,
+                )
+                if collect_calibration:
+                    assert reduced_delta is not None
+                    reduced_delta_samples.append(reduced_delta)
 
                 if gamma == 1.0 or uniform(0.0, 1.0) < gamma:
                     if xsampling[group] == 0 and new is not None:
                         lstep[group] = new
+
+                    if self._adaptsel:
+                        reward = _adaptative_selection_reward(
+                            fcurr, ftmp, adapt_max_deltas
+                        )
+                        previous_quality = adapt_quality[group]
+                        adapt_quality[group] = previous_quality + (
+                            self._xselalpha * (reward - previous_quality)
+                        )
 
                     fcurr = ftmp
                     xcurr = xtmp
@@ -853,6 +961,7 @@ class Anneal:
                             state.population = np.append(state.population, value)
 
                     naccept += 1
+                    total_number_of_accepted_iterations += 1
                     if continuous_change:
                         corana_accepts[group] += 1
                     updated = self.__updatearchive(xcurr, fcurr)
@@ -885,28 +994,92 @@ class Anneal:
                         print(f"Stopping at temperature: {temp:.6f}")
 
                     print("------")
+                    print_final_statistics()
                     print("\n--- THE END ---")
 
                     if archive_dirty:
                         self.savex()
 
-                    self.__remove_json_backup(self._archive_file)
+                    self.__remove_json_backup(self._archivefile)
                     return
 
-            if self._adapt_xstep:
+            if collect_calibration:
+                if reduced_delta_samples:
+                    expected_acceptance = self.__expected_acceptance(
+                        reduced_delta_samples, temp
+                    )
+                    if (
+                        expected_acceptance < self._hightempaccthresh
+                        and self._ntemp >= 2
+                    ):
+                        high_temperature = self.__estimate_high_temperature(
+                            temp,
+                            reduced_delta_samples,
+                            self._hightempaccthresh,
+                        )
+                        self._temp[1:] = [
+                            high_temperature * self._decrease**i
+                            for i in range(self._ntemp - 1)
+                        ]
+                        if self._verbose:
+                            print(
+                                "    Estimated high temperature: "
+                                f"{high_temperature:.6e}"
+                            )
+                            print(
+                                "    Temperature scale factor: "
+                                f"{high_temperature / temp:.6f}"
+                            )
+                    elif (
+                        self._verbose and expected_acceptance < self._hightempaccthresh
+                    ):
+                        print(
+                            "    A higher calibrated stage cannot be executed "
+                            "because only one temperature is configured."
+                        )
+                elif self._verbose:
+                    print(
+                        "    Automatic high-temperature calibration could not "
+                        "estimate acceptance because no trial move was evaluated "
+                        "at the initial temperature."
+                    )
+
+            if self._adaptxstep:
                 for continuous_group, attempted_moves in corana_attempts.items():
-                    xstep[continuous_group] = corana_step_length(
+                    adjusted_xstep = corana_step_length(
                         float(xstep[continuous_group]),
                         corana_accepts[continuous_group],
                         attempted_moves,
                     )
+                    minimum_xstep, maximum_xstep = xstep_bounds[continuous_group]
+                    xstep[continuous_group] = min(
+                        max(adjusted_xstep, minimum_xstep), maximum_xstep
+                    )
+
+            if self._adaptsel:
+                selection_temperature = (
+                    self._temp[temperature_index]
+                    if temperature_index < len(self._temp)
+                    else temp
+                )
+                probabilities = _adaptative_selection_probabilities(
+                    [adapt_quality[group] for group in groups],
+                    selection_temperature,
+                    minselprob,
+                )
+                selweights = dict(zip(groups, probabilities.tolist()))
+                self._xselweight.update(selweights)
+                totlength = 0.0
+                for selected_group in groups:
+                    totlength += selweights[selected_group]
+                    sellength[selected_group] = totlength
 
             final_temperature = temperature_index == len(self._temp)
             archive_save_due = final_temperature or (
-                self._archive_save_interval > 0
+                self._archivesaveint > 0
                 and (
                     temperature_index == 1
-                    or temperature_index % self._archive_save_interval == 0
+                    or temperature_index % self._archivesaveint == 0
                 )
             )
 
@@ -925,7 +1098,15 @@ class Anneal:
                 else:
                     print("    No move accepted.")
 
+                if self._xcache:
+                    print(
+                        "    Fraction of moves retrieved from cache or archive: "
+                        f"{self._nreused/self._niter:.6f}."
+                    )
+
                 print("------")
+
+            self._nreused = 0
 
             if archive_dirty and archive_save_due:
                 self.savex()
@@ -936,8 +1117,9 @@ class Anneal:
             print(f"Stopping at temperature:  {temp:.6f}.")
             print("------")
 
+        print_final_statistics()
         print("\n--- THE END ---")
-        self.__remove_json_backup(self._archive_file)
+        self.__remove_json_backup(self._archivefile)
 
     def prune_dominated(self, xset: Archive | None = None) -> Archive:
         """
@@ -993,7 +1175,7 @@ class Anneal:
             archive_file = archive_file.strip()
 
             if len(archive_file) == 0:
-                archive_file = self._archive_file
+                archive_file = self._archivefile
         else:
             raise MOSAError("The name of the archive file must be a string!")
 
@@ -1015,7 +1197,7 @@ class Anneal:
             archive_file = archive_file.strip()
 
             if len(archive_file) == 0:
-                archive_file = self._archive_file
+                archive_file = self._archivefile
         else:
             raise MOSAError("Name of the archive file must be a string!")
 
@@ -1064,8 +1246,9 @@ class Anneal:
         included = np.flatnonzero(np.all(f_arr <= threshold_array, axis=-1))
 
         if len(included) > 0:
-            tmpdict["x"] = [v for i, v in enumerate(x) if i in included]
-            tmpdict["f"] = [v for i, v in enumerate(f) if i in included]
+            included_indices = included.tolist()
+            tmpdict["x"] = [x[i] for i in included_indices]
+            tmpdict["f"] = [f[i] for i in included_indices]
         else:
             raise RuntimeError("No solution remained in the reduced archive!")
 
@@ -1198,7 +1381,8 @@ class Anneal:
 
     def mergex(self, xset_list: list[Archive] | tuple[Archive, ...]) -> Archive:
         """
-        Merges two or more solution archives into a single solution archive.
+        Merges two or more solution archives into a single solution archive,
+        removing dominated solutions.
 
         ### Parameters
 
@@ -1206,7 +1390,7 @@ class Anneal:
 
         ### Returns
 
-        Merged solution archives.
+        Merged solution archives containing only non-dominated solutions.
         """
 
         tmpdict: Archive = {"x": [], "f": []}
@@ -1220,7 +1404,7 @@ class Anneal:
             tmpdict["x"] += xset["x"]
             tmpdict["f"] += xset["f"]
 
-        return tmpdict
+        return self.prune_dominated(tmpdict)
 
     def copyx(self, xset: Archive | None = None) -> Archive:
         """
@@ -1283,6 +1467,7 @@ class Anneal:
         index2: int = 1,
         index3: int | None = None,
         file: str | None = None,
+        label: Sequence[str] = (),
     ) -> None:
         """
         Plots 2D or 3D scatter plots of selected objective values.
@@ -1308,6 +1493,10 @@ class Anneal:
         `file`: name of the image file where the plot will be saved.
 
         The default is `None`, which means that no figure will be created.
+
+        `label`: axis labels in objective order, provided as a list or tuple.
+
+        The default is an empty tuple, which uses `f0`, `f1`, ... as labels.
         """
 
         try:
@@ -1318,6 +1507,16 @@ class Anneal:
         xset = self.__checkarchive(xset)
 
         nobj = len(xset["f"][0])
+        if not isinstance(label, (list, tuple)):
+            raise MOSAError("Axis labels must be provided in a list or tuple!")
+
+        if len(label) not in (0, nobj):
+            raise MOSAError(
+                "The number of axis labels must be zero or equal to the number "
+                "of objective functions!"
+            )
+
+        axis_labels = list(label) if len(label) > 0 else [f"f{i}" for i in range(nobj)]
         indices = [index1, index2]
 
         if index3 is not None:
@@ -1339,15 +1538,15 @@ class Anneal:
 
         if index3 is None:
             ax = fig.add_subplot()
-            ax.set_xlabel(f"f{index1}")
-            ax.set_ylabel(f"f{index2}")
+            ax.set_xlabel(axis_labels[index1])
+            ax.set_ylabel(axis_labels[index2])
             ax.grid()
             ax.scatter(f[0], f[1])
         else:
             ax = fig.add_subplot(projection="3d")
-            ax.set_xlabel(f"f{index1}")
-            ax.set_ylabel(f"f{index2}")
-            ax.set_zlabel(f"f{index3}")
+            ax.set_xlabel(axis_labels[index1])
+            ax.set_ylabel(axis_labels[index2])
+            ax.set_zlabel(axis_labels[index3])
             ax.grid()
             ax.scatter(f[0], f[1], f[2])
 
@@ -1375,17 +1574,10 @@ class Anneal:
         xset = self.__checkarchive(xset)
 
         f_arr = np.array(xset["f"])
-        nf = f_arr.shape[1]
-        fmin: np.ndarray = np.zeros(nf)
-        fmax: np.ndarray = np.zeros(nf)
-        favg: np.ndarray = np.zeros(nf)
-        fstd: np.ndarray = np.zeros(nf)
-
-        for i in range(nf):
-            fmin[i] = f_arr[:, i].min()
-            fmax[i] = f_arr[:, i].max()
-            favg[i] = f_arr[:, i].mean()
-            fstd[i] = f_arr[:, i].std()
+        fmin = f_arr.min(axis=0)
+        fmax = f_arr.max(axis=0)
+        favg = f_arr.mean(axis=0)
+        fstd = f_arr.std(axis=0)
 
         return {
             "Min": fmin.astype(float).tolist(),
@@ -1393,6 +1585,332 @@ class Anneal:
             "Avg": favg.astype(float).tolist(),
             "Std": fstd.astype(float).tolist(),
         }
+
+    def __estimate_initial_temperature(
+        self, objective_values: ObjectiveValues
+    ) -> float:
+        if not objective_values:
+            raise MOSAError(
+                "Initial objective values must be a non-empty sequence of finite numbers!"
+            )
+
+        try:
+            values = [float(value) for value in objective_values]
+        except (TypeError, ValueError, OverflowError) as error:
+            raise MOSAError(
+                "Initial objective values must be a non-empty sequence of finite numbers!"
+            ) from error
+
+        self.__raise_for_infinite_calibration_objectives(values)
+
+        if not all(isfinite(value) for value in values):
+            raise MOSAError(
+                "Initial objective values must be a non-empty sequence of finite numbers!"
+            )
+
+        objective_scale = sum(abs(value) for value in values) / len(values)
+        if not isfinite(objective_scale):
+            raise MOSAError("Initial objective scale must be finite!")
+
+        if objective_scale == 0.0:
+            temperature = 1.0
+        else:
+            try:
+                temperature = 10.0 ** ceil(log10(objective_scale))
+            except (OverflowError, ValueError) as error:
+                raise MOSAError(
+                    "Automatic initial temperature must be finite and greater than zero!"
+                ) from error
+
+        if not isfinite(temperature) or temperature <= 0.0:
+            raise MOSAError(
+                "Automatic initial temperature must be finite and greater than zero!"
+            )
+        return float(temperature)
+
+    @staticmethod
+    def __raise_for_infinite_calibration_objectives(
+        objective_values: ObjectiveValues,
+    ) -> None:
+        try:
+            has_infinite_value = any(isinf(float(value)) for value in objective_values)
+        except (TypeError, ValueError, OverflowError):
+            return
+
+        if has_infinite_value:
+            raise MOSAError(
+                "Automatic high-temperature calibration cannot use infinite "
+                "objective values! Define initial temperature manually."
+            )
+
+    @staticmethod
+    def __validate_calibration_weights(weights: ObjectiveWeightValues) -> None:
+        try:
+            valid = all(
+                not isinstance(weight, bool)
+                and isfinite(float(weight))
+                and float(weight) > 0.0
+                for weight in weights
+            )
+        except (TypeError, ValueError, OverflowError):
+            valid = False
+        if not weights or not valid:
+            raise MOSAError(
+                "Objective weights used for automatic high-temperature calibration "
+                "must be finite numbers greater than zero!"
+            )
+
+    def __reduced_objective_deltas(
+        self,
+        current_values: ObjectiveValues,
+        trial_values: ObjectiveValues,
+        weights: ObjectiveWeightValues,
+    ) -> list[float]:
+        if not (
+            len(current_values) == len(trial_values) == len(weights)
+            and len(trial_values) > 0
+        ):
+            raise MOSAError(
+                "Current objectives, trial objectives, and weights must have "
+                "the same non-zero length!"
+            )
+        self.__validate_calibration_weights(weights)
+
+        try:
+            current = [float(value) for value in current_values]
+            trial = [float(value) for value in trial_values]
+        except (TypeError, ValueError, OverflowError) as error:
+            raise MOSAError("Objective values must be numbers!") from error
+
+        reduced_delta: list[float] = []
+        for current_value, trial_value, weight in zip(current, trial, weights):
+            if isnan(trial_value) or trial_value == inf:
+                # NaN and +inf are invalid or maximally bad trial objectives for a
+                # minimization problem. Mapping either to +inf makes the complete
+                # proposal's acceptance probability zero.
+                delta = inf
+            elif trial_value == -inf:
+                # -inf is the best possible value in a minimization problem, so its
+                # individual Metropolis probability is exp(0) == 1.
+                delta = 0.0
+            elif isnan(current_value) or current_value == inf:
+                # A finite trial improves upon an invalid or +inf current value.
+                delta = 0.0
+            elif current_value == -inf:
+                # Moving from -inf to a finite value is a maximal worsening.
+                delta = inf
+            else:
+                delta = max((trial_value - current_value) / float(weight), 0.0)
+            reduced_delta.append(delta)
+
+        if any(isnan(delta) or delta < 0.0 for delta in reduced_delta):
+            raise MOSAError(
+                "Reduced objective deltas must be non-negative numbers other than NaN!"
+            )
+        return reduced_delta
+
+    def __trial_acceptance(
+        self,
+        current_values: ObjectiveValues,
+        trial_values: ObjectiveValues,
+        weights: ObjectiveWeightValues,
+        temperature: float,
+        *,
+        collect_reduced_delta: bool,
+    ) -> tuple[list[float] | None, float]:
+        """Compute trial deltas and acceptance in one pass inside evolve."""
+
+        if not (
+            len(current_values) == len(trial_values) == len(weights)
+            and len(trial_values) > 0
+        ):
+            raise MOSAError(
+                "Current objectives, trial objectives, and weights must have "
+                "the same non-zero length!"
+            )
+
+        reduced_delta: list[float] | None = [] if collect_reduced_delta else None
+        gamma_product = 1.0
+        maximum_probability = 0.0
+        invalid_delta = False
+
+        try:
+            for current_value, trial_value, weight in zip(
+                current_values, trial_values, weights
+            ):
+                current = float(current_value)
+                trial = float(trial_value)
+
+                if isnan(trial) or trial == inf:
+                    delta = inf
+                elif trial == -inf:
+                    delta = 0.0
+                elif isnan(current) or current == inf:
+                    delta = 0.0
+                elif current == -inf:
+                    delta = inf
+                else:
+                    delta = max((trial - current) / float(weight), 0.0)
+
+                if reduced_delta is not None:
+                    reduced_delta.append(delta)
+
+                if not isfinite(delta):
+                    invalid_delta = True
+                elif not invalid_delta:
+                    probability = exp(-delta / temperature)
+                    gamma_product *= probability
+                    if probability > maximum_probability:
+                        maximum_probability = probability
+        except (TypeError, ValueError, OverflowError) as error:
+            raise MOSAError("Objective values must be numbers!") from error
+
+        if invalid_delta:
+            return reduced_delta, 0.0
+
+        gamma = (1.0 - self._alpha) * gamma_product + (
+            self._alpha * maximum_probability
+        )
+        return reduced_delta, min(max(float(gamma), 0.0), 1.0)
+
+    def __acceptance_probability_from_reduced_delta(
+        self, reduced_delta: Sequence[float], temperature: float
+    ) -> float:
+        if not isinstance(temperature, Real) or isinstance(temperature, bool):
+            raise MOSAError("Temperature must be a finite number greater than zero!")
+        temperature = float(temperature)
+        if not isfinite(temperature) or temperature <= 0.0:
+            raise MOSAError("Temperature must be a finite number greater than zero!")
+        if not reduced_delta:
+            raise MOSAError("At least one reduced objective delta is required!")
+
+        try:
+            deltas = [float(delta) for delta in reduced_delta]
+        except (TypeError, ValueError, OverflowError) as error:
+            raise MOSAError("Reduced objective deltas must be numbers!") from error
+        if any(not isfinite(delta) for delta in deltas):
+            return 0.0
+        if not all(delta >= 0.0 for delta in deltas):
+            raise MOSAError("Finite reduced objective deltas must be non-negative!")
+
+        probabilities = [exp(-delta / temperature) for delta in deltas]
+        gamma_product = 1.0
+        for probability in probabilities:
+            gamma_product *= probability
+        gamma = (1.0 - self._alpha) * gamma_product + self._alpha * max(probabilities)
+        if not isfinite(gamma):
+            raise MOSAError("MOSA acceptance probability must be finite!")
+        return min(max(float(gamma), 0.0), 1.0)
+
+    def __expected_acceptance(
+        self, samples: Sequence[Sequence[float]], temperature: float
+    ) -> float:
+        if not samples:
+            raise MOSAError(
+                "At least one calibration sample is required to estimate acceptance!"
+            )
+        return sum(
+            self.__acceptance_probability_from_reduced_delta(sample, temperature)
+            for sample in samples
+        ) / len(samples)
+
+    @staticmethod
+    def __calibration_sample_statistics(
+        samples: Sequence[Sequence[float]],
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Precompute temperature-independent calibration sample statistics."""
+
+        sums = np.empty(len(samples), dtype=float)
+        minima = np.empty(len(samples), dtype=float)
+        valid = np.ones(len(samples), dtype=bool)
+
+        for index, sample in enumerate(samples):
+            if not sample:
+                raise MOSAError("At least one reduced objective delta is required!")
+            try:
+                deltas = np.asarray(sample, dtype=float)
+            except (TypeError, ValueError, OverflowError) as error:
+                raise MOSAError("Reduced objective deltas must be numbers!") from error
+
+            if np.any(deltas < 0.0):
+                raise MOSAError("Finite reduced objective deltas must be non-negative!")
+            if not np.all(np.isfinite(deltas)):
+                valid[index] = False
+                sums[index] = 0.0
+                minima[index] = 0.0
+            else:
+                sums[index] = float(deltas.sum())
+                minima[index] = float(deltas.min())
+
+        return sums, minima, valid
+
+    def __expected_acceptance_from_statistics(
+        self,
+        sums: np.ndarray,
+        minima: np.ndarray,
+        valid: np.ndarray,
+        temperature: float,
+    ) -> float:
+        """Evaluate all calibration samples with vectorized NumPy operations."""
+
+        if not isinstance(temperature, Real) or isinstance(temperature, bool):
+            raise MOSAError("Temperature must be a finite number greater than zero!")
+        temperature = float(temperature)
+        if not isfinite(temperature) or temperature <= 0.0:
+            raise MOSAError("Temperature must be a finite number greater than zero!")
+
+        probabilities = np.zeros(sums.size, dtype=float)
+        probabilities[valid] = (1.0 - self._alpha) * np.exp(
+            -sums[valid] / temperature
+        ) + self._alpha * np.exp(-minima[valid] / temperature)
+        return float(probabilities.mean())
+
+    def __estimate_high_temperature(
+        self,
+        initial_temperature: float,
+        samples: Sequence[Sequence[float]],
+        target_acceptance: float,
+    ) -> float:
+        if not samples:
+            raise MOSAError(
+                "At least one calibration sample is required to estimate acceptance!"
+            )
+        statistics = self.__calibration_sample_statistics(samples)
+
+        def expected(temperature: float) -> float:
+            return self.__expected_acceptance_from_statistics(*statistics, temperature)
+
+        if expected(initial_temperature) >= target_acceptance:
+            return float(initial_temperature)
+
+        low = float(initial_temperature)
+        high = 2.0 * low
+        for _ in range(60):
+            if not isfinite(high):
+                break
+            if expected(high) >= target_acceptance:
+                break
+            low = high
+            high *= 2.0
+        else:
+            raise MOSAError(
+                "Unable to bracket a temperature satisfying the target acceptance!"
+            )
+
+        if not isfinite(high) or expected(high) < target_acceptance:
+            raise MOSAError(
+                "Unable to bracket a temperature satisfying the target acceptance!"
+            )
+
+        for _ in range(100):
+            if (high - low) / high <= 1e-6:
+                break
+            middle = 0.5 * (low + high)
+            if expected(middle) >= target_acceptance:
+                high = middle
+            else:
+                low = middle
+        return high
 
     def __updatearchive(self, x: Solution, f: ObjectiveValues) -> int:
         """
@@ -1410,13 +1928,13 @@ class Anneal:
         1, if the archive is updated, or 0, if not.
         """
 
-        archive_len = len(self._archive_x)
+        archive_len = len(self._archivex)
         f_arr = np.asarray(f, dtype=float)
 
         if archive_len == 0:
             updated = True
         else:
-            archive_arr = self._archive_f_arr[:archive_len]
+            archive_arr = self._archivefarr[:archive_len]
             archive_dominates, candidate_dominates = self.__dominance_masks(
                 archive_arr, f_arr
             )
@@ -1433,42 +1951,191 @@ class Anneal:
                     updated = False
 
                 if updated and dominated_rows.size > 0:
+                    removed_solutions = [
+                        (
+                            self._archivex[int(row)],
+                            archive_arr[int(row)].astype(float).tolist(),
+                        )
+                        for row in dominated_rows
+                    ]
+
                     keep_mask = np.ones(archive_len, dtype=bool)
                     keep_mask[dominated_rows] = False
-                    self._archive_x = [
-                        value for i, value in enumerate(self._archive_x) if keep_mask[i]
+                    self._archivex = [
+                        value for i, value in enumerate(self._archivex) if keep_mask[i]
                     ]
                     kept_count = int(np.count_nonzero(keep_mask))
 
                     if kept_count > 0:
-                        self._archive_f_arr[:kept_count] = archive_arr[keep_mask]
+                        self._archivefarr[:kept_count] = archive_arr[keep_mask]
 
                     archive_len = kept_count
+                    self.__rebuild_archive_lookup()
+
+                    for removed_x, removed_f in removed_solutions:
+                        self.__cache_solution(removed_x, removed_f)
 
         if updated:
             self.__ensure_archive_capacity(archive_len + 1, len(f_arr))
-            self._archive_x.append(x)
-            self._archive_f_arr[archive_len] = f_arr
+            self._archivex.append(x)
+            self._archivefarr[archive_len] = f_arr
+            solution_key = _semantic_key(x)
+            if solution_key is not None:
+                self._archive_lookup[solution_key] = archive_len
+            self.__remove_cached_solution(x)
 
         return int(updated)
+
+    def __evaluate_solution(
+        self, func: ObjectiveFunction, x: Solution
+    ) -> ObjectiveValues:
+        """Return previously computed objectives or evaluate and cache the solution."""
+
+        if self._xcache:
+            solution_key = _semantic_key(x)
+            archive_index = (
+                self._archive_lookup.get(solution_key)
+                if solution_key is not None
+                else self.__solution_index(self._archivex, x)
+            )
+
+            if archive_index is not None:
+                self._nreused += 1
+                return self._archivefarr[archive_index].astype(float).tolist()
+
+            if solution_key is not None:
+                cached = self._cache_lookup.get(solution_key)
+                if cached is not None:
+                    self._nreused += 1
+                    return list(cached[1])
+            else:
+                cache_index = self.__solution_index(self._cache["x"], x)
+                if cache_index is not None:
+                    self._nreused += 1
+                    return list(self._cache["f"][cache_index])
+
+        objective_values = list(func(**x))
+        self.__cache_solution(x, objective_values)
+        return objective_values
+
+    @staticmethod
+    def __solution_index(solutions: list[Solution], x: Solution) -> int | None:
+        """Find a semantically equal solution in a list."""
+
+        for index, solution in enumerate(solutions):
+            if Anneal.__solution_values_equal(solution, x):
+                return index
+
+        return None
+
+    @staticmethod
+    def __solution_values_equal(left: Any, right: Any) -> bool:
+        """Compare nested solution values, including unhashable NumPy categories."""
+
+        left_key = _semantic_key(left)
+        right_key = _semantic_key(right)
+
+        if left_key is not None and right_key is not None:
+            return left_key == right_key
+
+        if isinstance(left, dict) and isinstance(right, dict):
+            return left.keys() == right.keys() and all(
+                Anneal.__solution_values_equal(left[key], right[key]) for key in left
+            )
+
+        if isinstance(left, (list, tuple)) and isinstance(right, (list, tuple)):
+            return len(left) == len(right) and all(
+                Anneal.__solution_values_equal(left_item, right_item)
+                for left_item, right_item in zip(left, right)
+            )
+
+        return _values_equal(left, right)
+
+    def __cache_solution(self, x: Solution, f: ObjectiveValues) -> None:
+        """Store one unique non-archive solution, evicting the oldest if needed."""
+
+        if not self._xcache:
+            return
+
+        solution_key = _semantic_key(x)
+        if solution_key is not None:
+            if solution_key in self._archive_lookup:
+                return
+            if solution_key in self._cache_lookup:
+                return
+        else:
+            if self.__solution_index(self._archivex, x) is not None:
+                return
+
+            if self.__solution_index(self._cache["x"], x) is not None:
+                return
+
+        if len(self._cache["x"]) >= self._xcachesize:
+            evicted = self._cache["x"].pop(0)
+            self._cache["f"].pop(0)
+            evicted_key = _semantic_key(evicted)
+            if evicted_key is not None:
+                self._cache_lookup.pop(evicted_key, None)
+
+        cached_x = deepcopy(x)
+        cached_f = list(f)
+        self._cache["x"].append(cached_x)
+        self._cache["f"].append(cached_f)
+        if solution_key is not None:
+            self._cache_lookup[solution_key] = (cached_x, cached_f)
+
+    def __remove_cached_solution(self, x: Solution) -> None:
+        """Remove a solution from the cache after it enters the archive."""
+
+        solution_key = _semantic_key(x)
+        cache_index: int | None = None
+        if solution_key is not None:
+            cached = self._cache_lookup.pop(solution_key, None)
+            if cached is not None:
+                cached_x = cached[0]
+                cache_index = next(
+                    (
+                        index
+                        for index, solution in enumerate(self._cache["x"])
+                        if solution is cached_x
+                    ),
+                    None,
+                )
+        else:
+            cache_index = self.__solution_index(self._cache["x"], x)
+
+        if cache_index is not None:
+            self._cache["x"].pop(cache_index)
+            self._cache["f"].pop(cache_index)
+
+    def __rebuild_archive_lookup(self) -> None:
+        """Rebuild the hash index for semantically hashable archive solutions."""
+
+        self._archive_lookup.clear()
+        for index, solution in enumerate(self._archivex):
+            solution_key = _semantic_key(solution)
+            if solution_key is not None:
+                self._archive_lookup[solution_key] = index
+
+    def __rebuild_cache_lookup(self) -> None:
+        """Rebuild the hash index for semantically hashable cached solutions."""
+
+        self._cache_lookup.clear()
+        for solution, objective_values in zip(self._cache["x"], self._cache["f"]):
+            solution_key = _semantic_key(solution)
+            if solution_key is not None:
+                self._cache_lookup[solution_key] = (solution, objective_values)
 
     @staticmethod
     def __dominance_masks(
         archive_arr: np.ndarray, f_arr: np.ndarray
     ) -> tuple[np.ndarray, np.ndarray]:
-        """Compare objectives by column to use NumPy's vectorized loops."""
+        """Compare archive objectives with one candidate in compiled code."""
 
-        archive_dominates = archive_arr[:, 0] <= f_arr[0]
-        candidate_dominates = archive_arr[:, 0] >= f_arr[0]
-
-        for objective in range(1, len(f_arr)):
-            archive_dominates &= archive_arr[:, objective] <= f_arr[objective]
-            candidate_dominates &= archive_arr[:, objective] >= f_arr[objective]
-
-        return archive_dominates, candidate_dominates
+        return _dominance_masks_kernel(archive_arr, f_arr)
 
     @staticmethod
-    def __non_dominated_mask(f_arr: np.ndarray, block_size: int = 256) -> np.ndarray:
+    def __non_dominated_mask(f_arr: np.ndarray) -> np.ndarray:
         """Return a mask for Pareto-optimal rows in the compiled kernel."""
 
         return _non_dominated_mask_kernel(f_arr)
@@ -1619,8 +2286,8 @@ class Anneal:
         """@private"""
 
         return {
-            "x": self._archive_x.copy(),
-            "f": self._archive_f_arr[: len(self._archive_x)].astype(float).tolist(),
+            "x": self._archivex.copy(),
+            "f": self._archivefarr[: len(self._archivex)].astype(float).tolist(),
         }
 
     def __set_archive_data(
@@ -1628,39 +2295,43 @@ class Anneal:
     ) -> None:
         """@private"""
 
-        self._archive_x = list(x_values)
+        self._archivex = list(x_values)
+        self.__rebuild_archive_lookup()
 
         if len(f_values) == 0:
-            self._archive_f_arr = np.empty((0, 0), dtype=float)
-            self._archive_f_capacity = 0
+            self._archivefarr = np.empty((0, 0), dtype=float)
+            self._archivefcap = 0
         else:
             archive_f_arr = np.asarray(f_values, dtype=float)
 
             if archive_f_arr.ndim == 1:
                 archive_f_arr = archive_f_arr.reshape(1, -1)
 
-            self._archive_f_arr = archive_f_arr.copy()
-            self._archive_f_capacity = self._archive_f_arr.shape[0]
+            self._archivefarr = archive_f_arr.copy()
+            self._archivefcap = self._archivefarr.shape[0]
+
+        for solution in self._archivex:
+            self.__remove_cached_solution(solution)
 
     def __ensure_archive_capacity(self, rows: int, nf: int) -> None:
         """@private"""
 
-        if self._archive_f_capacity >= rows and self._archive_f_arr.shape[1] == nf:
+        if self._archivefcap >= rows and self._archivefarr.shape[1] == nf:
             return
 
-        if self._archive_f_capacity == 0 or self._archive_f_arr.shape[1] != nf:
+        if self._archivefcap == 0 or self._archivefarr.shape[1] != nf:
             new_capacity = max(rows, 1)
             new_archive_f_arr = np.empty((new_capacity, nf), dtype=float)
         else:
-            new_capacity = max(rows, self._archive_f_capacity * 2)
+            new_capacity = max(rows, self._archivefcap * 2)
             new_archive_f_arr = np.empty((new_capacity, nf), dtype=float)
-            active_rows = len(self._archive_x)
+            active_rows = len(self._archivex)
 
             if active_rows > 0:
-                new_archive_f_arr[:active_rows] = self._archive_f_arr[:active_rows]
+                new_archive_f_arr[:active_rows] = self._archivefarr[:active_rows]
 
-        self._archive_f_arr = new_archive_f_arr
-        self._archive_f_capacity = new_capacity
+        self._archivefarr = new_archive_f_arr
+        self._archivefcap = new_capacity
 
     @property
     def population(self) -> Population:
@@ -1739,11 +2410,13 @@ class Anneal:
             raise MOSAError("The weights must be provided in a list!")
 
     @property
-    def initial_temperature(self) -> float:
+    def initial_temperature(self) -> float | None:
         """
         Initial temperature.
 
-        The default is 1.0.
+        The default is `None`, which enables automatic high-temperature
+        calibration. Explicitly assigning this property takes precedence over
+        automatic calibration, even when `auto_high_temperature` is `True`.
         """
 
         return self._initemp
@@ -1751,9 +2424,57 @@ class Anneal:
     @initial_temperature.setter
     def initial_temperature(self, val: Number) -> None:
         if isinstance(val, (int, float)) and val > 0.0:
-            self._initemp = val
+            self._initemp = float(val)
+            self._initempset = True
         else:
             raise MOSAError("Initial temperature must be a number greater than zero!")
+
+    @property
+    def auto_high_temperature(self) -> bool:
+        """
+        Enables automatic calibration of the high-temperature stage.
+
+        The default is `True` because `initial_temperature` defaults to `None`.
+        When enabled and `initial_temperature` has not
+        been explicitly assigned, the first temperature is estimated from the
+        initial objective scale. If its expected mean MOSA acceptance probability
+        is below the configured target, one higher calibration stage is used before
+        quenching begins. If `initial_temperature` has been explicitly assigned
+        by the user, setting this property to `True` is ignored.
+        """
+
+        return self._autohightemp
+
+    @auto_high_temperature.setter
+    def auto_high_temperature(self, val: bool) -> None:
+        if isinstance(val, bool):
+            self._autohightemp = val or self._initemp is None
+        else:
+            raise MOSAError("Automatic high-temperature calibration must be a boolean!")
+
+    @property
+    def high_temperature_acceptance_threshold(self) -> float:
+        """
+        Target expected mean MOSA acceptance probability during automatic
+        high-temperature calibration.
+
+        The default is 0.8 and the valid range is strictly between zero and one.
+        """
+
+        return self._hightempaccthresh
+
+    @high_temperature_acceptance_threshold.setter
+    def high_temperature_acceptance_threshold(self, val: Number) -> None:
+        valid = isinstance(val, Real) and not isinstance(val, bool)
+        if valid:
+            value = float(val)
+            valid = isfinite(value) and 0.0 < value < 1.0
+        if not valid:
+            raise MOSAError(
+                "High-temperature acceptance threshold must be a finite number "
+                "greater than zero and less than one!"
+            )
+        self._hightempaccthresh = value
 
     @property
     def temperature_decrease_factor(self) -> float:
@@ -1830,6 +2551,49 @@ class Anneal:
             raise MOSAError("The archive size must be an integer greater than zero!")
 
     @property
+    def solution_cache(self) -> bool:
+        """
+        Enable the solution cache.
+
+        The cache should ideally be enabled only for objective functions that are
+        very computationally expensive. The default is `False`.
+        """
+
+        return self._xcache
+
+    @solution_cache.setter
+    def solution_cache(self, val: bool) -> None:
+        if isinstance(val, bool):
+            self._xcache = val
+        else:
+            raise MOSAError("Solution cache must be a boolean!")
+
+    @property
+    def solution_cache_size(self) -> int:
+        """
+        Maximum number of solutions in the solution cache.
+
+        The default is 10,000.
+        """
+
+        return self._xcachesize
+
+    @solution_cache_size.setter
+    def solution_cache_size(self, val: int) -> None:
+        if isinstance(val, int) and not isinstance(val, bool) and val > 0:
+            self._xcachesize = val
+            overflow = len(self._cache["x"]) - val
+
+            if overflow > 0:
+                del self._cache["x"][:overflow]
+                del self._cache["f"][:overflow]
+                self.__rebuild_cache_lookup()
+        else:
+            raise MOSAError(
+                "The solution cache size must be an integer greater than zero!"
+            )
+
+    @property
     def archive_file(self) -> str:
         """
         Name of the archive file.
@@ -1837,12 +2601,12 @@ class Anneal:
         The default is 'archive.json'.
         """
 
-        return self._archive_file
+        return self._archivefile
 
     @archive_file.setter
     def archive_file(self, val: str) -> None:
         if isinstance(val, str) and len(val.strip()) > 0:
-            self._archive_file = val.strip()
+            self._archivefile = val.strip()
         else:
             raise MOSAError("A file name must be provided!")
 
@@ -1856,20 +2620,20 @@ class Anneal:
         The archive is written only when it has changed since the previous save.
         """
 
-        return self._archive_save_interval
+        return self._archivesaveint
 
     @archive_save_interval.setter
     def archive_save_interval(self, val: int) -> None:
         if isinstance(val, int) and val >= 0:
-            self._archive_save_interval = val
+            self._archivesaveint = val
         else:
             raise MOSAError("Archive save interval must be a non-negative integer!")
 
     @property
     def maximum_archive_rejections(self) -> int:
         """
-        Maximum number of consecutive rejections of insertion of a solution
-        in the archive.
+        Maximum number of consecutive times a solution insertion into the archive
+        can be rejected.
 
         The default is 1,000.
         """
@@ -1977,27 +2741,54 @@ class Anneal:
     @property
     def adaptative_mc_step(self) -> bool:
         """
-        Whether Corana's adaptive step-length algorithm is enabled.
+        Whether Corana's adaptative maximum step-length algorithm is enabled.
 
-        The default is `False`. Only continuous groups without a configured step increment are affected.
+        The default is `False`. Only continuous groups without a configured step
+        increment are affected.
         """
 
-        return self._adapt_xstep
+        return self._adaptxstep
 
     @adaptative_mc_step.setter
     def adaptative_mc_step(self, val: bool) -> None:
         if isinstance(val, bool):
-            self._adapt_xstep = val
+            self._adaptxstep = val
         else:
             raise MOSAError("Corana usage must be a boolean!")
 
     @property
+    def adaptative_selection(self) -> bool:
+        """
+        Enable adaptative selection of solution groups.
+
+        When enabled, accepted moves assign each selected group a reward equal
+        to the mean normalized variation across all objectives. At the end of
+        each temperature, an exponential moving average of these rewards is
+        converted into selection probabilities using a Boltzmann distribution.
+        Every group retains a minimum selection probability of 1% whenever that
+        floor is feasible.
+
+        The default is `False`.
+        """
+
+        return self._adaptsel
+
+    @adaptative_selection.setter
+    def adaptative_selection(self, val: bool) -> None:
+        if isinstance(val, bool):
+            self._adaptsel = val
+        else:
+            raise MOSAError("Adaptative group selection usage must be a boolean!")
+
+    @property
     def mc_step_size(self) -> dict[str, Number]:
         """
-        Monte Carlo step size for each group in the solution.
+        Monte Carlo maximum step size for each group in the solution.
 
-        The default is {}, which means 0.1 for continuous search space and half
-        the number of elements in a population group for discrete search space.
+        The default is {}, which means one tenth of the boundary range for a
+        continuous search space and half the number of elements in a population
+        group for a discrete search space. Continuous step sizes are limited to
+        values ​​between one-thousandth and half the amplitude of the boundary interval.
         """
 
         return self._xstep
@@ -2015,10 +2806,11 @@ class Anneal:
 
     @property
     def mc_step_increment(self) -> dict[str, Number]:
-        """Increment used to discretize continuous solution changes.
+        """
+        Increment used to discretize continuous solution changes.
 
         The default is {}, which samples each continuous change uniformly between
-        the negative and positive Monte Carlo step sizes.
+        the negative and positive Monte Carlo maximum step size.
         """
 
         return self._xincrement
@@ -2144,7 +2936,9 @@ class Anneal:
         Selection weight for each group in the solution in a Monte Carlo iteration.
 
         The default value is {}, which means that all groups have the same selection
-        weight, i.e., the same probability of being selected.
+        weight, i.e., the same probability of being selected. When
+        `adaptative_selection` is enabled, configured weights are used as initial
+        probabilities and this dictionary is updated after every temperature.
         """
 
         return self._xselweight
@@ -2159,6 +2953,31 @@ class Anneal:
                     raise MOSAError(f"Group '{key}' must be a number!")
         else:
             raise MOSAError("Group selection weights must be provided as a dictionary!")
+
+    @property
+    def group_selection_alpha(self) -> float:
+        """
+        EMA smoothing factor used by adaptative group selection.
+
+        The value must be between zero and one. Higher values give more
+        importance to recent accepted moves. The default is 0.2.
+        """
+
+        return self._xselalpha
+
+    @group_selection_alpha.setter
+    def group_selection_alpha(self, val: Number) -> None:
+        if (
+            isinstance(val, (int, float))
+            and not isinstance(val, bool)
+            and isfinite(val)
+            and 0.0 <= val <= 1.0
+        ):
+            self._xselalpha = float(val)
+        else:
+            raise MOSAError(
+                "Group selection alpha must be a number between zero and one!"
+            )
 
     @property
     def track_optimization_progress(self) -> bool:

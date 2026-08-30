@@ -70,7 +70,7 @@ def test_evolve_decodes_categorical_arrays_at_objective_boundary() -> None:
     random.seed(7)
     optimizer.evolve(objective)
 
-    state = optimizer._group_states["Item"]
+    state = optimizer._groupstates["Item"]
     assert state.population.dtype == np.int64
     assert state.categorical
     assert observed
@@ -118,6 +118,44 @@ def test_prune_dominated_preserves_input_order_and_values() -> None:
         "f": [[1.0, 3.0], [2.0, 2.0], [3.0, 1.0]],
     }
     assert len(archive["x"]) == 4
+
+
+def test_prune_dominated_preserves_solutions_with_equal_objectives() -> None:
+    """Equal objective vectors do not strictly dominate one another."""
+
+    optimizer = mosa.Anneal()
+    archive = {
+        "x": [{"X": "A"}, {"X": "B"}, {"X": "C"}, {"X": "D"}],
+        "f": [[1.0, 2.0], [1.0, 2.0], [2.0, 3.0], [0.0, 4.0]],
+    }
+
+    result = optimizer.prune_dominated(archive)
+
+    assert result == {
+        "x": [{"X": "A"}, {"X": "B"}, {"X": "D"}],
+        "f": [[1.0, 2.0], [1.0, 2.0], [0.0, 4.0]],
+    }
+
+
+def test_mergex_removes_dominated_solutions_and_preserves_ties() -> None:
+    """Merged archives form a global Pareto front without discarding ties."""
+
+    optimizer = mosa.Anneal()
+    first = {
+        "x": [{"X": "A"}, {"X": "B"}],
+        "f": [[1.0, 3.0], [3.0, 1.0]],
+    }
+    second = {
+        "x": [{"X": "C"}, {"X": "D"}],
+        "f": [[2.0, 4.0], [1.0, 3.0]],
+    }
+
+    result = optimizer.mergex([first, second])
+
+    assert result == {
+        "x": [{"X": "A"}, {"X": "B"}, {"X": "D"}],
+        "f": [[1.0, 3.0], [3.0, 1.0], [1.0, 3.0]],
+    }
 
 
 def test_deferred_persistence_writes_once_at_completion(monkeypatch) -> None:
@@ -207,7 +245,7 @@ def test_restart_uses_last_archive_solution_and_rebuilds_distinct_pool() -> None
     with pytest.raises(StopEvolution):
         optimizer.evolve(lambda Item: (_ for _ in ()).throw(StopEvolution()))
 
-    state = optimizer._group_states["Item"]
+    state = optimizer._groupstates["Item"]
     solution = state.decode_solution()
     remaining = state.decode_population()
 
@@ -253,7 +291,7 @@ def test_restart_reconstructs_a_variable_length_solution() -> None:
     with pytest.raises(StopEvolution):
         optimizer.evolve(lambda Items: (_ for _ in ()).throw(StopEvolution()))
 
-    state = optimizer._group_states["Items"]
+    state = optimizer._groupstates["Items"]
     assert state.decode_solution() == [2]
     assert state.decode_population() == [0, 1, 3, 4, 5]
 
@@ -319,7 +357,7 @@ def test_restart_loads_the_last_solution_from_a_persisted_archive() -> None:
     with pytest.raises(StopEvolution):
         restored.evolve(lambda X: (_ for _ in ()).throw(StopEvolution()))
 
-    assert restored._group_states["X"].decode_solution() == pytest.approx(0.25)
+    assert restored._groupstates["X"].decode_solution() == pytest.approx(0.25)
 
 
 def test_legacy_checkpoint_is_ignored() -> None:

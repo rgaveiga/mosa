@@ -4,7 +4,10 @@ from dataclasses import dataclass
 from typing import Any, Callable, Sequence, TypeAlias, TypedDict
 
 import numpy as np
+
 from numba import njit
+
+from ._error import MOSAError
 
 Number: TypeAlias = int | float
 """@private"""
@@ -26,6 +29,102 @@ Population: TypeAlias = dict[str, PopulationGroup]
 
 ObjectiveFunction: TypeAlias = Callable[..., Sequence[Number]]
 """@private"""
+
+
+_ADAPTATIVE_SELECTION_MIN_PROBABILITY = 0.01
+
+
+def _selection_probability_floor(number_of_groups: int) -> float:
+    """Return a feasible minimum probability for every selectable group."""
+
+    return min(_ADAPTATIVE_SELECTION_MIN_PROBABILITY, 1.0 / number_of_groups)
+
+
+def _apply_selection_probability_floor(
+    probabilities: np.ndarray, minimum_probability: float
+) -> np.ndarray:
+    """Apply the exploration floor only when a probability violates it."""
+
+    if np.all(probabilities >= minimum_probability):
+        return probabilities
+
+    return (
+        minimum_probability
+        + (1.0 - minimum_probability * probabilities.size) * probabilities
+    )
+
+
+def _normalize_selection_weights(
+    weights: Sequence[Number], minimum_probability: float
+) -> np.ndarray:
+    """Normalize selection weights while preserving an exploration floor."""
+
+    values = np.asarray(weights, dtype=float)
+    if (
+        values.ndim != 1
+        or values.size == 0
+        or not np.all(np.isfinite(values))
+        or np.any(values < 0.0)
+        or float(values.sum()) <= 0.0
+    ):
+        raise MOSAError(
+            "Adaptative group selection weights must be finite, non-negative, "
+            "and have a positive sum!"
+        )
+
+    probabilities = values / values.sum()
+    return _apply_selection_probability_floor(probabilities, minimum_probability)
+
+
+def _adaptative_selection_probabilities(
+    qualities: Sequence[Number], temperature: float, minimum_probability: float
+) -> np.ndarray:
+    """Convert adaptative qualities into stable Boltzmann probabilities."""
+
+    scaled_qualities = np.asarray(qualities, dtype=float) / temperature
+    scaled_qualities -= np.max(scaled_qualities)
+    probabilities = np.exp(scaled_qualities)
+    probabilities /= probabilities.sum()
+    return _apply_selection_probability_floor(probabilities, minimum_probability)
+
+
+def _adaptative_selection_reward(
+    previous: Sequence[Number],
+    candidate: Sequence[Number],
+    maximum_deltas: np.ndarray,
+) -> float:
+    """Return the mean normalized objective variation and update its maxima."""
+
+    previous_values = np.asarray(previous, dtype=float)
+    candidate_values = np.asarray(candidate, dtype=float)
+    return _adaptative_selection_reward_kernel(
+        previous_values, candidate_values, maximum_deltas
+    )
+
+
+@njit(cache=True)
+def _adaptative_selection_reward_kernel(
+    previous: np.ndarray,
+    candidate: np.ndarray,
+    maximum_deltas: np.ndarray,
+) -> float:
+    """Compute adaptive reward without per-call temporary arrays."""
+
+    total = 0.0
+    for index in range(previous.size):
+        previous_value = previous[index]
+        candidate_value = candidate[index]
+
+        if np.isfinite(previous_value) and np.isfinite(candidate_value):
+            delta = abs(candidate_value - previous_value)
+            if delta > maximum_deltas[index]:
+                maximum_deltas[index] = delta
+            if maximum_deltas[index] > 0.0:
+                total += delta / maximum_deltas[index]
+        elif previous_value != candidate_value:
+            total += 1.0
+
+    return total / previous.size
 
 
 def corana_step_length(
@@ -235,6 +334,38 @@ class _GroupState:
 
 
 @njit(cache=True)
+def _dominance_masks_kernel(
+    archive_arr: np.ndarray, candidate: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """Compare an archive with one candidate in a single compiled pass."""
+
+    row_count, objective_count = archive_arr.shape
+    archive_dominates = np.ones(row_count, dtype=np.bool_)
+    candidate_dominates = np.ones(row_count, dtype=np.bool_)
+
+    for row in range(row_count):
+        archive_row_dominates = True
+        candidate_dominates_row = True
+
+        for objective in range(objective_count):
+            archive_value = archive_arr[row, objective]
+            candidate_value = candidate[objective]
+
+            if not archive_value <= candidate_value:
+                archive_row_dominates = False
+            if not archive_value >= candidate_value:
+                candidate_dominates_row = False
+
+            if not archive_row_dominates and not candidate_dominates_row:
+                break
+
+        archive_dominates[row] = archive_row_dominates
+        candidate_dominates[row] = candidate_dominates_row
+
+    return archive_dominates, candidate_dominates
+
+
+@njit(cache=True)
 def _non_dominated_mask_kernel(f_arr: np.ndarray) -> np.ndarray:
     """Return the non-dominated rows using compiled early-exit comparisons."""
 
@@ -247,13 +378,16 @@ def _non_dominated_mask_kernel(f_arr: np.ndarray) -> np.ndarray:
                 continue
 
             dominates = True
+            strictly_better = False
 
             for objective in range(objective_count):
                 if not f_arr[other, objective] <= f_arr[candidate, objective]:
                     dominates = False
                     break
+                if f_arr[other, objective] < f_arr[candidate, objective]:
+                    strictly_better = True
 
-            if dominates:
+            if dominates and strictly_better:
                 keep[candidate] = False
                 break
 
