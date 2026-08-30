@@ -116,7 +116,7 @@ def test_default_continuous_step_is_one_tenth_of_boundary_range() -> None:
 @pytest.mark.parametrize(
     ("configured_step", "expected_step", "warning_fragment"),
     [
-        (0.1, 0.2, "below the minimum 0.2"),
+        (0.01, 0.02, "below the minimum 0.02"),
         (11.0, 10.0, "above the maximum 10.0"),
     ],
 )
@@ -132,12 +132,15 @@ def test_user_continuous_step_is_clamped_with_printed_warning(
     optimizer.evolve(lambda X: (0.0,))
 
     assert optimizer.mc_step_size["X"] == pytest.approx(expected_step)
-    assert warning_fragment in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert warning_fragment in output
+    assert "        WARNING: Monte Carlo step size" in output
+    assert "Using " not in output
 
 
 @pytest.mark.parametrize(
     ("adapted_step", "expected_step"),
-    [(0.01, 0.2), (100.0, 10.0)],
+    [(0.001, 0.02), (100.0, 10.0)],
 )
 def test_corana_silently_clamps_continuous_step(
     monkeypatch, capsys, adapted_step: float, expected_step: float

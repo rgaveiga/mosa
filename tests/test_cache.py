@@ -1,10 +1,14 @@
 """Tests for caching previously evaluated solutions."""
 
+import importlib
+
 import mosa
 import numpy as np
 import pytest
 
 from mosa._error import MOSAError
+
+mosa_module = importlib.import_module("mosa.mosa")
 
 
 @pytest.fixture(autouse=True)
@@ -48,12 +52,14 @@ def test_cache_and_archive_prevent_repeated_objective_calls() -> None:
     assert evaluate(objective, solution) == [1.0]
     assert evaluate(objective, {"X": 1}) == [1.0]
     assert calls == [1]
+    assert optimizer._nreused == 1
     assert optimizer._cache == {"x": [{"X": 1}], "f": [[1.0]]}
 
     assert update_archive(solution, [1.0]) == 1
     assert optimizer._cache == {"x": [], "f": []}
     assert evaluate(objective, {"X": 1}) == [1.0]
     assert calls == [1]
+    assert optimizer._nreused == 2
 
 
 def test_cache_is_unique_and_respects_its_size() -> None:
@@ -117,3 +123,37 @@ def test_cache_warns_when_a_continuous_group_has_no_increment(capsys) -> None:
     output = capsys.readouterr().out
     assert "no Monte Carlo step increment was set" in output
     assert "may prevent effective use of the cache" in output
+
+
+def test_evolve_reports_reused_move_fraction_and_resets_counter(
+    monkeypatch, capsys
+) -> None:
+    optimizer = mosa.Anneal()
+    optimizer.solution_cache = True
+    optimizer.set_population(X=[0, 1])
+    optimizer.number_of_temperatures = 2
+    optimizer.number_of_iterations = 1
+    optimizer.maximum_archive_rejections = 100
+    optimizer.restart = False
+    optimizer.verbose = True
+
+    calls = []
+
+    def objective(X):
+        calls.append(X)
+        return (float(X),)
+
+    optimizer._Anneal__evaluate_solution(objective, {"X": 1})
+    choices = iter((0, 0, 1, 1))
+    monkeypatch.setattr(mosa_module, "choice", lambda *args, **kwargs: next(choices))
+    monkeypatch.setattr(mosa_module, "uniform", lambda low, high, *args: high * 0.999)
+
+    optimizer.evolve(objective)
+
+    output = capsys.readouterr().out
+    assert (
+        output.count("Fraction of moves retrieved from cache or archive: 1.000000.")
+        == 2
+    )
+    assert calls == [1, 0]
+    assert optimizer._nreused == 0

@@ -378,13 +378,16 @@ def _non_dominated_mask_kernel(f_arr: np.ndarray) -> np.ndarray:
                 continue
 
             dominates = True
+            strictly_better = False
 
             for objective in range(objective_count):
                 if not f_arr[other, objective] <= f_arr[candidate, objective]:
                     dominates = False
                     break
+                if f_arr[other, objective] < f_arr[candidate, objective]:
+                    strictly_better = True
 
-            if dominates:
+            if dominates and strictly_better:
                 keep[candidate] = False
                 break
 

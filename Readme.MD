@@ -14,8 +14,7 @@ If you have any questions, corrections, comments or suggestions, just
 [drop a message](mailto:roberto.veiga@ufabc.edu.br).
 
 You can also reach me on [Linkedin](https://www.linkedin.com/in/roberto-gomes-phd-8a718317b/) or 
-follow me on [X](https://x.com/rgaveiga). When I have some free time, which is rare, I publish articles 
-on [Medium](https://medium.com/@rgaveiga).
+follow me on [X](https://x.com/rgaveiga).  
 
 If you want to support this and other open source projects that I maintain, become a 
 [sponsor on Github](https://github.com/sponsors/rgaveiga).
@@ -33,35 +32,6 @@ pip install mosa
 You can access the API documentation for **MOSA** on the 
 [project's GitHub Pages site](https://rgaveiga.github.io/mosa).
 
-### Automatic high-temperature calibration
-
-Automatic selection of the high-temperature stage is opt-in:
-
-```python
-from mosa import Anneal
-
-anneal = Anneal()
-anneal.auto_high_temperature = True
-anneal.high_temperature_acceptance_threshold = 0.8
-anneal.number_of_temperatures = 20
-anneal.number_of_iterations = 1000
-anneal.temperature_decrease_factor = 0.9
-anneal.evolve(objective_function)
-```
-
-The initial objective scale supplies a first trial temperature. MOSA then uses
-the proposals already evaluated at that stage to estimate the expected mean
-move-acceptance probability; when needed, one higher calibrated stage runs
-before geometric quenching. This calibration adds no objective evaluations of
-its own.
-
-An explicitly assigned initial temperature always takes precedence, including
-an explicit assignment of the numerical default:
-
-```python
-anneal.initial_temperature = 100.0
-anneal.auto_high_temperature = True  # 100.0 is used; calibration is skipped
-```
 
 ## Contribution
 

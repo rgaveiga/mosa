@@ -17,10 +17,13 @@ def isolate_optimizer_files(tmp_path, monkeypatch):
 def test_automatic_temperature_api_defaults_and_validation() -> None:
     anneal = Anneal()
 
-    assert anneal.auto_high_temperature is False
+    assert anneal.auto_high_temperature is True
     assert anneal.high_temperature_acceptance_threshold == pytest.approx(0.8)
-    assert anneal.initial_temperature == pytest.approx(1.0)
+    assert anneal.initial_temperature is None
     assert anneal._initempset is False
+
+    anneal.auto_high_temperature = False
+    assert anneal.auto_high_temperature is True
 
     anneal.initial_temperature = 1.0
     assert anneal._initempset is True
@@ -160,27 +163,28 @@ def _configured_anneal() -> Anneal:
     return anneal
 
 
-def test_automatic_calibration_is_not_attempted_by_default(monkeypatch) -> None:
+def test_automatic_calibration_is_attempted_by_default(monkeypatch) -> None:
     random.seed(5)
     anneal = _configured_anneal()
 
-    def unexpected_calibration(_objective_values):
-        raise AssertionError("automatic temperature calibration was attempted")
+    def calibrated_temperature(_objective_values):
+        return 3.0
 
     monkeypatch.setattr(
         anneal,
         "_Anneal__estimate_initial_temperature",
-        unexpected_calibration,
+        calibrated_temperature,
     )
     anneal.evolve(lambda X: (X,))
 
-    assert anneal._temp == pytest.approx([1.0, 0.5, 0.25])
+    assert anneal._temp == pytest.approx([3.0, 1.5, 0.75])
 
 
 @pytest.mark.parametrize("penalty", [inf, -inf, float("nan")])
 def test_non_finite_constraint_penalty_does_not_abort_evolution(penalty) -> None:
     random.seed(17)
     anneal = _configured_anneal()
+    anneal.initial_temperature = 1.0
     evaluations = 0
 
     def objective(X):
@@ -191,6 +195,30 @@ def test_non_finite_constraint_penalty_does_not_abort_evolution(penalty) -> None
     anneal.evolve(objective)
 
     assert evaluations > 1
+
+
+@pytest.mark.parametrize("penalty", [inf, -inf])
+def test_automatic_calibration_rejects_infinite_trial_objectives(penalty) -> None:
+    random.seed(17)
+    anneal = _configured_anneal()
+    evaluations = 0
+
+    def objective(X):
+        nonlocal evaluations
+        evaluations += 1
+        return (0.0,) if evaluations == 1 else (penalty,)
+
+    with pytest.raises(MOSAError, match="Define initial temperature manually"):
+        anneal.evolve(objective)
+
+
+@pytest.mark.parametrize("penalty", [inf, -inf])
+def test_automatic_calibration_rejects_infinite_initial_objectives(penalty) -> None:
+    random.seed(17)
+    anneal = _configured_anneal()
+
+    with pytest.raises(MOSAError, match="Define initial temperature manually"):
+        anneal.evolve(lambda X: (penalty,))
 
 
 def test_automatic_schedule_heats_when_t0_is_insufficient() -> None:
@@ -216,7 +244,7 @@ def test_automatic_schedule_heats_when_t0_is_insufficient() -> None:
     assert anneal._initempset is False
 
 
-def test_sufficient_t0_and_explicit_temperature_schedules() -> None:
+def test_sufficient_t0_and_explicit_temperature_schedules(capsys) -> None:
     random.seed(11)
     automatic = _configured_anneal()
     automatic.auto_high_temperature = True
@@ -227,8 +255,34 @@ def test_sufficient_t0_and_explicit_temperature_schedules() -> None:
     explicit = _configured_anneal()
     explicit.initial_temperature = 7.5
     explicit.auto_high_temperature = True
+    explicit.verbose = True
     explicit.evolve(lambda X: (0.0,))
     assert explicit._temp == pytest.approx([7.5, 3.75, 1.875])
+    assert "Explicit initial temperature provided" not in capsys.readouterr().out
+
+
+def test_verbose_automatic_calibration_has_concise_status(capsys) -> None:
+    random.seed(11)
+    anneal = _configured_anneal()
+    anneal.auto_high_temperature = True
+    anneal.verbose = True
+
+    anneal.evolve(lambda X: (0.0,))
+
+    output = capsys.readouterr().out
+    assert (
+        "Estimating initial high-temperature...\nDone!\n------\n" "TEMPERATURE:"
+    ) in output
+    for unnecessary_message in (
+        "Initial objective scale:",
+        "Initial calibration temperature:",
+        "Expected acceptance at initial temperature:",
+        "Observed acceptance at initial temperature:",
+        "Target high-temperature acceptance:",
+        "Initial calibration temperature satisfies the target acceptance.",
+        "Starting geometric quench",
+    ):
+        assert unnecessary_message not in output
 
 
 def test_one_temperature_does_not_add_a_heating_stage() -> None:
