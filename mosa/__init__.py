@@ -118,6 +118,24 @@ example, pruning dominated solutions that still remain using the
 `mosa.mosa.Anneal.prune_dominated` method. See the `mosa.mosa.Anneal` methods 
 documentation for additional information.
 
+## AI agent skills
+
+MOSA includes portable [Agent Skills](https://agentskills.io/specification) for
+Codex, Claude Code, and other compatible agents:
+
+- [mosa-optimize](https://github.com/rgaveiga/mosa/tree/main/skills/mosa-optimize/SKILL.md): implement and tune continuous, discrete, and mixed optimization problems.
+- [mosa-analyze](https://github.com/rgaveiga/mosa/tree/main/skills/mosa-analyze/SKILL.md): merge archives, filter Pareto solutions, rank with TOPSIS, and plot objectives.
+
+Discover and install the skills from GitHub using the
+[Skills CLI](https://github.com/vercel-labs/skills) (requires Node.js/npm):
+
+```sh
+npx skills add https://github.com/rgaveiga/mosa --list
+npx skills add https://github.com/rgaveiga/mosa --skill mosa-optimize mosa-analyze --agent codex claude-code --copy
+```
+
+Add `--global` to the installation command for user-wide installation.
+
 ## Usage examples
 
 The Binh and Korn problem above and other examples of optimization problems that 
@@ -125,6 +143,6 @@ can be solved with MOSA can be found in the Jupyter notebooks in the
 [examples](https://github.com/rgaveiga/mosa/tree/main/examples) directory.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 from .mosa import Anneal

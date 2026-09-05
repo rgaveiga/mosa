@@ -33,6 +33,26 @@ You can access the API documentation for **MOSA** on the
 [project's GitHub Pages site](https://rgaveiga.github.io/mosa).
 
 
+## AI agent skills
+
+MOSA includes portable [Agent Skills](https://agentskills.io/specification) for
+Codex, Claude Code, and other compatible agents:
+
+- [mosa-optimize](skills/mosa-optimize/SKILL.md): implement and tune continuous,
+  discrete, and mixed optimization problems.
+- [mosa-analyze](skills/mosa-analyze/SKILL.md): merge archives, filter Pareto
+  solutions, rank with TOPSIS, and plot objectives.
+
+Discover and install the skills from GitHub using the
+[Skills CLI](https://github.com/vercel-labs/skills) (requires Node.js/npm):
+
+```sh
+npx skills add https://github.com/rgaveiga/mosa --list
+npx skills add https://github.com/rgaveiga/mosa --skill mosa-optimize mosa-analyze --agent codex claude-code --copy
+```
+
+Add `--global` to the installation command for user-wide installation.
+
 ## Contribution
 
 Contributions are definitely welcome. However, it should be mentioned that this repository uses 
