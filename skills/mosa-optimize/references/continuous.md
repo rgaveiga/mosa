@@ -37,12 +37,14 @@ The constrained notebooks return positive infinity for infeasible candidates. Se
 Adapted from `examples/rastrigin/rastrigin.ipynb`.
 
 ```python
-from math import cos, pi
+from math import pi
+from numpy import cos, ndarray
 from numpy.random import seed
 from mosa import Anneal
 
-def fobj(X):
-    return (20.0 + sum(x*x - 10.0*cos(2*pi*x) for x in X),)
+def fobj(X: ndarray):
+    f = 20.0 + (X**2).sum() - 10.0 * cos(2.0 * pi * X).sum()
+    return f,
 
 seed(0)
 opt = Anneal()
@@ -59,6 +61,6 @@ opt.evolve(fobj)
 result = opt.copyx()
 ```
 
-`number_of_elements` defaults to one: set it explicitly for vectors. All elements of a continuous group share bounds. Use separate groups for different bounds.
+`number_of_elements` defaults to one: set it explicitly for vectors. A multi-element continuous group reaches the objective as a NumPy array, so vectorized NumPy expressions can evaluate it directly. All elements of a continuous group share bounds. Use separate groups for different bounds.
 
-Chankong-Haimes uses a two-element vector with constraints; Fonseca-Fleming uses three elements, two objectives and `mc_step_increment`; Rosenbrock uses three elements and `adaptative_mc_step`. Preserve the notebook's actual objective formula when reproducing its results.
+Chankong-Haimes uses elementwise comparisons and `numpy.where` to replace both objectives with infinity when either constraint is violated. Fonseca-Fleming evaluates its two objectives with vectorized sums and uses `mc_step_increment`. Rosenbrock evaluates adjacent array slices and uses `adaptative_mc_step`. Preserve the notebook's actual objective formula when reproducing its results.

@@ -84,10 +84,10 @@ as in techniques such as Genetic Algorithm or Particle Swarm. In the context of
 this package, a population is the set of all elements that can be part of a solution 
 to the problem.
 
-Furthermore, similar elements of the population (e.g., elements with the same 
-meaning, type, or boundaries) form *groups*. A group can be a discrete list 
-of elements or a continuous range of numbers between a minimum and a maximum 
-value. The same groups that make up the population will be present in the 
+Furthermore, similar elements of the population (e.g., elements with the same
+meaning, type, or boundaries) form *groups*. A group can be a discrete list
+of elements or a continuous range of numbers between a minimum and a maximum
+value. The same groups that make up the population will be present in the
 solutions sampled from it.
 
 Groups with one element are passed to the objective function as scalar values.
@@ -148,6 +148,6 @@ can be solved with MOSA can be found in the Jupyter notebooks in the
 [examples](https://github.com/rgaveiga/mosa/tree/main/examples) directory.
 """
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 from .mosa import Anneal

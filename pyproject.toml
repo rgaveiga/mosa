@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mosa"
-version = "1.1.0"
+version = "1.2.0"
 description = "Multi-Objective Simulated Annealing (MOSA)"
 authors = ["Roberto Gomes, PhD <roberto.veiga@ufabc.edu.br>"]
 license = "GPL 3.0"

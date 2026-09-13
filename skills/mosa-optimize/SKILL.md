@@ -9,7 +9,7 @@ license: GPL-3.0
 Use `from mosa import Anneal`. Requires the MOSA Python package. Match the installed API; these instructions derive from `mosa/mosa.py` and the repository notebooks.
 
 - `set_population(**groups)`: tuples `(low, high)` define continuous bounds; lists define discrete candidates. Names must match objective keyword arguments exactly.
-- Groups configured with `number_of_elements=1` reach the objective as single values; groups configured with more elements reach it as lists. This applies to continuous and discrete groups.
+- Groups configured with `number_of_elements=1` reach the objective as single values. Multi-element discrete groups arrive as Python lists; multi-element continuous groups arrive as NumPy arrays. Archived solutions remain JSON-compatible and store arrays as lists.
 - Return a fixed-length tuple of objectives, including `(value,)` for one objective. All objectives are minimized; negate quantities to maximize.
 - Set group options with `set_group_params("X", number_of_elements=3)` or `set_opt_param("number_of_elements", X=3)`. Set global options as properties.
 - `restart` defaults to `True`. For a fresh experiment set `restart=False` and choose an unused `archive_file`; `evolve(func)` writes JSON even with `archive_save_interval=0`.
