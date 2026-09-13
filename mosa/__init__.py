@@ -84,13 +84,18 @@ as in techniques such as Genetic Algorithm or Particle Swarm. In the context of
 this package, a population is the set of all elements that can be part of a solution 
 to the problem.
 
-Furthermore, similar elements of the population (e.g., elements with the same 
-meaning, type, or boundaries) form *groups*. A group can be a discrete list 
-of elements or a continuous range of numbers between a minimum and a maximum 
-value. The same groups that make up the population will be present in the 
+Furthermore, similar elements of the population (e.g., elements with the same
+meaning, type, or boundaries) form *groups*. A group can be a discrete list
+of elements or a continuous range of numbers between a minimum and a maximum
+value. The same groups that make up the population will be present in the
 solutions sampled from it.
 
-A number of MOSA hyperparameters can be set to control the optimization process. 
+Groups with one element are passed to the objective function as scalar values.
+Groups with multiple elements are passed as Python lists when they are discrete
+and as NumPy arrays when they are continuous. Solutions in archives remain
+JSON-compatible and represent continuous arrays as lists.
+
+A number of MOSA hyperparameters can be set to control the optimization process.
 For example, `mosa.mosa.Anneal.initial_temperature` sets the initial fictitious 
 temperature in the Monte Carlo acceptance rule, while `mosa.mosa.Anneal.number_of_temperatures` 
 allows the user to determine the maximum number of temperatures in the annealing. 
@@ -118,6 +123,24 @@ example, pruning dominated solutions that still remain using the
 `mosa.mosa.Anneal.prune_dominated` method. See the `mosa.mosa.Anneal` methods 
 documentation for additional information.
 
+## AI agent skills
+
+MOSA includes portable [Agent Skills](https://agentskills.io/specification) for
+Codex, Claude Code, and other compatible agents:
+
+- [mosa-optimize](https://github.com/rgaveiga/mosa/tree/main/skills/mosa-optimize/SKILL.md): implement and tune continuous, discrete, and mixed optimization problems.
+- [mosa-analyze](https://github.com/rgaveiga/mosa/tree/main/skills/mosa-analyze/SKILL.md): merge archives, filter Pareto solutions, rank with TOPSIS, and plot objectives.
+
+Discover and install the skills from GitHub using the
+[Skills CLI](https://github.com/vercel-labs/skills) (requires Node.js/npm):
+
+```sh
+npx skills add https://github.com/rgaveiga/mosa --list
+npx skills add https://github.com/rgaveiga/mosa --skill mosa-optimize mosa-analyze --agent codex claude-code --copy
+```
+
+Add `--global` to the installation command for user-wide installation.
+
 ## Usage examples
 
 The Binh and Korn problem above and other examples of optimization problems that 
@@ -125,6 +148,6 @@ can be solved with MOSA can be found in the Jupyter notebooks in the
 [examples](https://github.com/rgaveiga/mosa/tree/main/examples) directory.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.2.0"
 
 from .mosa import Anneal

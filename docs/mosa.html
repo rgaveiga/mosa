@@ -26,6 +26,7 @@
             <ul>
   <li><a href="#installation">Installation</a></li>
   <li><a href="#getting-started">Getting started</a></li>
+  <li><a href="#ai-agent-skills">AI agent skills</a></li>
   <li><a href="#usage-examples">Usage examples</a></li>
 </ul>
 
@@ -144,13 +145,18 @@ as in techniques such as Genetic Algorithm or Particle Swarm. In the context of
 this package, a population is the set of all elements that can be part of a solution 
 to the problem.</p>
 
-<p>Furthermore, similar elements of the population (e.g., elements with the same 
-meaning, type, or boundaries) form <em>groups</em>. A group can be a discrete list 
-of elements or a continuous range of numbers between a minimum and a maximum 
-value. The same groups that make up the population will be present in the 
+<p>Furthermore, similar elements of the population (e.g., elements with the same
+meaning, type, or boundaries) form <em>groups</em>. A group can be a discrete list
+of elements or a continuous range of numbers between a minimum and a maximum
+value. The same groups that make up the population will be present in the
 solutions sampled from it.</p>
 
-<p>A number of MOSA hyperparameters can be set to control the optimization process. 
+<p>Groups with one element are passed to the objective function as scalar values.
+Groups with multiple elements are passed as Python lists when they are discrete
+and as NumPy arrays when they are continuous. Solutions in archives remain
+JSON-compatible and represent continuous arrays as lists.</p>
+
+<p>A number of MOSA hyperparameters can be set to control the optimization process.
 For example, <code><a href="mosa/mosa.html#Anneal.initial_temperature">mosa.mosa.Anneal.initial_temperature</a></code> sets the initial fictitious 
 temperature in the Monte Carlo acceptance rule, while <code><a href="mosa/mosa.html#Anneal.number_of_temperatures">mosa.mosa.Anneal.number_of_temperatures</a></code> 
 allows the user to determine the maximum number of temperatures in the annealing. 
@@ -179,6 +185,27 @@ process is finished, various operations can be performed on the archive, for
 example, pruning dominated solutions that still remain using the 
 <code><a href="mosa/mosa.html#Anneal.prune_dominated">mosa.mosa.Anneal.prune_dominated</a></code> method. See the <code><a href="mosa/mosa.html#Anneal">mosa.mosa.Anneal</a></code> methods 
 documentation for additional information.</p>
+
+<h2 id="ai-agent-skills">AI agent skills</h2>
+
+<p>MOSA includes portable <a href="https://agentskills.io/specification">Agent Skills</a> for
+Codex, Claude Code, and other compatible agents:</p>
+
+<ul>
+<li><a href="https://github.com/rgaveiga/mosa/tree/main/skills/mosa-optimize/SKILL.md">mosa-optimize</a>: implement and tune continuous, discrete, and mixed optimization problems.</li>
+<li><a href="https://github.com/rgaveiga/mosa/tree/main/skills/mosa-analyze/SKILL.md">mosa-analyze</a>: merge archives, filter Pareto solutions, rank with TOPSIS, and plot objectives.</li>
+</ul>
+
+<p>Discover and install the skills from GitHub using the
+<a href="https://github.com/vercel-labs/skills">Skills CLI</a> (requires Node.js/npm):</p>
+
+<div class="pdoc-code codehilite">
+<pre><span></span><code>npx<span class="w"> </span>skills<span class="w"> </span>add<span class="w"> </span>https://github.com/rgaveiga/mosa<span class="w"> </span>--list
+npx<span class="w"> </span>skills<span class="w"> </span>add<span class="w"> </span>https://github.com/rgaveiga/mosa<span class="w"> </span>--skill<span class="w"> </span>mosa-optimize<span class="w"> </span>mosa-analyze<span class="w"> </span>--agent<span class="w"> </span>codex<span class="w"> </span>claude-code<span class="w"> </span>--copy
+</code></pre>
+</div>
+
+<p>Add <code>--global</code> to the installation command for user-wide installation.</p>
 
 <h2 id="usage-examples">Usage examples</h2>
 
@@ -277,50 +304,73 @@ can be solved with MOSA can be found in the Jupyter notebooks in the
 </span><span id="L-84"><a href="#L-84"><span class="linenos"> 84</span></a><span class="sd">this package, a population is the set of all elements that can be part of a solution </span>
 </span><span id="L-85"><a href="#L-85"><span class="linenos"> 85</span></a><span class="sd">to the problem.</span>
 </span><span id="L-86"><a href="#L-86"><span class="linenos"> 86</span></a>
-</span><span id="L-87"><a href="#L-87"><span class="linenos"> 87</span></a><span class="sd">Furthermore, similar elements of the population (e.g., elements with the same </span>
-</span><span id="L-88"><a href="#L-88"><span class="linenos"> 88</span></a><span class="sd">meaning, type, or boundaries) form *groups*. A group can be a discrete list </span>
-</span><span id="L-89"><a href="#L-89"><span class="linenos"> 89</span></a><span class="sd">of elements or a continuous range of numbers between a minimum and a maximum </span>
-</span><span id="L-90"><a href="#L-90"><span class="linenos"> 90</span></a><span class="sd">value. The same groups that make up the population will be present in the </span>
+</span><span id="L-87"><a href="#L-87"><span class="linenos"> 87</span></a><span class="sd">Furthermore, similar elements of the population (e.g., elements with the same</span>
+</span><span id="L-88"><a href="#L-88"><span class="linenos"> 88</span></a><span class="sd">meaning, type, or boundaries) form *groups*. A group can be a discrete list</span>
+</span><span id="L-89"><a href="#L-89"><span class="linenos"> 89</span></a><span class="sd">of elements or a continuous range of numbers between a minimum and a maximum</span>
+</span><span id="L-90"><a href="#L-90"><span class="linenos"> 90</span></a><span class="sd">value. The same groups that make up the population will be present in the</span>
 </span><span id="L-91"><a href="#L-91"><span class="linenos"> 91</span></a><span class="sd">solutions sampled from it.</span>
 </span><span id="L-92"><a href="#L-92"><span class="linenos"> 92</span></a>
-</span><span id="L-93"><a href="#L-93"><span class="linenos"> 93</span></a><span class="sd">A number of MOSA hyperparameters can be set to control the optimization process. </span>
-</span><span id="L-94"><a href="#L-94"><span class="linenos"> 94</span></a><span class="sd">For example, `mosa.mosa.Anneal.initial_temperature` sets the initial fictitious </span>
-</span><span id="L-95"><a href="#L-95"><span class="linenos"> 95</span></a><span class="sd">temperature in the Monte Carlo acceptance rule, while `mosa.mosa.Anneal.number_of_temperatures` </span>
-</span><span id="L-96"><a href="#L-96"><span class="linenos"> 96</span></a><span class="sd">allows the user to determine the maximum number of temperatures in the annealing. </span>
-</span><span id="L-97"><a href="#L-97"><span class="linenos"> 97</span></a><span class="sd">See the `mosa.mosa.Anneal` properties documentation for more details.</span>
-</span><span id="L-98"><a href="#L-98"><span class="linenos"> 98</span></a>
-</span><span id="L-99"><a href="#L-99"><span class="linenos"> 99</span></a><span class="sd">The hyperparameters related to the solutions themselves are assigned using the </span>
-</span><span id="L-100"><a href="#L-100"><span class="linenos">100</span></a><span class="sd">`mosa.mosa.Anneal.set_group_params` or `mosa.mosa.Anneal.set_opt_param` methods, </span>
-</span><span id="L-101"><a href="#L-101"><span class="linenos">101</span></a><span class="sd">as seen in the following code snippet, also with the Binh and Korn problem in </span>
-</span><span id="L-102"><a href="#L-102"><span class="linenos">102</span></a><span class="sd">mind:</span>
-</span><span id="L-103"><a href="#L-103"><span class="linenos">103</span></a><span class="sd">    </span>
-</span><span id="L-104"><a href="#L-104"><span class="linenos">104</span></a><span class="sd">```python</span>
-</span><span id="L-105"><a href="#L-105"><span class="linenos">105</span></a><span class="sd">opt.set_opt_param(&quot;number_of_elements&quot;, X1=1, X2=1)</span>
-</span><span id="L-106"><a href="#L-106"><span class="linenos">106</span></a><span class="sd">opt.set_opt_param(&quot;mc_step_size&quot;, X1=0.5, X2=0.3)</span>
-</span><span id="L-107"><a href="#L-107"><span class="linenos">107</span></a><span class="sd">```</span>
-</span><span id="L-108"><a href="#L-108"><span class="linenos">108</span></a>
-</span><span id="L-109"><a href="#L-109"><span class="linenos">109</span></a><span class="sd">The optimization process starts by calling the `mosa.mosa.Anneal.evolve` method:</span>
-</span><span id="L-110"><a href="#L-110"><span class="linenos">110</span></a><span class="sd">    </span>
-</span><span id="L-111"><a href="#L-111"><span class="linenos">111</span></a><span class="sd">```python</span>
-</span><span id="L-112"><a href="#L-112"><span class="linenos">112</span></a><span class="sd">opt.evolve(fobj)</span>
-</span><span id="L-113"><a href="#L-113"><span class="linenos">113</span></a><span class="sd">```</span>
-</span><span id="L-114"><a href="#L-114"><span class="linenos">114</span></a>
-</span><span id="L-115"><a href="#L-115"><span class="linenos">115</span></a><span class="sd">The solutions to the problem are stored in the *archive*. After the optimization </span>
-</span><span id="L-116"><a href="#L-116"><span class="linenos">116</span></a><span class="sd">process is finished, various operations can be performed on the archive, for </span>
-</span><span id="L-117"><a href="#L-117"><span class="linenos">117</span></a><span class="sd">example, pruning dominated solutions that still remain using the </span>
-</span><span id="L-118"><a href="#L-118"><span class="linenos">118</span></a><span class="sd">`mosa.mosa.Anneal.prune_dominated` method. See the `mosa.mosa.Anneal` methods </span>
-</span><span id="L-119"><a href="#L-119"><span class="linenos">119</span></a><span class="sd">documentation for additional information.</span>
-</span><span id="L-120"><a href="#L-120"><span class="linenos">120</span></a>
-</span><span id="L-121"><a href="#L-121"><span class="linenos">121</span></a><span class="sd">## Usage examples</span>
-</span><span id="L-122"><a href="#L-122"><span class="linenos">122</span></a>
-</span><span id="L-123"><a href="#L-123"><span class="linenos">123</span></a><span class="sd">The Binh and Korn problem above and other examples of optimization problems that </span>
-</span><span id="L-124"><a href="#L-124"><span class="linenos">124</span></a><span class="sd">can be solved with MOSA can be found in the Jupyter notebooks in the </span>
-</span><span id="L-125"><a href="#L-125"><span class="linenos">125</span></a><span class="sd">[examples](https://github.com/rgaveiga/mosa/tree/main/examples) directory.</span>
-</span><span id="L-126"><a href="#L-126"><span class="linenos">126</span></a><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="L-93"><a href="#L-93"><span class="linenos"> 93</span></a><span class="sd">Groups with one element are passed to the objective function as scalar values.</span>
+</span><span id="L-94"><a href="#L-94"><span class="linenos"> 94</span></a><span class="sd">Groups with multiple elements are passed as Python lists when they are discrete</span>
+</span><span id="L-95"><a href="#L-95"><span class="linenos"> 95</span></a><span class="sd">and as NumPy arrays when they are continuous. Solutions in archives remain</span>
+</span><span id="L-96"><a href="#L-96"><span class="linenos"> 96</span></a><span class="sd">JSON-compatible and represent continuous arrays as lists.</span>
+</span><span id="L-97"><a href="#L-97"><span class="linenos"> 97</span></a>
+</span><span id="L-98"><a href="#L-98"><span class="linenos"> 98</span></a><span class="sd">A number of MOSA hyperparameters can be set to control the optimization process.</span>
+</span><span id="L-99"><a href="#L-99"><span class="linenos"> 99</span></a><span class="sd">For example, `mosa.mosa.Anneal.initial_temperature` sets the initial fictitious </span>
+</span><span id="L-100"><a href="#L-100"><span class="linenos">100</span></a><span class="sd">temperature in the Monte Carlo acceptance rule, while `mosa.mosa.Anneal.number_of_temperatures` </span>
+</span><span id="L-101"><a href="#L-101"><span class="linenos">101</span></a><span class="sd">allows the user to determine the maximum number of temperatures in the annealing. </span>
+</span><span id="L-102"><a href="#L-102"><span class="linenos">102</span></a><span class="sd">See the `mosa.mosa.Anneal` properties documentation for more details.</span>
+</span><span id="L-103"><a href="#L-103"><span class="linenos">103</span></a>
+</span><span id="L-104"><a href="#L-104"><span class="linenos">104</span></a><span class="sd">The hyperparameters related to the solutions themselves are assigned using the </span>
+</span><span id="L-105"><a href="#L-105"><span class="linenos">105</span></a><span class="sd">`mosa.mosa.Anneal.set_group_params` or `mosa.mosa.Anneal.set_opt_param` methods, </span>
+</span><span id="L-106"><a href="#L-106"><span class="linenos">106</span></a><span class="sd">as seen in the following code snippet, also with the Binh and Korn problem in </span>
+</span><span id="L-107"><a href="#L-107"><span class="linenos">107</span></a><span class="sd">mind:</span>
+</span><span id="L-108"><a href="#L-108"><span class="linenos">108</span></a><span class="sd">    </span>
+</span><span id="L-109"><a href="#L-109"><span class="linenos">109</span></a><span class="sd">```python</span>
+</span><span id="L-110"><a href="#L-110"><span class="linenos">110</span></a><span class="sd">opt.set_opt_param(&quot;number_of_elements&quot;, X1=1, X2=1)</span>
+</span><span id="L-111"><a href="#L-111"><span class="linenos">111</span></a><span class="sd">opt.set_opt_param(&quot;mc_step_size&quot;, X1=0.5, X2=0.3)</span>
+</span><span id="L-112"><a href="#L-112"><span class="linenos">112</span></a><span class="sd">```</span>
+</span><span id="L-113"><a href="#L-113"><span class="linenos">113</span></a>
+</span><span id="L-114"><a href="#L-114"><span class="linenos">114</span></a><span class="sd">The optimization process starts by calling the `mosa.mosa.Anneal.evolve` method:</span>
+</span><span id="L-115"><a href="#L-115"><span class="linenos">115</span></a><span class="sd">    </span>
+</span><span id="L-116"><a href="#L-116"><span class="linenos">116</span></a><span class="sd">```python</span>
+</span><span id="L-117"><a href="#L-117"><span class="linenos">117</span></a><span class="sd">opt.evolve(fobj)</span>
+</span><span id="L-118"><a href="#L-118"><span class="linenos">118</span></a><span class="sd">```</span>
+</span><span id="L-119"><a href="#L-119"><span class="linenos">119</span></a>
+</span><span id="L-120"><a href="#L-120"><span class="linenos">120</span></a><span class="sd">The solutions to the problem are stored in the *archive*. After the optimization </span>
+</span><span id="L-121"><a href="#L-121"><span class="linenos">121</span></a><span class="sd">process is finished, various operations can be performed on the archive, for </span>
+</span><span id="L-122"><a href="#L-122"><span class="linenos">122</span></a><span class="sd">example, pruning dominated solutions that still remain using the </span>
+</span><span id="L-123"><a href="#L-123"><span class="linenos">123</span></a><span class="sd">`mosa.mosa.Anneal.prune_dominated` method. See the `mosa.mosa.Anneal` methods </span>
+</span><span id="L-124"><a href="#L-124"><span class="linenos">124</span></a><span class="sd">documentation for additional information.</span>
+</span><span id="L-125"><a href="#L-125"><span class="linenos">125</span></a>
+</span><span id="L-126"><a href="#L-126"><span class="linenos">126</span></a><span class="sd">## AI agent skills</span>
 </span><span id="L-127"><a href="#L-127"><span class="linenos">127</span></a>
-</span><span id="L-128"><a href="#L-128"><span class="linenos">128</span></a><span class="n">__version__</span> <span class="o">=</span> <span class="s2">&quot;1.0.0&quot;</span>
-</span><span id="L-129"><a href="#L-129"><span class="linenos">129</span></a>
-</span><span id="L-130"><a href="#L-130"><span class="linenos">130</span></a><span class="kn">from</span> <span class="nn">.mosa</span> <span class="kn">import</span> <span class="n">Anneal</span>
+</span><span id="L-128"><a href="#L-128"><span class="linenos">128</span></a><span class="sd">MOSA includes portable [Agent Skills](https://agentskills.io/specification) for</span>
+</span><span id="L-129"><a href="#L-129"><span class="linenos">129</span></a><span class="sd">Codex, Claude Code, and other compatible agents:</span>
+</span><span id="L-130"><a href="#L-130"><span class="linenos">130</span></a>
+</span><span id="L-131"><a href="#L-131"><span class="linenos">131</span></a><span class="sd">- [mosa-optimize](https://github.com/rgaveiga/mosa/tree/main/skills/mosa-optimize/SKILL.md): implement and tune continuous, discrete, and mixed optimization problems.</span>
+</span><span id="L-132"><a href="#L-132"><span class="linenos">132</span></a><span class="sd">- [mosa-analyze](https://github.com/rgaveiga/mosa/tree/main/skills/mosa-analyze/SKILL.md): merge archives, filter Pareto solutions, rank with TOPSIS, and plot objectives.</span>
+</span><span id="L-133"><a href="#L-133"><span class="linenos">133</span></a>
+</span><span id="L-134"><a href="#L-134"><span class="linenos">134</span></a><span class="sd">Discover and install the skills from GitHub using the</span>
+</span><span id="L-135"><a href="#L-135"><span class="linenos">135</span></a><span class="sd">[Skills CLI](https://github.com/vercel-labs/skills) (requires Node.js/npm):</span>
+</span><span id="L-136"><a href="#L-136"><span class="linenos">136</span></a>
+</span><span id="L-137"><a href="#L-137"><span class="linenos">137</span></a><span class="sd">```sh</span>
+</span><span id="L-138"><a href="#L-138"><span class="linenos">138</span></a><span class="sd">npx skills add https://github.com/rgaveiga/mosa --list</span>
+</span><span id="L-139"><a href="#L-139"><span class="linenos">139</span></a><span class="sd">npx skills add https://github.com/rgaveiga/mosa --skill mosa-optimize mosa-analyze --agent codex claude-code --copy</span>
+</span><span id="L-140"><a href="#L-140"><span class="linenos">140</span></a><span class="sd">```</span>
+</span><span id="L-141"><a href="#L-141"><span class="linenos">141</span></a>
+</span><span id="L-142"><a href="#L-142"><span class="linenos">142</span></a><span class="sd">Add `--global` to the installation command for user-wide installation.</span>
+</span><span id="L-143"><a href="#L-143"><span class="linenos">143</span></a>
+</span><span id="L-144"><a href="#L-144"><span class="linenos">144</span></a><span class="sd">## Usage examples</span>
+</span><span id="L-145"><a href="#L-145"><span class="linenos">145</span></a>
+</span><span id="L-146"><a href="#L-146"><span class="linenos">146</span></a><span class="sd">The Binh and Korn problem above and other examples of optimization problems that </span>
+</span><span id="L-147"><a href="#L-147"><span class="linenos">147</span></a><span class="sd">can be solved with MOSA can be found in the Jupyter notebooks in the </span>
+</span><span id="L-148"><a href="#L-148"><span class="linenos">148</span></a><span class="sd">[examples](https://github.com/rgaveiga/mosa/tree/main/examples) directory.</span>
+</span><span id="L-149"><a href="#L-149"><span class="linenos">149</span></a><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="L-150"><a href="#L-150"><span class="linenos">150</span></a>
+</span><span id="L-151"><a href="#L-151"><span class="linenos">151</span></a><span class="n">__version__</span> <span class="o">=</span> <span class="s2">&quot;1.2.0&quot;</span>
+</span><span id="L-152"><a href="#L-152"><span class="linenos">152</span></a>
+</span><span id="L-153"><a href="#L-153"><span class="linenos">153</span></a><span class="kn">from</span> <span class="nn">.mosa</span> <span class="kn">import</span> <span class="n">Anneal</span>
 </span></pre></div>
 
 

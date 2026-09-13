@@ -1,9 +1,9 @@
 """Regression tests that reproduce the example notebook optimizations."""
 
-from math import cos, pi, sqrt
+from math import pi, sqrt
 
 import pytest
-from numpy import arange, asarray, random
+from numpy import arange, asarray, cos, ndarray, random
 
 import mosa
 
@@ -78,10 +78,8 @@ def test_rastrigin_last_solution() -> None:
 
     random.seed(0)
 
-    def fobj(X):
-        x1, x2 = X
-        f = 20.0 + x1**2 - 10.0 * cos(2 * pi * x1)
-        f += x2**2 - 10.0 * cos(2 * pi * x2)
+    def fobj(X: ndarray) -> tuple:
+        f = 20.0 + (X**2).sum() - 10.0 * cos(2.0 * pi * X).sum()
         return (f,)
 
     optimizer = mosa.Anneal()
@@ -102,7 +100,7 @@ def test_rastrigin_last_solution() -> None:
     assert result["x"][0]["X"] == pytest.approx(
         [-0.0009497197841741301, 0.0006391116535993113]
     )
-    assert result["f"][0] == pytest.approx([0.0002599785798818033])
+    assert result["f"][0] == pytest.approx([0.00025997857988713235])
 
 
 def test_rosenbrock_last_solution() -> None:
@@ -110,10 +108,8 @@ def test_rosenbrock_last_solution() -> None:
 
     random.seed(0)
 
-    def fobj(X: list) -> tuple:
-        f = 0
-        for i in range(2):
-            f += 100 * ((X[i + 1] - X[i] ** 2) ** 2 + (1 - X[i]) ** 2)
+    def fobj(X: ndarray) -> tuple:
+        f = 100 * ((X[1:] - X[:-1] ** 2) ** 2 + (1 - X[:-1]) ** 2).sum()
         return (f,)
 
     optimizer = mosa.Anneal()
