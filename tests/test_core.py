@@ -3,7 +3,7 @@
 from math import cos, pi, sqrt
 
 import pytest
-from numpy import arange, asarray, random
+from numpy import arange, asarray, ndarray, random
 
 import mosa
 
@@ -110,7 +110,7 @@ def test_rosenbrock_last_solution() -> None:
 
     random.seed(0)
 
-    def fobj(X: list) -> tuple:
+    def fobj(X: ndarray) -> tuple:
         f = 0
         for i in range(2):
             f += 100 * ((X[i + 1] - X[i] ** 2) ** 2 + (1 - X[i]) ** 2)

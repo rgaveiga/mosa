@@ -325,6 +325,20 @@ class _GroupState:
     def decode_solution(self) -> Any:
         return self.decode(self.solution)
 
+    def decode_objective_solution(self) -> Any:
+        """Decode the solution into the representation accepted by objectives."""
+
+        if self.continuous and not self.scalar_output:
+            return self.solution.copy()
+        return self.decode_solution()
+
+    def decode_objective(self, values: np.ndarray) -> Any:
+        """Decode candidate values into the representation accepted by objectives."""
+
+        if self.continuous and not self.scalar_output:
+            return values.copy()
+        return self.decode(values)
+
     def decode_population(self) -> PopulationGroup:
         if self.continuous:
             return tuple(float(value) for value in self.population)

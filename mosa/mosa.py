@@ -216,6 +216,10 @@ class Anneal:
         ### Parameters
 
         `func`: objective function.
+
+        Continuous groups with multiple elements are passed as NumPy arrays.
+        Discrete groups with multiple elements are passed as Python lists, and
+        single-element groups are passed as scalar values.
         """
 
         print("--- BEGIN: Evolving a solution ---\n")
@@ -593,7 +597,8 @@ class Anneal:
 
         if from_saved_state:
             xcurr = {
-                group: self._groupstates[group].decode_solution() for group in groups
+                group: self._groupstates[group].decode_objective_solution()
+                for group in groups
             }
 
         print("------")
@@ -643,7 +648,7 @@ class Anneal:
                     if xsort[group]:
                         state.solution.sort()
 
-                xcurr[group] = state.decode_solution()
+                xcurr[group] = state.decode_objective_solution()
 
             fcurr = self.__evaluate_solution(func, xcurr)
 
@@ -901,7 +906,7 @@ class Anneal:
                 xtmp[group] = (
                     state.decode_value(candidate)
                     if state.scalar_output
-                    else state.decode(candidate)
+                    else state.decode_objective(candidate)
                 )
                 continuous_change = (
                     self._adaptxstep
@@ -1976,13 +1981,14 @@ class Anneal:
                         self.__cache_solution(removed_x, removed_f)
 
         if updated:
+            stored_x = self.__serializable_solution(x)
             self.__ensure_archive_capacity(archive_len + 1, len(f_arr))
-            self._archivex.append(x)
+            self._archivex.append(stored_x)
             self._archivefarr[archive_len] = f_arr
-            solution_key = _semantic_key(x)
+            solution_key = _semantic_key(stored_x)
             if solution_key is not None:
                 self._archive_lookup[solution_key] = archive_len
-            self.__remove_cached_solution(x)
+            self.__remove_cached_solution(stored_x)
 
         return int(updated)
 
@@ -1992,11 +1998,12 @@ class Anneal:
         """Return previously computed objectives or evaluate and cache the solution."""
 
         if self._xcache:
-            solution_key = _semantic_key(x)
+            stored_x = self.__serializable_solution(x)
+            solution_key = _semantic_key(stored_x)
             archive_index = (
                 self._archive_lookup.get(solution_key)
                 if solution_key is not None
-                else self.__solution_index(self._archivex, x)
+                else self.__solution_index(self._archivex, stored_x)
             )
 
             if archive_index is not None:
@@ -2009,14 +2016,27 @@ class Anneal:
                     self._nreused += 1
                     return list(cached[1])
             else:
-                cache_index = self.__solution_index(self._cache["x"], x)
+                cache_index = self.__solution_index(self._cache["x"], stored_x)
                 if cache_index is not None:
                     self._nreused += 1
                     return list(self._cache["f"][cache_index])
 
         objective_values = list(func(**x))
-        self.__cache_solution(x, objective_values)
+        if self._xcache:
+            self.__cache_solution(stored_x, objective_values)
         return objective_values
+
+    def __serializable_solution(self, x: Solution) -> Solution:
+        """Copy a solution and convert continuous vectors to JSON-compatible lists."""
+
+        stored_x = x.copy()
+        for group, state in self._groupstates.items():
+            if state.continuous and not state.scalar_output and group in stored_x:
+                value = stored_x[group]
+                if isinstance(value, np.ndarray):
+                    stored_x[group] = value.tolist()
+
+        return stored_x
 
     @staticmethod
     def __solution_index(solutions: list[Solution], x: Solution) -> int | None:

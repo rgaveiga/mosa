@@ -90,7 +90,12 @@ of elements or a continuous range of numbers between a minimum and a maximum
 value. The same groups that make up the population will be present in the 
 solutions sampled from it.
 
-A number of MOSA hyperparameters can be set to control the optimization process. 
+Groups with one element are passed to the objective function as scalar values.
+Groups with multiple elements are passed as Python lists when they are discrete
+and as NumPy arrays when they are continuous. Solutions in archives remain
+JSON-compatible and represent continuous arrays as lists.
+
+A number of MOSA hyperparameters can be set to control the optimization process.
 For example, `mosa.mosa.Anneal.initial_temperature` sets the initial fictitious 
 temperature in the Monte Carlo acceptance rule, while `mosa.mosa.Anneal.number_of_temperatures` 
 allows the user to determine the maximum number of temperatures in the annealing. 
