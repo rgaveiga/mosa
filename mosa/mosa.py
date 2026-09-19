@@ -2655,17 +2655,12 @@ class Anneal:
         Enables automatic calibration of the high-temperature stage.
 
         The default is `True` because `initial_temperature` defaults to `None`.
-        When enabled and `initial_temperature` has not
-        been explicitly assigned, the first temperature is estimated from the
-        mean absolute difference of each objective between consecutive valid
-        random evaluations. Each mean is rounded to the nearest integer with
-        halves rounded up. The mean of these objective scales is rounded the
-        same way: zero gives 1.0, and a positive value gives the next power of
-        ten (for example, 1 or 5 gives 10.0; 15 or 60 gives 100.0). If its
-        expected mean MOSA acceptance probability is below the configured target,
-        one higher calibration stage is used before
-        quenching begins. If `initial_temperature` has been explicitly assigned
-        by the user, setting this property to `True` is ignored.
+        When enabled and `initial_temperature` has not been explicitly assigned, 
+        the first temperature is estimated from the mean absolute difference of 
+        each objective between consecutive valid random evaluations. 
+
+        If `initial_temperature` has been explicitly assigned by the user, setting 
+        this property to `True` is ignored.
         """
 
         return self._autohightemp
