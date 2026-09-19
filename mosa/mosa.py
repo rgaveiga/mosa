@@ -67,10 +67,12 @@ class Anneal:
         self._initemp: float | None = None
         self._initempset: bool = False
         self._autohightemp: bool = True
+        self._nhightempsearch: int = 100
         self._hightempaccthresh: float = 0.8
         self._decrease: float = 0.9
         self._ntemp: int = 10
         self._population: Population = {}
+        self._inix: dict | None = None
         self._groupstates: dict[str, _GroupState] = {}
         self._changemove: dict[str, Number] = {}
         self._swapmove: dict[str, Number] = {}
@@ -227,7 +229,9 @@ class Anneal:
         if not callable(func):
             raise MOSAError("A Python function must be provided!")
 
+        automatic_high_temperature = self._autohightemp and not self._initempset
         from_archive: bool = False
+        from_initial_solution: bool = False
         from_saved_state: bool = False
         updated: int = 0
         nupdated: int = 0
@@ -334,7 +338,7 @@ class Anneal:
 
         print("Done!")
 
-        if population and xcurr and len(fcurr) > 0:
+        if population and xcurr:
             if set(population.keys()) == set(xcurr.keys()):
                 from_saved_state = True
             else:
@@ -346,7 +350,11 @@ class Anneal:
                 )
 
             if self._population:
-                xcurr = {}
+                if self._inix is not None:
+                    xcurr = deepcopy(self._inix)
+                    from_initial_solution = True
+                else:
+                    xcurr = {}
                 fcurr = []
                 population = deepcopy(self._population)
             else:
@@ -409,7 +417,11 @@ class Anneal:
                 print("        Sample space: discrete")
                 print(f"        Size of population group: {len(population[group])}")
 
-                if len(population[group]) <= 1 and not from_saved_state:
+                if (
+                    len(population[group]) <= 1
+                    and not from_saved_state
+                    and not from_initial_solution
+                ):
                     raise MOSAError(
                         "Number of elements in the population group must be greater than one!"
                     )
@@ -577,17 +589,21 @@ class Anneal:
                 self._groupstates[group] = _GroupState.create(
                     population[group],
                     xnel[group],
-                    xcurr[group] if from_saved_state else None,
+                    (
+                        xcurr[group]
+                        if from_saved_state or from_initial_solution
+                        else None
+                    ),
                 )
             except (TypeError, ValueError, OverflowError) as error:
-                if from_saved_state:
+                if from_saved_state or from_initial_solution:
                     raise MOSAError(
                         f"Saved solution group '{group}' has an incompatible format!"
                     ) from error
 
                 raise
 
-        if from_archive:
+        if from_archive or from_initial_solution:
             for group in groups:
                 self.__restore_archive_group_state(
                     group,
@@ -595,7 +611,7 @@ class Anneal:
                     xdistinct.get(group, False),
                 )
 
-        if from_saved_state:
+        if from_saved_state or from_initial_solution:
             xcurr = {
                 group: self._groupstates[group].decode_objective_solution()
                 for group in groups
@@ -606,55 +622,69 @@ class Anneal:
         if from_archive:
             print("Initial solution loaded from the archive...")
         else:
-            print("Initializing with a random solution from scratch...")
+            if from_initial_solution:
+                print("Starting from the following initial solution:")
 
-            for group in groups:
-                state = self._groupstates[group]
+                for group, value in self._inix.items():
+                    print(f"    {group} = {value}")
+            else:
+                print("Initializing with a random solution from scratch...")
 
-                if xnel[group] == 1:
-                    if xsampling[group] == 0:
-                        m = choice(len(state.population))
-                        state.solution = np.asarray(
-                            [state.population[m]], dtype=state.population.dtype
-                        )
+                for group in groups:
+                    state = self._groupstates[group]
 
-                        if xdistinct[group]:
-                            state.population = np.delete(state.population, m)
-                    else:
-                        state.solution = np.asarray(
-                            [uniform(xbounds[group][0], xbounds[group][1])],
-                            dtype=np.float64,
-                        )
-                else:
-                    values: list[Any] = []
-
-                    for _ in range(xnel[group]):
+                    if xnel[group] == 1:
                         if xsampling[group] == 0:
                             m = choice(len(state.population))
-                            values.append(state.population[m])
+                            state.solution = np.asarray(
+                                [state.population[m]], dtype=state.population.dtype
+                            )
 
                             if xdistinct[group]:
                                 state.population = np.delete(state.population, m)
                         else:
-                            values.append(uniform(xbounds[group][0], xbounds[group][1]))
+                            state.solution = np.asarray(
+                                [uniform(xbounds[group][0], xbounds[group][1])],
+                                dtype=np.float64,
+                            )
+                    else:
+                        values: list[Any] = []
 
-                    state.solution = np.asarray(
-                        values,
-                        dtype=(
-                            np.float64 if state.continuous else state.population.dtype
-                        ),
-                    )
+                        for _ in range(xnel[group]):
+                            if xsampling[group] == 0:
+                                m = choice(len(state.population))
+                                values.append(state.population[m])
 
-                    if xsort[group]:
-                        state.solution.sort()
+                                if xdistinct[group]:
+                                    state.population = np.delete(state.population, m)
+                            else:
+                                values.append(
+                                    uniform(xbounds[group][0], xbounds[group][1])
+                                )
 
-                xcurr[group] = state.decode_objective_solution()
+                        state.solution = np.asarray(
+                            values,
+                            dtype=(
+                                np.float64
+                                if state.continuous
+                                else state.population.dtype
+                            ),
+                        )
 
-            fcurr = self.__evaluate_solution(func, xcurr)
+                        if xsort[group]:
+                            state.solution.sort()
 
-            updated = self.__updatearchive(xcurr, fcurr)
+                    xcurr[group] = state.decode_objective_solution()
 
-            if self._trackoptprogress:
+            if automatic_high_temperature:
+                fcurr = self.__finite_objective_values(func(**xcurr)) or []
+            else:
+                fcurr = self.__evaluate_solution(func, xcurr)
+
+            if fcurr:
+                updated = self.__updatearchive(xcurr, fcurr)
+
+            if self._trackoptprogress and fcurr:
                 if len(fcurr) == 1:
                     self._f.append(fcurr[0])
                 else:
@@ -663,22 +693,38 @@ class Anneal:
         print("Done!")
         print("------")
 
+        if automatic_high_temperature:
+            print("Estimating initial high-temperature...")
+
+            self._initemp = self.__estimate_initial_high_temperature(
+                func, population, xnel, xdistinct, xsort, len(fcurr) or None
+            )
+
+            if not fcurr:
+                xcurr = deepcopy(self._archivex[-1])
+                fcurr = (
+                    self._archivefarr[len(self._archivex) - 1].astype(float).tolist()
+                )
+                for group in groups:
+                    state = _GroupState.create(
+                        population[group], xnel[group], xcurr[group]
+                    )
+                    self.__restore_archive_group_state(
+                        group, state, xdistinct.get(group, False)
+                    )
+                    self._groupstates[group] = state
+                if self._trackoptprogress:
+                    self._f.append(fcurr[0] if len(fcurr) == 1 else fcurr)
+
+            print("Done!")
+            print("------")
+
         if len(fcurr) == len(self._weight):
             weight = self._weight.copy()
         else:
             weight = [1.0] * len(fcurr)
 
         self.__validate_calibration_weights(weight)
-
-        automatic_high_temperature = self._autohightemp and not self._initempset
-
-        if automatic_high_temperature:
-            print("Estimating initial high-temperature...")
-
-            self._initemp = self.__estimate_initial_temperature(fcurr)
-
-            print("Done!")
-            print("------")
 
         if self._initemp is None:
             raise MOSAError(
@@ -695,7 +741,7 @@ class Anneal:
             print(f"Starting at temperature: {self._temp[0]:.6f}")
             print("Evolving solutions to the problem, please wait...")
 
-        archive_dirty = updated == 1
+        archive_dirty = updated == 1 or automatic_high_temperature
         self._nreused = 0
 
         for temperature_index, temp in enumerate(self._temp, start=1):
@@ -1159,6 +1205,51 @@ class Anneal:
 
         return tmpdict
 
+    def setx(self, x: dict, f: tuple | list | float | None = None) -> None:
+        """
+        Sets a user-provided initial solution.
+
+        If objective values are supplied in `f`, the solution is saved in a new
+        archive. Otherwise, it is kept in memory and used by `evolve()` when an
+        initial solution cannot be loaded from an archive.
+
+        ### Parameters
+
+        `x`: solution whose keys must match the configured population groups.
+
+        `f`: optional objective value or values associated with the solution.
+
+        The default is `None`, meaning that no archive is created and the
+        objective values are calculated by `evolve()`.
+        """
+
+        print("WARNING: An improperly defined solution may cause unexpected errors.")
+
+        if not self._population:
+            raise MOSAError("A population must be provided!")
+
+        if not isinstance(x, dict):
+            raise MOSAError("The solution 'x' must be a dictionary!")
+
+        if set(x) != set(self._population):
+            raise MOSAError(
+                "Each key in 'x' must correspond to a key in the population!"
+            )
+
+        if f is None:
+            self._inix = deepcopy(x)
+            return
+
+        if not isinstance(f, (tuple, list, float)):
+            raise MOSAError("'f' must be a tuple, list, or float!")
+
+        if self._archivex or os.path.exists(self._archivefile):
+            raise MOSAError("An archive already exists!")
+
+        objective_values = list(f) if isinstance(f, (tuple, list)) else [f]
+        self.__set_archive_data([deepcopy(x)], [objective_values])
+        self.savex()
+
     def savex(self, xset: Archive | None = None, archive_file: str = "") -> None:
         """
         Saves the solution archive into a text file in JSON format.
@@ -1590,6 +1681,106 @@ class Anneal:
             "Avg": favg.astype(float).tolist(),
             "Std": fstd.astype(float).tolist(),
         }
+
+    @staticmethod
+    def __finite_objective_values(
+        result: Any, expected_count: int | None = None
+    ) -> list[float] | None:
+        """Return finite objective values, or None for an invalid result."""
+
+        if isinstance(result, (str, bytes)):
+            return None
+        try:
+            raw_values = list(result)
+            if any(
+                not isinstance(value, Real) or isinstance(value, bool)
+                for value in raw_values
+            ):
+                return None
+            values = [float(value) for value in raw_values]
+        except (TypeError, ValueError, OverflowError):
+            return None
+        if (
+            not values
+            or not all(isfinite(value) for value in values)
+            or (expected_count is not None and len(values) != expected_count)
+        ):
+            return None
+        return values
+
+    def __estimate_initial_high_temperature(
+        self,
+        func: ObjectiveFunction,
+        population: Population,
+        xnel: dict[str, int],
+        xdistinct: dict[str, bool],
+        xsort: dict[str, bool],
+        expected_count: int | None = None,
+    ) -> float:
+        """Estimate the first high temperature from successive random solutions."""
+
+        sample_states = {
+            group: _GroupState.create(values, xnel[group])
+            for group, values in population.items()
+        }
+        previous: list[float] | None = None
+        delta_sums: list[float] = []
+        number_of_deltas = 0
+
+        for _ in range(self._nhightempsearch):
+            solution: Solution = {}
+            for group, state in sample_states.items():
+                count = xnel[group]
+                if state.continuous:
+                    lower, upper = sorted(state.population[:2])
+                    state.solution = np.asarray(
+                        [uniform(lower, upper) for _ in range(count)],
+                        dtype=np.float64,
+                    )
+                elif count == 1:
+                    state.solution = np.asarray(
+                        [state.population[choice(len(state.population))]],
+                        dtype=state.population.dtype,
+                    )
+                else:
+                    indices = choice(
+                        len(state.population),
+                        size=count,
+                        replace=not xdistinct.get(group, False),
+                    )
+                    state.solution = state.population[indices].copy()
+                if xsort[group]:
+                    state.solution.sort()
+                solution[group] = state.decode_objective_solution()
+
+            values = self.__finite_objective_values(
+                func(**solution),
+                len(previous) if previous is not None else expected_count,
+            )
+            if values is None:
+                continue
+
+            self.__updatearchive(solution, values)
+            if previous is not None:
+                for index, value in enumerate(values):
+                    delta_sums[index] += value - previous[index]
+                number_of_deltas += 1
+            else:
+                delta_sums = [0.0] * len(values)
+            previous = values
+
+        if previous is None:
+            raise MOSAError(
+                "Automatic high-temperature calibration found no valid "
+                "objective values!"
+            )
+
+        mean_deltas = (
+            [total / number_of_deltas for total in delta_sums]
+            if number_of_deltas
+            else [0.0] * len(previous)
+        )
+        return self.__estimate_initial_temperature(mean_deltas)
 
     def __estimate_initial_temperature(
         self, objective_values: ObjectiveValues
@@ -2457,8 +2648,9 @@ class Anneal:
         The default is `True` because `initial_temperature` defaults to `None`.
         When enabled and `initial_temperature` has not
         been explicitly assigned, the first temperature is estimated from the
-        initial objective scale. If its expected mean MOSA acceptance probability
-        is below the configured target, one higher calibration stage is used before
+        mean consecutive objective differences of random solutions. If its
+        expected mean MOSA acceptance probability is below the configured target,
+        one higher calibration stage is used before
         quenching begins. If `initial_temperature` has been explicitly assigned
         by the user, setting this property to `True` is ignored.
         """
@@ -2471,6 +2663,27 @@ class Anneal:
             self._autohightemp = val or self._initemp is None
         else:
             raise MOSAError("Automatic high-temperature calibration must be a boolean!")
+
+    @property
+    def number_of_runs_high_temperature_estimate(self) -> int:
+        """
+        Number of random objective evaluations used to estimate the initial
+        high temperature.
+
+        The default is 100.
+        """
+
+        return self._nhightempsearch
+
+    @number_of_runs_high_temperature_estimate.setter
+    def number_of_runs_high_temperature_estimate(self, val: int) -> None:
+        if isinstance(val, int) and not isinstance(val, bool) and val > 0:
+            self._nhightempsearch = val
+        else:
+            raise MOSAError(
+                "Number of runs for high-temperature estimation must be an "
+                "integer greater than zero!"
+            )
 
     @property
     def high_temperature_acceptance_threshold(self) -> float:

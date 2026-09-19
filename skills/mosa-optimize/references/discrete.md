@@ -51,10 +51,26 @@ The thief notebook uses integer item IDs, objective `(-total_value, total_weight
 | `insert_or_delete_move` | `0.3` | Change subset size |
 | `mc_step_size` | `50` | Discrete proposal step |
 
-Move values are relative weights, not required to sum to one. The default replacement weight is `1.0`; swap and insertion/deletion default to zero. Enable at least one usable move. The notebook filters weight afterward with `trimx(thresholds=[None, 20])`; encode a capacity constraint in the objective if it must apply during the search.
+Move values are relative weights, not required to sum to one. The default replacement weight is `1.0`; swap and insertion/deletion default to zero. Enable at least one usable move. The notebook filters weight afterward with `trimx(thresholds=[None, 20])`; treat that as post-run processing with the `mosa-analyze` skill. Encode a capacity constraint in the objective if it must apply during the search.
 
 ## Mixed alloy composition
 
-The alloy notebook sets `Component=component.tolist()` and `Concentration=(0.0, 0.1)`. Configure two distinct components and one concentration. The callback `fobj(Component, Concentration)` unpacks the component list and uses the scalar concentration to compute `(-property, cost)`.
+The alloy notebook sets `Component=component.tolist()` and `Concentration=(0.0, 0.1)`. Configure two distinct components and one concentration. The callback `fobj(Component, Concentration)` unpacks the component list and uses the scalar concentration to compute `(-property, cost)`; negation converts property maximization into minimization.
 
-It enables component replacement and swaps, sets the concentration step to `0.05`, and initializes `group_selection_weights` to `Component=1.0, Concentration=4.0`. With `adaptative_selection=True`, these weights change after each temperature. Swapping components matters because their concentration coefficients differ.
+Use the notebook's optimization-specific settings as follows:
+
+```python
+opt.set_population(Component=component.tolist(), Concentration=(0.0, 0.1))
+opt.objective_weights = [X.max() - X.min(), Cost.max() - Cost.min()]
+opt.adaptative_selection = True
+opt.set_opt_param("number_of_elements", Component=2, Concentration=1)
+opt.set_opt_param("group_selection_weights", Component=1.0, Concentration=4.0)
+opt.set_opt_param("distinct_elements", Component=True)
+opt.set_opt_param("change_value_move", Component=1.0, Concentration=1.0)
+opt.set_opt_param("swap_move", Component=1.0)
+opt.set_opt_param("mc_step_size", Concentration=0.05)
+```
+
+The objective ranges scale acceptance decisions; they are not TOPSIS preference weights. With `adaptative_selection=True`, group-selection weights change as the run proceeds. Swapping components matters because their concentration coefficients differ.
+
+The notebook sets `restart=False`, reseeds NumPy with `1`, `2`, and `3`, assigns a distinct archive file for each run, and snapshots every result with `copyx()`. Use the `mosa-analyze` skill to merge those snapshots, plot the Pareto front, apply property thresholds, reduce candidates, compute statistics, or select a TOPSIS solution.

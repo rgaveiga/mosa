@@ -6,6 +6,7 @@ Source: the corresponding property docstrings in `mosa/mosa.py`; alloy, Fonseca-
 | --- | --- | --- |
 | `initial_temperature` | `None` | Automatic calibration; explicit positive float overrides it |
 | `auto_high_temperature` | `True` | Cannot override an explicitly assigned initial temperature |
+| `number_of_runs_high_temperature_estimate` | `100` | Positive integer; random objective evaluations for the initial temperature estimate |
 | `high_temperature_acceptance_threshold` | `0.8` | Calibration target, strictly between 0 and 1 |
 | `temperature_decrease_factor` | `0.9` | Float strictly between 0 and 1 |
 | `number_of_temperatures` | `10` | Positive integer schedule length |
@@ -19,6 +20,8 @@ Source: the corresponding property docstrings in `mosa/mosa.py`; alloy, Fonseca-
 | `solution_cache` | `False` | Consider for expensive, repeatable objective evaluations |
 | `solution_cache_size` | `10000` | Positive integer cache limit |
 | `track_optimization_progress` | `False` | Record accepted values in `accepted_objective_values` |
+
+When `auto_high_temperature` is enabled and `initial_temperature` was not assigned explicitly, calibration evaluates `number_of_runs_high_temperature_estimate` independently randomized complete solutions. These evaluations are additional objective calls before annealing. Invalid results are skipped; valid solutions enter the nondominated archive. The first temperature uses the mean signed difference of each objective between consecutive valid evaluations. If every result is invalid, `evolve()` raises `MOSAError`; with only one valid result, the zero-difference fallback gives a temperature of 1.0. A later high-temperature stage may still be added according to `high_temperature_acceptance_threshold`.
 
 `objective_weights` scales objective deltas in acceptance: worsening is divided by the corresponding weight. Use one positive finite scale per objective, e.g. the property/cost ranges in the alloy example. Larger values reduce that objective's influence on rejection. These are separate from TOPSIS preference weights passed to `bestx`.
 
