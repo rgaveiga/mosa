@@ -40,7 +40,17 @@ def test_automatic_temperature_api_defaults_and_validation() -> None:
 @pytest.mark.parametrize(
     ("objectives", "expected"),
     [
-        ([0.5, 0.7], 1.0),
+        ([0.2], 1.0),
+        ([0.5], 10.0),
+        ([0.8], 10.0),
+        ([1.0], 10.0),
+        ([1.5], 10.0),
+        ([5.0], 10.0),
+        ([10.0], 100.0),
+        ([15.0], 100.0),
+        ([60.0], 100.0),
+        ([0.5, 0.7], 10.0),
+        ([0.0, 1.0], 10.0),
         ([50.0, 70.0], 100.0),
         ([-50.0, 70.0], 100.0),
         ([0.0, 0.0], 1.0),
@@ -338,9 +348,35 @@ def test_random_estimate_uses_successive_valid_differences_and_archive(
     assert len(solutions) == 5
     assert all(value in (1, 2, 3, 4, 5) for value in solutions)
     assert len(set(solutions)) > 1
-    assert observed_differences == [[-4.0, 0.5]]
+    assert observed_differences == [[4, 3]]
     assert anneal.archive["f"] == [[10.0, 5.0], [2.0, 6.0]]
     assert anneal.archive["x"] == [{"X": solutions[0]}, {"X": solutions[3]}]
+
+
+def test_random_estimate_does_not_cancel_opposite_differences(monkeypatch) -> None:
+    anneal = Anneal()
+    anneal.number_of_runs_high_temperature_estimate = 3
+    results = iter([(10.0,), (3.0,), (10.0,)])
+    observed_differences = []
+
+    def objective(X):
+        return next(results)
+
+    def estimate(differences):
+        observed_differences.append(differences)
+        return 10.0
+
+    monkeypatch.setattr(anneal, "_Anneal__estimate_initial_temperature", estimate)
+    temperature = anneal._Anneal__estimate_initial_high_temperature(
+        objective,
+        {"X": [1, 2, 3]},
+        {"X": 1},
+        {"X": False},
+        {"X": False},
+    )
+
+    assert temperature == 10.0
+    assert observed_differences == [[7]]
 
 
 def test_invalid_initial_result_uses_valid_random_solution() -> None:
@@ -359,7 +395,7 @@ def test_invalid_initial_result_uses_valid_random_solution() -> None:
     anneal.evolve(objective)
 
     assert calls >= 3
-    assert anneal.initial_temperature == pytest.approx(1.0)
+    assert anneal.initial_temperature == pytest.approx(10.0)
     assert all(value[0] == value[0] for value in anneal.archive["f"])
 
 

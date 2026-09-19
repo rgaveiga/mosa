@@ -4,7 +4,7 @@ import json
 import os
 import warnings
 from copy import deepcopy
-from math import ceil, exp, floor, inf, isclose, isfinite, isinf, isnan, log10
+from math import exp, floor, inf, isclose, isfinite, isinf, isnan, log10
 from numbers import Real
 from typing import Any, Sequence
 
@@ -1717,7 +1717,11 @@ class Anneal:
         xsort: dict[str, bool],
         expected_count: int | None = None,
     ) -> float:
-        """Estimate the first high temperature from successive random solutions."""
+        """Estimate the first high temperature from successive random solutions.
+
+        Use consecutive valid evaluations to compute each objective's mean
+        absolute difference, rounding halves up before estimating the scale.
+        """
 
         sample_states = {
             group: _GroupState.create(values, xnel[group])
@@ -1763,7 +1767,7 @@ class Anneal:
             self.__updatearchive(solution, values)
             if previous is not None:
                 for index, value in enumerate(values):
-                    delta_sums[index] += value - previous[index]
+                    delta_sums[index] += abs(value - previous[index])
                 number_of_deltas += 1
             else:
                 delta_sums = [0.0] * len(values)
@@ -1776,7 +1780,7 @@ class Anneal:
             )
 
         mean_deltas = (
-            [total / number_of_deltas for total in delta_sums]
+            [floor(total / number_of_deltas + 0.5) for total in delta_sums]
             if number_of_deltas
             else [0.0] * len(previous)
         )
@@ -1785,6 +1789,10 @@ class Anneal:
     def __estimate_initial_temperature(
         self, objective_values: ObjectiveValues
     ) -> float:
+        """Round the mean objective scale and select its next power of ten.
+
+        Round halves up. A rounded scale of zero yields a temperature of 1.0.
+        """
         if not objective_values:
             raise MOSAError(
                 "Initial objective values must be a non-empty sequence of finite numbers!"
@@ -1808,11 +1816,12 @@ class Anneal:
         if not isfinite(objective_scale):
             raise MOSAError("Initial objective scale must be finite!")
 
-        if objective_scale == 0.0:
+        rounded_scale = floor(objective_scale + 0.5)
+        if rounded_scale == 0:
             temperature = 1.0
         else:
             try:
-                temperature = 10.0 ** ceil(log10(objective_scale))
+                temperature = 10.0 ** (floor(log10(rounded_scale)) + 1)
             except (OverflowError, ValueError) as error:
                 raise MOSAError(
                     "Automatic initial temperature must be finite and greater than zero!"
@@ -2648,7 +2657,11 @@ class Anneal:
         The default is `True` because `initial_temperature` defaults to `None`.
         When enabled and `initial_temperature` has not
         been explicitly assigned, the first temperature is estimated from the
-        mean consecutive objective differences of random solutions. If its
+        mean absolute difference of each objective between consecutive valid
+        random evaluations. Each mean is rounded to the nearest integer with
+        halves rounded up. The mean of these objective scales is rounded the
+        same way: zero gives 1.0, and a positive value gives the next power of
+        ten (for example, 1 or 5 gives 10.0; 15 or 60 gives 100.0). If its
         expected mean MOSA acceptance probability is below the configured target,
         one higher calibration stage is used before
         quenching begins. If `initial_temperature` has been explicitly assigned
