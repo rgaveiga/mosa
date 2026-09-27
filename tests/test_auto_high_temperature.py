@@ -40,7 +40,17 @@ def test_automatic_temperature_api_defaults_and_validation() -> None:
 @pytest.mark.parametrize(
     ("objectives", "expected"),
     [
-        ([0.5, 0.7], 1.0),
+        ([0.2], 1.0),
+        ([0.5], 10.0),
+        ([0.8], 10.0),
+        ([1.0], 10.0),
+        ([1.5], 10.0),
+        ([5.0], 10.0),
+        ([10.0], 100.0),
+        ([15.0], 100.0),
+        ([60.0], 100.0),
+        ([0.5, 0.7], 10.0),
+        ([0.0, 1.0], 10.0),
         ([50.0, 70.0], 100.0),
         ([-50.0, 70.0], 100.0),
         ([0.0, 0.0], 1.0),
@@ -208,7 +218,7 @@ def test_automatic_calibration_rejects_infinite_trial_objectives(penalty) -> Non
         evaluations += 1
         return (0.0,) if evaluations == 1 else (penalty,)
 
-    with pytest.raises(MOSAError, match="Define initial temperature manually"):
+    with pytest.raises(MOSAError, match="no valid objective values"):
         anneal.evolve(objective)
 
 
@@ -217,7 +227,7 @@ def test_automatic_calibration_rejects_infinite_initial_objectives(penalty) -> N
     random.seed(17)
     anneal = _configured_anneal()
 
-    with pytest.raises(MOSAError, match="Define initial temperature manually"):
+    with pytest.raises(MOSAError, match="no valid objective values"):
         anneal.evolve(lambda X: (penalty,))
 
 
@@ -292,3 +302,144 @@ def test_one_temperature_does_not_add_a_heating_stage() -> None:
     anneal.auto_high_temperature = True
     anneal.evolve(lambda X: (1000.0 * X,))
     assert len(anneal._temp) == 1
+
+
+def test_high_temperature_run_count_api() -> None:
+    anneal = Anneal()
+    assert anneal.number_of_runs_high_temperature_estimate == 100
+    anneal.number_of_runs_high_temperature_estimate = 3
+    assert anneal.number_of_runs_high_temperature_estimate == 3
+
+    for value in (True, False, 0, -1, 1.0, "2", None):
+        with pytest.raises(MOSAError):
+            anneal.number_of_runs_high_temperature_estimate = value
+
+
+def test_random_estimate_uses_successive_valid_differences_and_archive(
+    monkeypatch,
+) -> None:
+    random.seed(23)
+    anneal = Anneal()
+    anneal.number_of_runs_high_temperature_estimate = 5
+    results = iter(
+        [(10.0, 5.0), (float("nan"), 0.0), (3.0, 8.0), (2.0, 6.0), (float("inf"), 0.0)]
+    )
+    solutions = []
+    observed_differences = []
+
+    def objective(X):
+        solutions.append(X)
+        return next(results)
+
+    def estimate(differences):
+        observed_differences.append(differences)
+        return 10.0
+
+    monkeypatch.setattr(anneal, "_Anneal__estimate_initial_temperature", estimate)
+    temperature = anneal._Anneal__estimate_initial_high_temperature(
+        objective,
+        {"X": [1, 2, 3, 4, 5]},
+        {"X": 1},
+        {"X": False},
+        {"X": False},
+    )
+
+    assert temperature == 10.0
+    assert len(solutions) == 5
+    assert all(value in (1, 2, 3, 4, 5) for value in solutions)
+    assert len(set(solutions)) > 1
+    assert observed_differences == [[4, 3]]
+    assert anneal.archive["f"] == [[10.0, 5.0], [2.0, 6.0]]
+    assert anneal.archive["x"] == [{"X": solutions[0]}, {"X": solutions[3]}]
+
+
+def test_random_estimate_does_not_cancel_opposite_differences(monkeypatch) -> None:
+    anneal = Anneal()
+    anneal.number_of_runs_high_temperature_estimate = 3
+    results = iter([(10.0,), (3.0,), (10.0,)])
+    observed_differences = []
+
+    def objective(X):
+        return next(results)
+
+    def estimate(differences):
+        observed_differences.append(differences)
+        return 10.0
+
+    monkeypatch.setattr(anneal, "_Anneal__estimate_initial_temperature", estimate)
+    temperature = anneal._Anneal__estimate_initial_high_temperature(
+        objective,
+        {"X": [1, 2, 3]},
+        {"X": 1},
+        {"X": False},
+        {"X": False},
+    )
+
+    assert temperature == 10.0
+    assert observed_differences == [[7]]
+
+
+def test_invalid_initial_result_uses_valid_random_solution() -> None:
+    random.seed(19)
+    anneal = _configured_anneal()
+    anneal.number_of_runs_high_temperature_estimate = 2
+    anneal.number_of_iterations = 1
+    anneal.number_of_temperatures = 1
+    calls = 0
+
+    def objective(X):
+        nonlocal calls
+        calls += 1
+        return (float("nan"),) if calls == 1 else (float(calls),)
+
+    anneal.evolve(objective)
+
+    assert calls >= 3
+    assert anneal.initial_temperature == pytest.approx(10.0)
+    assert all(value[0] == value[0] for value in anneal.archive["f"])
+
+
+def test_explicit_initial_temperature_skips_random_estimate() -> None:
+    anneal = _configured_anneal()
+    anneal.initial_temperature = 2.0
+    anneal.number_of_runs_high_temperature_estimate = 5
+    anneal.number_of_iterations = 1
+    anneal.number_of_temperatures = 1
+    calls = 0
+
+    def objective(X):
+        nonlocal calls
+        calls += 1
+        return (X,)
+
+    anneal.evolve(objective)
+
+    assert calls == 2
+    assert anneal.initial_temperature == 2.0
+
+
+def test_random_estimate_samples_all_groups_and_preserves_shapes() -> None:
+    random.seed(31)
+    anneal = Anneal()
+    anneal.set_population(X=(0.0, 1.0), Y=["a", "b", "c", "d"])
+    anneal.set_group_params("X", number_of_elements=2)
+    anneal.set_group_params("Y", number_of_elements=2, distinct_elements=True)
+    anneal.restart = False
+    anneal.number_of_temperatures = 1
+    anneal.number_of_iterations = 1
+    anneal.number_of_runs_high_temperature_estimate = 4
+    observed = []
+
+    def objective(X, Y):
+        assert X.shape == (2,)
+        assert isinstance(Y, list) and len(Y) == len(set(Y)) == 2
+        assert all(0.0 <= value <= 1.0 for value in X)
+        observed.append((tuple(X), tuple(Y)))
+        return (float(sum(X)),)
+
+    anneal.evolve(objective)
+
+    assert len(observed) >= 5
+    assert len({sample[0] for sample in observed[:5]}) > 1
+    assert len({sample[1] for sample in observed[:5]}) > 1
+    assert all(isinstance(item["X"], list) for item in anneal.archive["x"])

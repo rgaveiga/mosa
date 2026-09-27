@@ -162,6 +162,7 @@ def test_corana_silently_clamps_continuous_step(
     monkeypatch.setattr(mosa_module, "uniform", record_uniform)
     monkeypatch.setattr(mosa_module, "corana_step_length", lambda *args: adapted_step)
     optimizer = configured_continuous_optimizer()
+    optimizer.initial_temperature = 1.0
     optimizer.adaptative_mc_step = True
     optimizer.number_of_temperatures = 2
 

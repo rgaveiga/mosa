@@ -60,6 +60,7 @@ def test_mc_step_increment_api_and_validation() -> None:
 
 def test_default_continuous_change_uses_uniform(monkeypatch) -> None:
     optimizer = configured_optimizer()
+    optimizer.initial_temperature = 1.0
     calls = []
     original_uniform = mosa_module.uniform
 
@@ -76,6 +77,7 @@ def test_default_continuous_change_uses_uniform(monkeypatch) -> None:
 
 def test_exact_mc_step_increment_grid_includes_both_limits(monkeypatch) -> None:
     optimizer = configured_optimizer()
+    optimizer.initial_temperature = 1.0
     optimizer.mc_step_increment = {"X": 0.01}
     selected = iter((0, 50, 100))
     monkeypatch.setattr(mosa_module, "choice", lambda size, *args: next(selected))
@@ -94,6 +96,7 @@ def test_exact_mc_step_increment_grid_includes_both_limits(monkeypatch) -> None:
 
 def test_non_divisible_increment_warns_and_excludes_upper_limit(monkeypatch) -> None:
     optimizer = configured_optimizer()
+    optimizer.initial_temperature = 1.0
     optimizer.number_of_iterations = 1
     optimizer.set_opt_param("mc_step_increment", X=0.3)
     monkeypatch.setattr(mosa_module, "choice", lambda size, *args: size - 1)

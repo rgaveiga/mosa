@@ -148,6 +148,6 @@ can be solved with MOSA can be found in the Jupyter notebooks in the
 [examples](https://github.com/rgaveiga/mosa/tree/main/examples) directory.
 """
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 
 from .mosa import Anneal

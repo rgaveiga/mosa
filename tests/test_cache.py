@@ -131,6 +131,7 @@ def test_evolve_reports_reused_move_fraction_and_resets_counter(
     optimizer = mosa.Anneal()
     optimizer.solution_cache = True
     optimizer.set_population(X=[0, 1])
+    optimizer.initial_temperature = 1.0
     optimizer.number_of_temperatures = 2
     optimizer.number_of_iterations = 1
     optimizer.maximum_archive_rejections = 100
