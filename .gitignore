@@ -8,3 +8,4 @@ runpdoc.bat
 .pytest_cache
 .benchmarks
 benchmarks
+spec*
