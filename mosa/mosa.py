@@ -379,22 +379,23 @@ class Anneal:
         display_sel_prob = tuple(
             selweights[group] / selection_weight_total for group in groups
         )
+        group_messages: dict[str, list[str]] = {group: [] for group in groups}
 
-        print("------\n")
-        print("Groups in the solution:\n======================\n")
+        def display_group(group: str, message: str) -> None:
+            group_messages[group].append(message)
 
         for group in groups:
-            print(f"    {group}:")
+            display_group(group, f"    {group}:")
 
             if group in self._xnel.keys() and self._xnel[group] > 0:
                 xnel[group] = self._xnel[group]
             else:
                 xnel[group] = 1
 
-            print(f"        Number of elements: {xnel[group]}")
+            display_group(group, f"        Number of elements: {xnel[group]}")
 
             if isinstance(population[group], tuple):
-                print("        Sample space: continuous")
+                display_group(group, "        Sample space: continuous")
 
                 if len(population[group]) <= 1:
                     raise MOSAError(f"Two numbers are expected in group {group}!")
@@ -412,10 +413,15 @@ class Anneal:
                         f"Second element in group {group} must be larger than the first one!"
                     )
 
-                print(f"        Boundaries: ({xbounds[group][0]},{xbounds[group][1]})")
+                display_group(
+                    group,
+                    f"        Boundaries: ({xbounds[group][0]},{xbounds[group][1]})",
+                )
             elif isinstance(population[group], list):
-                print("        Sample space: discrete")
-                print(f"        Size of population group: {len(population[group])}")
+                display_group(group, "        Sample space: discrete")
+                display_group(
+                    group, f"        Size of population group: {len(population[group])}"
+                )
 
                 if (
                     len(population[group]) <= 1
@@ -433,13 +439,15 @@ class Anneal:
                 else:
                     xdistinct[group] = False
 
-                print(f"        Distinct elements: {xdistinct[group]}")
+                display_group(group, f"        Distinct elements: {xdistinct[group]}")
             else:
                 raise MOSAError(f"Wrong format of group {group}!")
 
             totlength += selweights[group]
             selection_probability = selweights[group] / selection_weight_total
-            print(f"        Selection probability: {selection_probability:.6f}")
+            display_group(
+                group, f"        Selection probability: {selection_probability:.6f}"
+            )
 
             sellength[group] = totlength
 
@@ -470,27 +478,34 @@ class Anneal:
                 changemove[group] + swapmove[group] + insordelmove[group]
             )
             if trial_move_weight > 0.0:
-                print("        Trial move probabilities:")
+                display_group(group, "        Trial move probabilities:")
                 if changemove[group] > 0.0:
-                    print(
+                    display_group(
+                        group,
                         f"            Change value: "
-                        f"{changemove[group] / trial_move_weight}"
+                        f"{changemove[group] / trial_move_weight}",
                     )
                 if swapmove[group] > 0.0:
-                    print(f"            Swap: {swapmove[group] / trial_move_weight}")
-                if insordelmove[group] > 0.0:
-                    print(
-                        f"            Insert or delete: "
-                        f"{insordelmove[group] / trial_move_weight}"
+                    display_group(
+                        group,
+                        f"            Swap: {swapmove[group] / trial_move_weight}",
                     )
-                    print(f"        Maximum number of elements: {maxnel[group]}")
+                if insordelmove[group] > 0.0:
+                    display_group(
+                        group,
+                        f"            Insert or delete: "
+                        f"{insordelmove[group] / trial_move_weight}",
+                    )
+                    display_group(
+                        group, f"        Maximum number of elements: {maxnel[group]}"
+                    )
 
             if swapmove[group] == 0.0 and group in self._xsort.keys():
                 xsort[group] = bool(self._xsort[group])
             else:
                 xsort[group] = False
 
-            print(f"        Sort values: {xsort[group]}")
+            display_group(group, f"        Sort values: {xsort[group]}")
 
             if xsampling[group] == 1:
                 boundary_range = float(xbounds[group][1] - xbounds[group][0])
@@ -502,15 +517,17 @@ class Anneal:
                     xstep[group] = float(self._xstep[group])
 
                     if xstep[group] < minimum_xstep:
-                        print(
+                        display_group(
+                            group,
                             f"        WARNING: Monte Carlo step size for continuous "
-                            f"group '{group}' is below the minimum {minimum_xstep}."
+                            f"group '{group}' is below the minimum {minimum_xstep}.",
                         )
                         xstep[group] = minimum_xstep
                     elif xstep[group] > maximum_xstep:
-                        print(
+                        display_group(
+                            group,
                             f"        WARNING: Monte Carlo step size for continuous "
-                            f"group '{group}' is above the maximum {maximum_xstep}."
+                            f"group '{group}' is above the maximum {maximum_xstep}.",
                         )
                         xstep[group] = maximum_xstep
                 else:
@@ -525,7 +542,7 @@ class Anneal:
                 xstep[group] = 0
 
             if xsampling[group] == 1:
-                print(f"        Maximum step size: {xstep[group]}")
+                display_group(group, f"        Maximum step size: {xstep[group]}")
 
                 if group in self._xincrement:
                     try:
@@ -545,13 +562,14 @@ class Anneal:
 
                     xincrement[group] = configured_increment
                     update_increment_count(group)
-                    print(f"        Step increment: {xincrement[group]}")
+                    display_group(group, f"        Step increment: {xincrement[group]}")
 
                 if self._xcache and group not in self._xincrement:
-                    print(
+                    display_group(
+                        group,
                         "        WARNING: The solution cache is enabled, but no Monte "
                         "Carlo step increment was set for continuous group "
-                        f"'{group}'. This may prevent effective use of the cache."
+                        f"'{group}'. This may prevent effective use of the cache.",
                     )
             elif (
                 xsampling[group] == 0
@@ -561,9 +579,11 @@ class Anneal:
                     xstep[group] = int(len(population[group]) / 2)
 
                 if xstep[group] >= MIN_STEP_LENGTH:
-                    print(f"        Maximum step size: {xstep[group]}")
+                    display_group(group, f"        Maximum step size: {xstep[group]}")
                 else:
-                    print("        Elements selected at random from the population")
+                    display_group(
+                        group, "        Elements selected at random from the population"
+                    )
 
             if (
                 xsampling[group] == 0
@@ -616,8 +636,6 @@ class Anneal:
                 group: self._groupstates[group].decode_objective_solution()
                 for group in groups
             }
-
-        print("------")
 
         if from_archive:
             print("Initial solution loaded from the archive...")
@@ -726,10 +744,12 @@ class Anneal:
 
         self.__validate_calibration_weights(weight)
 
-        print("Objectives:\n===========\n")
-        for objective_index, objective_weight in enumerate(weight):
-            print(f"    Objective {objective_index}:")
-            print(f"        Objective weight: {objective_weight}")
+        print("Groups in the solution:\n======================\n")
+        for group in groups:
+            for message in group_messages[group]:
+                print(message)
+        print("------")
+        print(f"Objective weights: {[float(objective_weight) for objective_weight in weight]}")
         print("------")
 
         if self._initemp is None:

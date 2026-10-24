@@ -3,7 +3,7 @@
 from math import exp, inf
 
 import pytest
-from numpy import random
+from numpy import float64, random
 
 from mosa import Anneal
 from mosa._error import MOSAError
@@ -308,9 +308,10 @@ def test_verbose_automatic_calibration_has_concise_status(capsys) -> None:
     output = capsys.readouterr().out
     assert (
         "Estimating initial high-temperature...\nDone!\n------\n"
-        "Objectives:\n===========\n"
+        "Groups in the solution:\n======================\n"
     ) in output
-    assert "        Objective weight: 1.0\n------\nTEMPERATURE:" in output
+    assert "        Maximum step size: 0.25" in output
+    assert "------\nObjective weights: [1.0]\n------\nTEMPERATURE:" in output
     for unnecessary_message in (
         "Initial objective scale:",
         "Initial calibration temperature:",
@@ -478,14 +479,17 @@ def test_automatic_weights_replace_configured_weights_and_are_printed(
     assert anneal.objective_weights == pytest.approx([1.0, 0.1])
     assert observed_weights == [[1.0, 0.1]]
     output = capsys.readouterr().out
-    assert "        Objective weight: 1.0" in output
-    assert "        Objective weight: 0.1" in output
-    assert output.index("Maximum step size:") < output.index("Objective weight:")
+    assert "Objective weights: [1.0, 0.1]\n------" in output
+    assert output.index("------\nObjective weights:") > output.index("Maximum step size:")
 
 
 @pytest.mark.parametrize(
     ("configured_weights", "expected_weights"),
-    [([2.0, 4.0], [2.0, 4.0]), ([], [1.0, 1.0])],
+    [
+        ([2.0, 4.0], [2.0, 4.0]),
+        ([float64(2.0), float64(4.0)], [2.0, 4.0]),
+        ([], [1.0, 1.0]),
+    ],
 )
 def test_manual_temperature_prints_effective_objective_weights(
     configured_weights, expected_weights, capsys
@@ -499,8 +503,28 @@ def test_manual_temperature_prints_effective_objective_weights(
     anneal.evolve(lambda X: (X, 2.0 * X))
 
     output = capsys.readouterr().out
-    for objective_weight in expected_weights:
-        assert f"        Objective weight: {objective_weight}" in output
+    assert f"Objective weights: {expected_weights}\n------" in output
+
+
+def test_objective_weights_are_printed_after_groups_separator(capsys) -> None:
+    anneal = Anneal()
+    anneal.set_population(Component=list(range(26)), Concentration=(0.0, 0.1))
+    anneal.set_group_params("Component", number_of_elements=2, distinct_elements=True)
+    anneal.set_group_params("Concentration", mc_step_size=0.05)
+    anneal.initial_temperature = 1.0
+    anneal.objective_weights = [12.0, 458.0]
+    anneal.restart = False
+    anneal.number_of_iterations = 1
+    anneal.number_of_temperatures = 1
+
+    anneal.evolve(
+        lambda Component, Concentration: (float(sum(Component)), Concentration)
+    )
+
+    output = capsys.readouterr().out
+    assert "        Maximum step size: 13" in output
+    assert "        Maximum step size: 0.05" in output
+    assert "------\nObjective weights: [12.0, 458.0]\n------" in output
 
 
 def test_invalid_initial_result_uses_valid_random_solution() -> None:
