@@ -3,7 +3,7 @@
 from math import exp, inf
 
 import pytest
-from numpy import random
+from numpy import float64, random
 
 from mosa import Anneal
 from mosa._error import MOSAError
@@ -85,6 +85,32 @@ def test_reduced_deltas_and_acceptance_match_mosa_equation() -> None:
     p2 = exp(-1.0)
     expected = 0.75 * p1 * p2 + 0.25 * max(p1, p2)
     assert probability([1.0, 2.0], 2.0) == pytest.approx(expected)
+
+
+def test_individual_temperatures_scale_trial_acceptance() -> None:
+    anneal = Anneal()
+    trial_acceptance = anneal._Anneal__trial_acceptance
+
+    reduced, probability = trial_acceptance(
+        [0.0, 0.0],
+        [5.0, 0.5],
+        [1.0, 0.1],
+        10.0,
+        collect_reduced_delta=True,
+    )
+
+    assert reduced == pytest.approx([5.0, 5.0])
+    assert probability == pytest.approx(exp(-1.0))
+
+    anneal.alpha = 0.25
+    _, probability = trial_acceptance(
+        [0.0, 0.0],
+        [5.0, 0.5],
+        [1.0, 0.1],
+        10.0,
+        collect_reduced_delta=True,
+    )
+    assert probability == pytest.approx(0.75 * exp(-1.0) + 0.25 * exp(-0.5))
 
 
 @pytest.mark.parametrize("penalty", [inf, float("nan")])
@@ -281,8 +307,11 @@ def test_verbose_automatic_calibration_has_concise_status(capsys) -> None:
 
     output = capsys.readouterr().out
     assert (
-        "Estimating initial high-temperature...\nDone!\n------\n" "TEMPERATURE:"
+        "Estimating initial high-temperature...\nDone!\n------\n"
+        "Groups in the solution:\n======================\n"
     ) in output
+    assert "        Maximum step size: 0.25" in output
+    assert "------\nObjective weights: [1.0]\n------\nTEMPERATURE:" in output
     for unnecessary_message in (
         "Initial objective scale:",
         "Initial calibration temperature:",
@@ -348,7 +377,8 @@ def test_random_estimate_uses_successive_valid_differences_and_archive(
     assert len(solutions) == 5
     assert all(value in (1, 2, 3, 4, 5) for value in solutions)
     assert len(set(solutions)) > 1
-    assert observed_differences == [[4, 3]]
+    assert observed_differences == [[4], [3]]
+    assert anneal.objective_weights == pytest.approx([1.0, 1.0])
     assert anneal.archive["f"] == [[10.0, 5.0], [2.0, 6.0]]
     assert anneal.archive["x"] == [{"X": solutions[0]}, {"X": solutions[3]}]
 
@@ -377,6 +407,124 @@ def test_random_estimate_does_not_cancel_opposite_differences(monkeypatch) -> No
 
     assert temperature == 10.0
     assert observed_differences == [[7]]
+    assert anneal.objective_weights == pytest.approx([1.0])
+
+
+@pytest.mark.parametrize(
+    ("results", "expected_temperature", "expected_weights"),
+    [
+        ([(0.0, 0.0), (5.0, 0.0)], 10.0, [1.0, 0.1]),
+        ([(0.0, 0.0), (0.0, 5.0)], 1.0, [1.0, 10.0]),
+        ([(0.0, 0.0, 0.0), (5.0, 0.0, 60.0)], 10.0, [1.0, 0.1, 10.0]),
+        ([(0.0, 0.0), (0.0, 0.0)], 1.0, [1.0, 1.0]),
+        ([(0.0,), (5.0,)], 10.0, [1.0]),
+    ],
+)
+def test_random_estimate_calibrates_each_objective_individually(
+    results, expected_temperature, expected_weights
+) -> None:
+    anneal = Anneal()
+    anneal.number_of_runs_high_temperature_estimate = len(results)
+    objective_results = iter(results)
+
+    temperature = anneal._Anneal__estimate_initial_high_temperature(
+        lambda X: next(objective_results),
+        {"X": [1, 2]},
+        {"X": 1},
+        {"X": False},
+        {"X": False},
+    )
+
+    assert temperature == pytest.approx(expected_temperature)
+    assert anneal.objective_weights == pytest.approx(expected_weights)
+
+
+def test_single_valid_calibration_result_uses_unit_scales() -> None:
+    anneal = Anneal()
+    anneal.number_of_runs_high_temperature_estimate = 1
+
+    temperature = anneal._Anneal__estimate_initial_high_temperature(
+        lambda X: (3.0, 7.0),
+        {"X": [1, 2]},
+        {"X": 1},
+        {"X": False},
+        {"X": False},
+    )
+
+    assert temperature == pytest.approx(1.0)
+    assert anneal.objective_weights == pytest.approx([1.0, 1.0])
+
+
+def test_automatic_weights_replace_configured_weights_and_are_printed(
+    capsys, monkeypatch
+) -> None:
+    anneal = _configured_anneal()
+    anneal.number_of_runs_high_temperature_estimate = 2
+    anneal.number_of_iterations = 1
+    anneal.number_of_temperatures = 1
+    anneal.objective_weights = [8.0, 9.0]
+    results = iter([(0.0, 0.0), (0.0, 0.0), (5.0, 0.0), (0.0, 0.0)])
+    observed_weights = []
+    trial_acceptance = anneal._Anneal__trial_acceptance
+
+    def record_trial_acceptance(current, trial, weights, temperature, **kwargs):
+        observed_weights.append(list(weights))
+        return trial_acceptance(current, trial, weights, temperature, **kwargs)
+
+    monkeypatch.setattr(anneal, "_Anneal__trial_acceptance", record_trial_acceptance)
+
+    anneal.evolve(lambda X: next(results))
+
+    assert anneal.initial_temperature == pytest.approx(10.0)
+    assert anneal.objective_weights == pytest.approx([1.0, 0.1])
+    assert observed_weights == [[1.0, 0.1]]
+    output = capsys.readouterr().out
+    assert "Objective weights: [1.0, 0.1]\n------" in output
+    assert output.index("------\nObjective weights:") > output.index("Maximum step size:")
+
+
+@pytest.mark.parametrize(
+    ("configured_weights", "expected_weights"),
+    [
+        ([2.0, 4.0], [2.0, 4.0]),
+        ([float64(2.0), float64(4.0)], [2.0, 4.0]),
+        ([], [1.0, 1.0]),
+    ],
+)
+def test_manual_temperature_prints_effective_objective_weights(
+    configured_weights, expected_weights, capsys
+) -> None:
+    anneal = _configured_anneal()
+    anneal.initial_temperature = 2.0
+    anneal.number_of_iterations = 1
+    anneal.number_of_temperatures = 1
+    anneal.objective_weights = configured_weights
+
+    anneal.evolve(lambda X: (X, 2.0 * X))
+
+    output = capsys.readouterr().out
+    assert f"Objective weights: {expected_weights}\n------" in output
+
+
+def test_objective_weights_are_printed_after_groups_separator(capsys) -> None:
+    anneal = Anneal()
+    anneal.set_population(Component=list(range(26)), Concentration=(0.0, 0.1))
+    anneal.set_group_params("Component", number_of_elements=2, distinct_elements=True)
+    anneal.set_group_params("Concentration", mc_step_size=0.05)
+    anneal.initial_temperature = 1.0
+    anneal.objective_weights = [12.0, 458.0]
+    anneal.restart = False
+    anneal.number_of_iterations = 1
+    anneal.number_of_temperatures = 1
+
+    anneal.evolve(
+        lambda Component, Concentration: (float(sum(Component)), Concentration)
+    )
+
+    output = capsys.readouterr().out
+    assert "        Maximum step size: 13" in output
+    assert "        Maximum step size: 0.05" in output
+    assert "------\nObjective weights: [12.0, 458.0]\n------" in output
 
 
 def test_invalid_initial_result_uses_valid_random_solution() -> None:
