@@ -726,6 +726,12 @@ class Anneal:
 
         self.__validate_calibration_weights(weight)
 
+        print("Objectives:\n===========\n")
+        for objective_index, objective_weight in enumerate(weight):
+            print(f"    Objective {objective_index}:")
+            print(f"        Objective weight: {objective_weight}")
+        print("------")
+
         if self._initemp is None:
             raise MOSAError(
                 "An initial temperature must be provided or calibrated automatically!"
@@ -1717,10 +1723,12 @@ class Anneal:
         xsort: dict[str, bool],
         expected_count: int | None = None,
     ) -> float:
-        """Estimate the first high temperature from successive random solutions.
+        """Estimate objective temperatures from successive random solutions.
 
         Use consecutive valid evaluations to compute each objective's mean
-        absolute difference, rounding halves up before estimating the scale.
+        absolute difference, rounding halves up before estimating its scale.
+        Store objective weights relative to the first estimated temperature and
+        return that first temperature for the annealing schedule.
         """
 
         sample_states = {
@@ -1784,7 +1792,15 @@ class Anneal:
             if number_of_deltas
             else [0.0] * len(previous)
         )
-        return self.__estimate_initial_temperature(mean_deltas)
+        temperatures = [
+            self.__estimate_initial_temperature([delta]) for delta in mean_deltas
+        ]
+        weights = [1.0] + [
+            temperature / temperatures[0] for temperature in temperatures[1:]
+        ]
+        self.__validate_calibration_weights(weights)
+        self._weight = weights
+        return temperatures[0]
 
     def __estimate_initial_temperature(
         self, objective_values: ObjectiveValues
@@ -2615,9 +2631,11 @@ class Anneal:
     @property
     def objective_weights(self) -> ObjectiveWeightValues:
         """
-        Weights for the objectives.
+        Divisor scales for objective changes in the acceptance probability.
 
         The default is [], which means the same weight (1.0) for all objectives.
+        Automatic high-temperature calibration replaces configured values with
+        weights relative to the first objective's estimated temperature.
         """
 
         return self._weight
@@ -2635,8 +2653,9 @@ class Anneal:
         Initial temperature.
 
         The default is `None`, which enables automatic high-temperature
-        calibration. Explicitly assigning this property takes precedence over
-        automatic calibration, even when `auto_high_temperature` is `True`.
+        calibration. The automatic value is the temperature estimated for the
+        first objective. Explicitly assigning this property takes precedence
+        over automatic calibration, even when `auto_high_temperature` is `True`.
         """
 
         return self._initemp
@@ -2655,11 +2674,13 @@ class Anneal:
         Enables automatic calibration of the high-temperature stage.
 
         The default is `True` because `initial_temperature` defaults to `None`.
-        When enabled and `initial_temperature` has not been explicitly assigned, 
-        the first temperature is estimated from the mean absolute difference of 
-        each objective between consecutive valid random evaluations. 
+        When enabled and `initial_temperature` has not been explicitly assigned,
+        a temperature is estimated separately for each objective from consecutive
+        valid random evaluations. The first objective's estimate starts the
+        schedule, and the estimates relative to it become objective weights. A
+        later stage may raise the remaining schedule to meet the acceptance target.
 
-        If `initial_temperature` has been explicitly assigned by the user, setting 
+        If `initial_temperature` has been explicitly assigned by the user, setting
         this property to `True` is ignored.
         """
 
