@@ -233,8 +233,10 @@ def test_non_finite_constraint_penalty_does_not_abort_evolution(penalty) -> None
     assert evaluations > 1
 
 
-@pytest.mark.parametrize("penalty", [inf, -inf])
-def test_automatic_calibration_rejects_infinite_trial_objectives(penalty) -> None:
+@pytest.mark.parametrize("penalty", [inf, -inf, float("nan")])
+def test_automatic_calibration_rejects_majority_invalid_trial_objectives(
+    penalty,
+) -> None:
     random.seed(17)
     anneal = _configured_anneal()
     evaluations = 0
@@ -244,16 +246,24 @@ def test_automatic_calibration_rejects_infinite_trial_objectives(penalty) -> Non
         evaluations += 1
         return (0.0,) if evaluations == 1 else (penalty,)
 
-    with pytest.raises(MOSAError, match="no valid objective values"):
+    with pytest.raises(
+        MOSAError,
+        match="discarded 100 of 100 random solutions.*initial_temperature manually",
+    ):
         anneal.evolve(objective)
 
 
-@pytest.mark.parametrize("penalty", [inf, -inf])
-def test_automatic_calibration_rejects_infinite_initial_objectives(penalty) -> None:
+@pytest.mark.parametrize("penalty", [inf, -inf, float("nan")])
+def test_automatic_calibration_rejects_majority_invalid_initial_objectives(
+    penalty,
+) -> None:
     random.seed(17)
     anneal = _configured_anneal()
 
-    with pytest.raises(MOSAError, match="no valid objective values"):
+    with pytest.raises(
+        MOSAError,
+        match="discarded 100 of 100 random solutions.*initial_temperature manually",
+    ):
         anneal.evolve(lambda X: (penalty,))
 
 
@@ -383,6 +393,59 @@ def test_random_estimate_uses_successive_valid_differences_and_archive(
     assert anneal.archive["x"] == [{"X": solutions[0]}, {"X": solutions[3]}]
 
 
+@pytest.mark.parametrize(
+    "results",
+    [
+        [(0.0,), (float("nan"),), (2.0,), (float("nan"),)],
+        [(0.0,), (float("inf"),), (2.0,), (float("inf"),)],
+        [(0.0,), (float("-inf"),), (2.0,), (float("-inf"),)],
+    ],
+)
+def test_random_estimate_allows_at_most_half_invalid_solutions(results) -> None:
+    anneal = Anneal()
+    anneal.number_of_runs_high_temperature_estimate = len(results)
+    objective_results = iter(results)
+
+    temperature = anneal._Anneal__estimate_initial_high_temperature(
+        lambda X: next(objective_results),
+        {"X": [1, 2, 3, 4]},
+        {"X": 1},
+        {"X": False},
+        {"X": False},
+    )
+
+    assert temperature == pytest.approx(10.0)
+    assert anneal.archive["f"] == [[0.0]]
+
+
+def test_random_estimate_discards_each_invalid_solution_once_and_rejects_majority() -> (
+    None
+):
+    anneal = Anneal()
+    anneal.number_of_runs_high_temperature_estimate = 5
+    results = iter(
+        [
+            (0.0, inf),
+            (float("nan"), 1.0),
+            (-inf, float("nan")),
+            (2.0, 4.0),
+            (4.0, 8.0),
+        ]
+    )
+
+    with pytest.raises(
+        MOSAError,
+        match="discarded 3 of 5 random solutions.*initial_temperature manually",
+    ):
+        anneal._Anneal__estimate_initial_high_temperature(
+            lambda X: next(results),
+            {"X": [1, 2, 3, 4, 5]},
+            {"X": 1},
+            {"X": False},
+            {"X": False},
+        )
+
+
 def test_random_estimate_does_not_cancel_opposite_differences(monkeypatch) -> None:
     anneal = Anneal()
     anneal.number_of_runs_high_temperature_estimate = 3
@@ -480,7 +543,9 @@ def test_automatic_weights_replace_configured_weights_and_are_printed(
     assert observed_weights == [[1.0, 0.1]]
     output = capsys.readouterr().out
     assert "Objective weights: [1.0, 0.1]\n------" in output
-    assert output.index("------\nObjective weights:") > output.index("Maximum step size:")
+    assert output.index("------\nObjective weights:") > output.index(
+        "Maximum step size:"
+    )
 
 
 @pytest.mark.parametrize(
