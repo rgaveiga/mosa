@@ -749,7 +749,9 @@ class Anneal:
             for message in group_messages[group]:
                 print(message)
         print("------")
-        print(f"Objective weights: {[float(objective_weight) for objective_weight in weight]}")
+        print(
+            f"Objective weights: {[float(objective_weight) for objective_weight in weight]}"
+        )
         print("------")
 
         if self._initemp is None:
@@ -1745,7 +1747,8 @@ class Anneal:
     ) -> float:
         """Estimate objective temperatures from successive random solutions.
 
-        Use consecutive valid evaluations to compute each objective's mean
+        Discard random solutions with non-finite objective values. Use
+        consecutive valid evaluations to compute each objective's mean
         absolute difference, rounding halves up before estimating its scale.
         Store objective weights relative to the first estimated temperature and
         return that first temperature for the annealing schedule.
@@ -1758,6 +1761,7 @@ class Anneal:
         previous: list[float] | None = None
         delta_sums: list[float] = []
         number_of_deltas = 0
+        discarded_invalid_solutions = 0
 
         for _ in range(self._nhightempsearch):
             solution: Solution = {}
@@ -1785,8 +1789,22 @@ class Anneal:
                     state.solution.sort()
                 solution[group] = state.decode_objective_solution()
 
+            result = func(**solution)
+            try:
+                objective_values = list(result)
+            except TypeError:
+                objective_values = []
+
+            if any(
+                isinstance(value, Real)
+                and not isinstance(value, bool)
+                and not isfinite(float(value))
+                for value in objective_values
+            ):
+                discarded_invalid_solutions += 1
+
             values = self.__finite_objective_values(
-                func(**solution),
+                objective_values,
                 len(previous) if previous is not None else expected_count,
             )
             if values is None:
@@ -1800,6 +1818,14 @@ class Anneal:
             else:
                 delta_sums = [0.0] * len(values)
             previous = values
+
+        if 2 * discarded_invalid_solutions > self._nhightempsearch:
+            raise MOSAError(
+                "Automatic high-temperature calibration discarded "
+                f"{discarded_invalid_solutions} of {self._nhightempsearch} random "
+                "solutions because of non-finite objective values. Define "
+                "initial_temperature manually."
+            )
 
         if previous is None:
             raise MOSAError(
